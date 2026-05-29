@@ -281,16 +281,15 @@ class PCKZ_WooCommerce {
 
 			$customer_email  = $item->get_meta( '_pckz_customer_email' );
 			$customer_wishes = $item->get_meta( '_pckz_customer_wishes' );
+			$details_raw     = $item->get_meta( '_pckz_customer_details' );
+			if ( ! $details_raw ) {
+				$details_raw = $order->get_meta( '_pckz_customer_details' );
+			}
 			$payment_status  = $order->get_meta( '_pckz_payment_status' );
 
 			echo '<div class="pckz-order-production-block">';
 			echo '<h4>' . esc_html( $item->get_name() ) . ' — ' . esc_html__( 'Design #', 'pckz-canonical-engine' ) . esc_html( $design_id ) . '</h4>';
-			if ( $customer_email ) {
-				echo '<p><strong>' . esc_html__( 'Kunden-E-Mail:', 'pckz-canonical-engine' ) . '</strong> ' . esc_html( $customer_email ) . '</p>';
-			}
-			if ( $customer_wishes ) {
-				echo '<p><strong>' . esc_html__( 'Wünsche / Hinweise:', 'pckz-canonical-engine' ) . '</strong><br>' . esc_html( $customer_wishes ) . '</p>';
-			}
+			self::render_customer_details_admin( $details_raw, $customer_email, $customer_wishes );
 			if ( $payment_status ) {
 				echo '<p><strong>' . esc_html__( 'Zahlungsstatus:', 'pckz-canonical-engine' ) . '</strong> ' . esc_html( $payment_status ) . '</p>';
 			}
@@ -302,6 +301,42 @@ class PCKZ_WooCommerce {
 		if ( ! $found ) {
 			echo '<p>' . esc_html__( 'No customized products in this order.', 'pckz-canonical-engine' ) . '</p>';
 		}
+	}
+
+	/**
+	 * Output customer checkout fields in admin order view.
+	 *
+	 * @param string $details_raw     JSON details.
+	 * @param string $customer_email  Fallback email.
+	 * @param string $customer_wishes Wishes text.
+	 */
+	public static function render_customer_details_admin( $details_raw, $customer_email = '', $customer_wishes = '' ) {
+		$details = class_exists( 'PCKZ_Commerce' )
+			? PCKZ_Commerce::decode_customer_details( $details_raw )
+			: array();
+		if ( empty( $details ) && $customer_email ) {
+			echo '<p><strong>' . esc_html__( 'Kunden-E-Mail:', 'pckz-canonical-engine' ) . '</strong> ' . esc_html( $customer_email ) . '</p>';
+			if ( $customer_wishes ) {
+				echo '<p><strong>' . esc_html__( 'Wünsche / Hinweise:', 'pckz-canonical-engine' ) . '</strong><br>' . esc_html( $customer_wishes ) . '</p>';
+			}
+			return;
+		}
+		if ( empty( $details ) ) {
+			return;
+		}
+		$countries = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::checkout_countries() : array();
+		echo '<div class="pckz-admin-customer-details">';
+		echo '<p><strong>' . esc_html( trim( ( $details['first_name'] ?? '' ) . ' ' . ( $details['last_name'] ?? '' ) ) ) . '</strong></p>';
+		echo '<p>' . esc_html( $details['email'] ?? $customer_email ) . '<br>' . esc_html( $details['phone'] ?? '' ) . '</p>';
+		$street = trim( ( $details['street'] ?? '' ) . ' ' . ( $details['house_number'] ?? '' ) );
+		echo '<p>' . esc_html( $street ) . '<br>' . esc_html( ( $details['postal_code'] ?? '' ) . ' ' . ( $details['city'] ?? '' ) ) . '</p>';
+		if ( ! empty( $details['country'] ) ) {
+			echo '<p>' . esc_html( $countries[ $details['country'] ] ?? $details['country'] ) . '</p>';
+		}
+		if ( ! empty( $details['wishes'] ) || $customer_wishes ) {
+			echo '<p><strong>' . esc_html__( 'Wünsche / Hinweise:', 'pckz-canonical-engine' ) . '</strong><br>' . esc_html( $details['wishes'] ?: $customer_wishes ) . '</p>';
+		}
+		echo '</div>';
 	}
 
 	/**

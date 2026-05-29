@@ -757,12 +757,16 @@
 		bindActions() {
 			this.root.querySelectorAll('[data-action]').forEach((btn) => {
 				btn.addEventListener('click', () => {
-					if (btn.dataset.action === 'add-to-cart') {
+					if (COMMERCE.checkoutPaypalOnly && btn.dataset.action !== 'paypal-checkout') {
+						this.submitPaypal();
+						return;
+					}
+					if (btn.dataset.action === 'paypal-checkout') {
+						this.submitPaypal();
+					} else if (btn.dataset.action === 'add-to-cart') {
 						this.submit(true);
 					} else if (btn.dataset.action === 'submit-design') {
 						this.submit(false);
-					} else if (btn.dataset.action === 'paypal-checkout') {
-						this.submitPaypal();
 					}
 				});
 			});
@@ -851,55 +855,98 @@
 			const qty = parseInt(this.root.querySelector('[data-field="quantity"]')?.value, 10) || 1;
 			const unit = parseFloat(pricing.unit_price) || (parseFloat(pricing.base) || 0) + (parseFloat(pricing.setup_fee) || 0);
 			const total = unit * qty;
-			const el = this.root.querySelector('[data-price-total]');
-			if (!el) {
-				return;
+			const qtyEl = this.root.querySelector('[data-summary-qty]');
+			if (qtyEl) {
+				qtyEl.textContent = String(qty);
 			}
-			if (qty > 1 && total > 0) {
-				el.textContent =
-					(I18N.totalLabel || 'Gesamtbetrag') +
-					': ' +
-					this.formatMoneyAmount(total, pricing.currency_symbol, pricing.currency_code);
-				el.hidden = false;
-			} else {
-				el.hidden = true;
+			const totalEl = this.root.querySelector('[data-order-summary-total]');
+			if (totalEl && total > 0) {
+				totalEl.textContent = this.formatMoneyAmount(total, pricing.currency_symbol, pricing.currency_code);
 			}
+			const legacyTotal = this.root.querySelector('[data-price-total]');
+			if (legacyTotal) {
+				if (qty > 1 && total > 0) {
+					legacyTotal.textContent =
+						(I18N.totalLabel || 'Gesamtbetrag') +
+						': ' +
+						this.formatMoneyAmount(total, pricing.currency_symbol, pricing.currency_code);
+					legacyTotal.hidden = false;
+				} else {
+					legacyTotal.hidden = true;
+				}
+			}
+		}
+
+		getCustomerDetailsFromForm() {
+			const val = (sel) => (this.root.querySelector(sel)?.value || '').trim();
+			return {
+				first_name: val('[data-field="customer_first_name"]'),
+				last_name: val('[data-field="customer_last_name"]'),
+				email: val('[data-field="customer_email"]'),
+				phone: val('[data-field="customer_phone"]'),
+				street: val('[data-field="customer_street"]'),
+				house_number: val('[data-field="customer_house_number"]'),
+				postal_code: val('[data-field="customer_postal_code"]'),
+				city: val('[data-field="customer_city"]'),
+				country: val('[data-field="customer_country"]') || 'DE',
+				wishes: val('[data-field="customer_wishes"]'),
+			};
 		}
 
 		collectCheckoutFields() {
-			const emailEl = this.root.querySelector('[data-field="customer_email"]');
-			const wishEl = this.root.querySelector('[data-field="customer_wishes"]');
-			if (emailEl) {
-				this.selections.customer_email = emailEl.value.trim();
-			}
-			if (wishEl) {
-				this.selections.customer_wishes = wishEl.value.trim();
-			}
+			const details = this.getCustomerDetailsFromForm();
+			this.selections.customer_details = details;
+			this.selections.customer_email = details.email;
+			this.selections.customer_wishes = details.wishes;
 		}
 
 		appendCustomerFields(body) {
-			const emailEl = this.root.querySelector('[data-field="customer_email"]');
-			const wishEl = this.root.querySelector('[data-field="customer_wishes"]');
-			if (emailEl) {
-				body.append('customer_email', emailEl.value.trim());
-			}
-			if (wishEl) {
-				body.append('customer_wishes', wishEl.value.trim());
-			}
+			const details = this.getCustomerDetailsFromForm();
+			body.append('customer_details', JSON.stringify(details));
+			body.append('customer_email', details.email);
+			body.append('customer_wishes', details.wishes);
+			Object.keys(details).forEach((key) => {
+				if (key !== 'wishes') {
+					body.append('customer_' + key, details[key]);
+				}
+			});
 			if (COMMERCE.currencies || COMMERCE.pricing) {
 				body.append('currency', this.getActiveCurrency());
 			}
 		}
 
 		validateCommerce() {
-			const email = (this.root.querySelector('[data-field="customer_email"]')?.value || '').trim();
+			const details = this.getCustomerDetailsFromForm();
+			const required = [
+				['customer_first_name', 'first_name', I18N.requireFirstName],
+				['customer_last_name', 'last_name', I18N.requireLastName],
+				['customer_phone', 'phone', I18N.requirePhone],
+				['customer_street', 'street', I18N.requireStreet],
+				['customer_house_number', 'house_number', I18N.requireHouseNumber],
+				['customer_postal_code', 'postal_code', I18N.requirePostalCode],
+				['customer_city', 'city', I18N.requireCity],
+			];
+			for (const [field, key, msg] of required) {
+				if (!details[key]) {
+					this.toast(msg || I18N.checkoutIncomplete, true);
+					const el = this.root.querySelector('[data-field="' + field + '"]');
+					if (el) {
+						el.focus();
+					}
+					return false;
+				}
+			}
 			const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-			if (!email || !re.test(email)) {
+			if (!details.email || !re.test(details.email)) {
 				this.toast(I18N.requireEmail || I18N.invalidEmail, true);
 				const el = this.root.querySelector('[data-field="customer_email"]');
 				if (el) {
 					el.focus();
 				}
+				return false;
+			}
+			if (!details.country) {
+				this.toast(I18N.requireCountry || I18N.checkoutIncomplete, true);
 				return false;
 			}
 			return true;
@@ -1425,7 +1472,7 @@
 			const label = btn.querySelector('.pckz-btn__text');
 			if (label && !loading) {
 				if (btn.dataset.action === 'paypal-checkout') {
-					label.textContent = 'Jetzt sicher bezahlen';
+					label.textContent = 'Jetzt mit PayPal bezahlen';
 				} else if (btn.dataset.action === 'add-to-cart') {
 					label.textContent = 'Zur Kasse – Bestellung abschließen';
 				} else {
@@ -1434,8 +1481,8 @@
 			} else if (label && loading) {
 				label.textContent =
 					btn.dataset.action === 'paypal-checkout'
-						? I18N.paypalRedirect || I18N.saving
-						: I18N.addingToCart || I18N.saving;
+						? I18N.paypalRedirect || I18N.preparingCheckout
+						: I18N.addingToCart || I18N.preparingCheckout;
 			}
 		}
 
@@ -1453,9 +1500,13 @@
 			if (!this.validate()) {
 				return;
 			}
+			if (!this.validateCommerce()) {
+				return;
+			}
+			this.collectCheckoutFields();
 			this.setSubmitLoading(true, 'paypal-checkout');
-			this.setPaymentStatus(I18N.paypalRedirect || I18N.saving, false);
-			this.toast(I18N.saving);
+			this.setPaymentStatus(I18N.paypalRedirect || I18N.preparingCheckout, false);
+			this.toast(I18N.preparingCheckout || I18N.paypalRedirect);
 
 			this.saveDesign()
 				.then(() => this.exportPng())
@@ -1492,6 +1543,10 @@
 		}
 
 		submit(toCart) {
+			if (COMMERCE.checkoutPaypalOnly) {
+				this.submitPaypal();
+				return;
+			}
 			if (!this.validate()) {
 				return;
 			}

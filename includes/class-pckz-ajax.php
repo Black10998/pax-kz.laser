@@ -416,10 +416,10 @@ class PCKZ_Ajax {
 			wp_send_json_error( array( 'message' => __( 'WooCommerce is not active.', 'pckz-canonical-engine' ) ), 400 );
 		}
 
-		if ( class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::paypal_enabled() ) {
+		if ( class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::checkout_paypal_only() ) {
 			wp_send_json_error(
 				array(
-					'message' => __( 'Bitte schließen Sie die Bestellung über PayPal ab. Unbezahlte Bestellungen werden nicht angenommen.', 'pckz-canonical-engine' ),
+					'message' => __( 'Bitte schließen Sie die Bestellung ausschließlich über PayPal ab.', 'pckz-canonical-engine' ),
 				),
 				400
 			);
@@ -503,19 +503,19 @@ class PCKZ_Ajax {
 		$design_id  = isset( $_POST['design_id'] ) ? absint( $_POST['design_id'] ) : 0;
 		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
 		$quantity   = isset( $_POST['quantity'] ) ? max( 1, absint( $_POST['quantity'] ) ) : 1;
-		$email_in   = isset( $_POST['customer_email'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_email'] ) ) : '';
-		$wishes     = isset( $_POST['customer_wishes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['customer_wishes'] ) ) : '';
-
-		$email = PCKZ_Commerce::validate_email( $email_in );
-		if ( is_wp_error( $email ) ) {
-			wp_send_json_error( array( 'message' => $email->get_error_message() ), 400 );
+		$details = PCKZ_Commerce::parse_customer_details_from_request();
+		$valid   = PCKZ_Commerce::validate_customer_details( $details );
+		if ( is_wp_error( $valid ) ) {
+			wp_send_json_error( array( 'message' => $valid->get_error_message() ), 400 );
 		}
+		$email  = PCKZ_Commerce::validate_email( $details['email'] );
+		$wishes = $details['wishes'];
 
 		if ( ! $design_id ) {
-			wp_send_json_error( array( 'message' => __( 'Bitte speichern Sie zuerst Ihre Personalisierung.', 'pckz-canonical-engine' ) ), 400 );
+			wp_send_json_error( array( 'message' => __( 'Bitte personalisieren Sie zuerst Ihr Produkt.', 'pckz-canonical-engine' ) ), 400 );
 		}
 
-		PCKZ_Commerce::attach_customer_meta_to_design( $design_id, $email, $wishes );
+		PCKZ_Commerce::attach_customer_meta_to_design( $design_id, $email, $wishes, $details );
 
 		$currency_in = isset( $_POST['currency'] ) ? sanitize_text_field( wp_unslash( $_POST['currency'] ) ) : '';
 		$currency    = PCKZ_Commerce::sanitize_currency_code( $currency_in );
@@ -528,14 +528,15 @@ class PCKZ_Ajax {
 
 		$commerce_id = PCKZ_Commerce::insert_order(
 			array(
-				'design_id'      => $design_id,
-				'product_id'     => $product_id,
-				'customer_email' => $email,
-				'customer_note'  => $wishes,
-				'quantity'       => $quantity,
-				'amount'         => $amount,
-				'currency'       => $currency,
-				'status'         => 'pending',
+				'design_id'        => $design_id,
+				'product_id'       => $product_id,
+				'customer_email'   => $email,
+				'customer_note'    => $wishes,
+				'customer_details' => $details,
+				'quantity'         => $quantity,
+				'amount'           => $amount,
+				'currency'         => $currency,
+				'status'           => 'pending',
 			)
 		);
 

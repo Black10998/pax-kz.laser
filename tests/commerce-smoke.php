@@ -198,4 +198,34 @@ if ( '' === trim( $notice ) ) {
 	exit( 1 );
 }
 
-echo "OK commerce-smoke: admin pricing, currency overrides, email, PayPal gate, notice\n";
+$details = PCKZ_Commerce::sanitize_customer_details(
+	array(
+		'first_name'   => 'Max',
+		'last_name'    => 'Muster',
+		'email'        => 'max@example.com',
+		'phone'        => '+431234567',
+		'street'       => 'Hauptstraße',
+		'house_number' => '1',
+		'postal_code'  => '1010',
+		'city'         => 'Wien',
+		'country'      => 'AT',
+	)
+);
+$valid_details = PCKZ_Commerce::validate_customer_details( $details );
+if ( is_wp_error( $valid_details ) ) {
+	fwrite( STDERR, "FAIL validate_customer_details should accept complete data\n" );
+	exit( 1 );
+}
+
+$incomplete = PCKZ_Commerce::validate_customer_details( array( 'email' => 'bad' ) );
+if ( ! is_wp_error( $incomplete ) ) {
+	fwrite( STDERR, "FAIL validate_customer_details should reject incomplete data\n" );
+	exit( 1 );
+}
+
+if ( ! PCKZ_Commerce::checkout_paypal_only() ) {
+	fwrite( STDERR, "FAIL checkout_paypal_only when PayPal enabled\n" );
+	exit( 1 );
+}
+
+echo "OK commerce-smoke: pricing, currency, customer details, PayPal-only gate, notice\n";
