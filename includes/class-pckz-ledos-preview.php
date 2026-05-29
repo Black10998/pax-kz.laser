@@ -168,11 +168,12 @@ class PCKZ_Ledos_Preview {
 	}
 
 	/**
-	 * Social / symbol icons (subset + bundled fallbacks).
+	 * Social / symbol icons (subset + bundled fallbacks + premium bundled SVGs).
 	 *
+	 * @param bool $for_customer When true, omit admin-disabled icons.
 	 * @return array<string,array>
 	 */
-	public static function icon_catalog() {
+	public static function icon_catalog( $for_customer = true ) {
 		$cdn = 'https://cdn.shopify.com/s/files/1/0746/3672/2449/files/';
 		$items = array(
 			'none'        => array( 'url' => '', 'tintable' => false, 'label' => 'Kein Symbol' ),
@@ -216,6 +217,24 @@ class PCKZ_Ledos_Preview {
 			}
 		}
 
+		if ( class_exists( 'PCKZ_Icon_Library' ) ) {
+			foreach ( PCKZ_Icon_Library::bundled_manifest() as $slug => $label ) {
+				if ( isset( $items[ $slug ] ) ) {
+					continue;
+				}
+				$url = PCKZ_Icon_Library::bundled_url( $slug );
+				if ( ! $url ) {
+					continue;
+				}
+				$items[ $slug ] = array(
+					'url'      => $url,
+					'preview'  => $url,
+					'tintable' => true,
+					'label'    => $label,
+				);
+			}
+		}
+
 		foreach ( $items as $slug => $data ) {
 			if ( 'none' === $slug ) {
 				continue;
@@ -223,6 +242,10 @@ class PCKZ_Ledos_Preview {
 			if ( empty( $data['preview'] ) && ! empty( $data['url'] ) ) {
 				$items[ $slug ]['preview'] = $data['url'];
 			}
+		}
+
+		if ( $for_customer && class_exists( 'PCKZ_Icon_Library' ) ) {
+			$items = PCKZ_Icon_Library::filter_visible_catalog( $items );
 		}
 
 		return $items;

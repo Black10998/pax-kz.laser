@@ -79,6 +79,19 @@ if ( ! function_exists( 'sanitize_file_name' ) ) {
 		return $filename;
 	}
 }
+if ( ! function_exists( 'get_option' ) ) {
+	function get_option( $option, $default = false ) {
+		global $pckz_smoke_options;
+		return $pckz_smoke_options[ $option ] ?? $default;
+	}
+}
+if ( ! function_exists( 'update_option' ) ) {
+	function update_option( $option, $value ) {
+		global $pckz_smoke_options;
+		$pckz_smoke_options[ $option ] = $value;
+		return true;
+	}
+}
 if ( ! function_exists( 'sanitize_key' ) ) {
 	function sanitize_key( $key ) {
 		return $key;

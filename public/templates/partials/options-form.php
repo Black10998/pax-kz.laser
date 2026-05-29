@@ -108,9 +108,11 @@ foreach ( $customer_options as $option ) :
 					break;
 				}
 			}
-			$list_id = 'pckz-visual-list-' . esc_attr( $id );
+			$list_id    = 'pckz-visual-list-' . esc_attr( $id );
+			$is_icon_ui = in_array( $id, array( 'symbol_links', 'symbol_rechts' ), true );
+			$picker_cls = 'pckz-visual-picker' . ( $is_icon_ui ? ' pckz-visual-picker--icon-grid' : '' );
 			?>
-			<div class="pckz-visual-picker" data-visual-picker="<?php echo esc_attr( $id ); ?>">
+			<div class="<?php echo esc_attr( $picker_cls ); ?>" data-visual-picker="<?php echo esc_attr( $id ); ?>">
 				<input
 					type="hidden"
 					class="pckz-icon-hidden"
@@ -171,14 +173,18 @@ foreach ( $customer_options as $option ) :
 									<span class="pckz-visual-picker__opt-empty">—</span>
 								<?php endif; ?>
 							</span>
-							<span class="o--text"><?php echo esc_html( $lbl ); ?></span>
+							<?php if ( ! $is_icon_ui ) : ?>
+								<span class="o--text"><?php echo esc_html( $lbl ); ?></span>
+							<?php else : ?>
+								<span class="o--text pckz-sr-only"><?php echo esc_html( $lbl ); ?></span>
+							<?php endif; ?>
 						</li>
 					<?php endforeach; ?>
 				</ul>
 			</div>
 
 		<?php elseif ( in_array( $type, array( 'swatch_color', 'color' ), true ) ) : ?>
-			<div class="pckz-color-grid" role="listbox" aria-label="<?php echo esc_attr( $label ); ?>">
+			<div class="pckz-color-grid pckz-color-grid--compact" role="listbox" aria-label="<?php echo esc_attr( $label ); ?>">
 				<?php foreach ( $choices as $tone ) :
 					$is_white = '#ffffff' === strtolower( $tone );
 					?>

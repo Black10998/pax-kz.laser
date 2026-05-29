@@ -42,7 +42,8 @@
 
 		list.style.position = 'fixed';
 		list.style.left = Math.max(8, rect.left) + 'px';
-		list.style.width = Math.max(rect.width, 200) + 'px';
+		const minW = root.classList.contains('pckz-visual-picker--icon-grid') ? 280 : 200;
+		list.style.width = Math.max(rect.width, minW) + 'px';
 		list.style.zIndex = '100000';
 		list.style.maxHeight = (openUp ? Math.min(280, rect.top - gap - 12) : maxH) + 'px';
 

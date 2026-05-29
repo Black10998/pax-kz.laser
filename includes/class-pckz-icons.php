@@ -56,7 +56,11 @@ class PCKZ_Icons {
 	 * @return string[]
 	 */
 	public static function all_slugs() {
-		return array( 'none', 'instagram', 'telegram', 'facebook', 'snapchat', 'tiktok', 'whatsapp', 'lines' );
+		$base = array( 'none', 'instagram', 'telegram', 'facebook', 'snapchat', 'tiktok', 'whatsapp', 'lines' );
+		if ( class_exists( 'PCKZ_Icon_Library' ) ) {
+			$base = array_merge( $base, array_keys( PCKZ_Icon_Library::bundled_manifest() ) );
+		}
+		return array_values( array_unique( $base ) );
 	}
 
 	/**
@@ -71,6 +75,12 @@ class PCKZ_Icons {
 		$color = in_array( $color, array( 'white', 'black' ), true ) ? $color : 'white';
 		if ( 'none' === $slug || ! in_array( $slug, self::all_slugs(), true ) ) {
 			return '';
+		}
+		if ( class_exists( 'PCKZ_Icon_Library' ) ) {
+			$bundled = PCKZ_Icon_Library::bundled_url( $slug );
+			if ( $bundled ) {
+				return $bundled;
+			}
 		}
 		$file = PCKZCE_PLUGIN_URL . 'public/images/icons/' . $slug . '-' . $color . '.svg';
 		return esc_url_raw( $file );
@@ -105,6 +115,12 @@ class PCKZ_Icons {
 		foreach ( self::symbol_choices() as $choice ) {
 			if ( ( $choice['value'] ?? '' ) === $slug ) {
 				return $choice['label'] ?? $slug;
+			}
+		}
+		if ( class_exists( 'PCKZ_Icon_Library' ) ) {
+			$bundled = PCKZ_Icon_Library::bundled_manifest();
+			if ( isset( $bundled[ $slug ] ) ) {
+				return $bundled[ $slug ];
 			}
 		}
 		if ( 'lines' === $slug ) {

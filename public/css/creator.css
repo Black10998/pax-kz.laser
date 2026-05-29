@@ -559,6 +559,51 @@ select.pckz-field__control {
 	display: block;
 }
 
+/* Icon symbol picker: 5-column SVG thumbnail grid */
+.pckz-visual-picker--icon-grid.is-open .pckz-visual-picker__list {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 6px;
+	padding: 8px;
+	max-height: min(360px, 60vh);
+}
+
+.pckz-visual-picker--icon-grid .pckz-visual-picker__option {
+	flex-direction: column;
+	justify-content: center;
+	gap: 0;
+	padding: 6px 4px;
+	min-height: 0;
+	border-radius: 4px;
+}
+
+.pckz-visual-picker--icon-grid .pckz-visual-picker__option .o--img {
+	width: 44px;
+	height: 44px;
+}
+
+.pckz-visual-picker--icon-grid .pckz-visual-picker__option .o--img img {
+	width: 40px;
+	height: 40px;
+}
+
+.pckz-visual-picker--icon-grid .pckz-visual-picker__option.is-active {
+	box-shadow: inset 0 0 0 2px var(--pckz-black);
+	background: var(--pckz-gray-100);
+}
+
+.pckz-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
 .pckz-visual-picker__option {
 	display: flex;
 	align-items: center;
@@ -641,6 +686,13 @@ select.pckz-field__control {
 	max-width: 100%;
 }
 
+.pckz-color-grid--compact {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+	gap: 6px;
+	max-width: 280px;
+}
+
 .pckz-color-chip {
 	width: 36px;
 	height: 36px;
@@ -651,6 +703,12 @@ select.pckz-field__control {
 	cursor: pointer;
 	flex-shrink: 0;
 	transition: border-color 0.12s ease, transform 0.12s ease;
+}
+
+.pckz-color-grid--compact .pckz-color-chip {
+	width: 28px;
+	height: 28px;
+	border-width: 2px;
 }
 
 .pckz-color-chip:hover {
