@@ -1,0 +1,322 @@
+/**
+ * Cloudlift product options (.cl-po--*) — scoped to PCKZ Canonical Engine.
+ *
+ * @package PCKZCanonicalEngine
+ */
+
+.pckz-product--cloudlift {
+	--cl-po-font-family: Ubuntu, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--cl-po-label-color: #121212;
+	--cl-po-label-font-size: 16px;
+	--cl-po-label-margin: 8px;
+	--cl-po-option-font-size: 16px;
+	--cl-po-option-margin: 20px;
+	--cl-po-input-color: #121212;
+	--cl-po-input-text-color: #121212;
+	--cl-po-input-background-color: #fff;
+	--cl-po-input-border-color: #d2d2d2;
+	--cl-po-input-border-color-focus: #121212;
+	--cl-po-input-color-selected: #121212;
+	--cl-po-option-border-radius: 6px;
+	--cl-po-input-border-width: 1px;
+	font-family: var(--cl-po-font-family);
+}
+
+.pckz-product--cloudlift .visually-hidden {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	border: 0;
+	word-wrap: normal !important;
+}
+
+.pckz-product--cloudlift .cl-hide {
+	display: none !important;
+}
+
+@media only screen and (max-width: 450px) {
+	.pckz-product--cloudlift .cl-hide-mobile {
+		display: none !important;
+	}
+}
+
+/* Options panel */
+.pckz-product--cloudlift .cl-po--wrapper {
+	width: 100%;
+}
+
+.pckz-product--cloudlift .cl-po--options {
+	display: flex;
+	flex-direction: column;
+}
+
+.pckz-product--cloudlift .cl-po--option {
+	position: relative;
+	margin-bottom: var(--cl-po-option-margin);
+	font-size: var(--cl-po-option-font-size);
+	color: var(--cl-po-input-color);
+	text-align: left;
+}
+
+.pckz-product--cloudlift .cl-po--label {
+	display: flex !important;
+	align-items: center;
+	position: relative;
+	float: none !important;
+	margin-bottom: var(--cl-po-label-margin);
+	font-size: var(--cl-po-label-font-size);
+	font-weight: 700;
+	color: var(--cl-po-label-color);
+}
+
+.pckz-product--cloudlift .cl-po--input {
+	box-sizing: border-box;
+	width: 100%;
+	display: block;
+	padding: 10px 12px;
+	line-height: 1.4;
+	border-style: solid;
+	border-width: var(--cl-po-input-border-width);
+	border-color: var(--cl-po-input-border-color);
+	border-radius: var(--cl-po-option-border-radius);
+	background-color: var(--cl-po-input-background-color);
+	color: var(--cl-po-input-text-color);
+	font-size: var(--cl-po-option-font-size);
+	appearance: none;
+	min-height: 44px;
+}
+
+.pckz-product--cloudlift .cl-po--input:focus {
+	outline: 2px solid transparent;
+	outline-offset: 2px;
+	border-color: var(--cl-po-input-border-color-focus);
+	box-shadow: 0 0 0 1px var(--cl-po-input-border-color-focus);
+}
+
+.pckz-product--cloudlift .cl-po--radio-item {
+	display: flex !important;
+	align-items: center;
+	cursor: pointer;
+	margin-bottom: 8px;
+}
+
+.pckz-product--cloudlift .cl-po--radio-item.cl-po--horizontal {
+	display: inline-flex !important;
+	margin-right: 8px;
+	margin-bottom: 8px;
+}
+
+.pckz-product--cloudlift .cl-po--radio-item input[type='radio'] {
+	display: block !important;
+	width: 20px;
+	min-width: 20px;
+	height: 20px;
+	margin: 0 10px 0 0;
+	padding: 0;
+	cursor: pointer;
+	accent-color: #121212;
+}
+
+.pckz-product--cloudlift .cl-po--radio-item:has(input:checked) {
+	background: #121212;
+	border-color: #121212;
+	color: #fff;
+}
+
+.pckz-product--cloudlift .pckz-choice--radio.cl-po--radio-item {
+	min-height: 40px;
+	padding: 8px 16px;
+	border: 1px solid var(--cl-po-input-border-color);
+	border-radius: var(--cl-po-option-border-radius);
+	background: var(--cl-po-input-background-color);
+	transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.pckz-product--cloudlift .pckz-choice--radio.cl-po--radio-item:has(input:checked) {
+	background: #121212;
+	border-color: #121212;
+	color: #fff;
+}
+
+.pckz-product--cloudlift .pckz-choice--radio.cl-po--radio-item:has(input:checked) span {
+	color: #fff;
+}
+
+/* Swatches (icons + colors) */
+.pckz-product--cloudlift .cl-po--swatch-container {
+	display: flex;
+	flex-wrap: wrap;
+	width: calc(100% + 10px);
+}
+
+.pckz-product--cloudlift .cl-po--swatch-group-items {
+	display: flex;
+	flex-wrap: wrap;
+	width: calc(100% + 10px);
+}
+
+.pckz-product--cloudlift .pckz-swatch-slider .cl-po--swatch-item {
+	flex-shrink: 0;
+}
+
+.pckz-product--cloudlift .cl-po--swatch-item {
+	display: flex !important;
+	flex-direction: column;
+	align-items: center;
+	cursor: pointer;
+	margin-right: 10px;
+	margin-bottom: 10px;
+}
+
+.pckz-product--cloudlift .cl-po--swatch {
+	box-sizing: border-box;
+	display: inline-flex;
+	vertical-align: middle;
+	border-style: solid;
+	border-width: var(--cl-po-input-border-width);
+	border-color: var(--cl-po-input-border-color);
+	border-radius: var(--cl-po-option-border-radius);
+	background-color: var(--cl-po-input-background-color);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.pckz-product--cloudlift .cl-po--swatch.cl-po--circle {
+	border-radius: 50% !important;
+	overflow: hidden;
+}
+
+.pckz-product--cloudlift .cl-po--swatch.cl-po--small {
+	width: 50px;
+	height: 50px;
+}
+
+.pckz-product--cloudlift .cl-po--swatch img {
+	display: block;
+	max-width: 100%;
+	max-height: 100%;
+	margin: auto;
+}
+
+.pckz-product--cloudlift .cl-po--swatch img.cover {
+	min-width: 100%;
+	min-height: 100%;
+	object-fit: cover;
+}
+
+.pckz-product--cloudlift .cl-po--swatch-text,
+.pckz-product--cloudlift .pckz-icon-swatch__label {
+	margin-top: 5px;
+	font-size: 10px;
+	font-weight: 600;
+	line-height: 1.2;
+	text-align: center;
+	color: #515151;
+}
+
+.pckz-product--cloudlift .cl-po--swatch-item.is-active .cl-po--swatch,
+.pckz-product--cloudlift .cl-po--swatch-item.is-active .pckz-swatch--tone {
+	outline: 2px solid transparent;
+	outline-offset: 2px;
+	border-color: var(--cl-po-input-color-selected) !important;
+	box-shadow: 0 0 0 1px var(--cl-po-input-color-selected);
+}
+
+.pckz-product--cloudlift .pckz-icon-swatch.cl-po--swatch-item {
+	min-height: auto;
+	padding: 0;
+	border: none;
+	background: transparent;
+}
+
+.pckz-product--cloudlift .pckz-icon-swatch.cl-po--swatch-item .cl-po--swatch {
+	justify-content: center;
+	align-items: center;
+}
+
+.pckz-product--cloudlift .pckz-swatch--tone.cl-po--swatch {
+	width: 40px;
+	height: 40px;
+	padding: 0;
+}
+
+/* Preview + gallery */
+.pckz-product--cloudlift .cl-po--preview-wrapper {
+	position: relative;
+	touch-action: manipulation;
+}
+
+.pckz-product--cloudlift .cl-po--preview canvas {
+	display: block !important;
+}
+
+.pckz-product--cloudlift .cl-po--gallery {
+	display: flex;
+	flex-direction: column;
+}
+
+.pckz-product--cloudlift .cl-po--gallery-main {
+	margin-bottom: 10px;
+}
+
+.pckz-product--cloudlift .cl-po--gallery-thumbnails .splide__slide {
+	display: flex;
+	min-width: 100px;
+	border: 0 !important;
+}
+
+.pckz-product--cloudlift .cl-po--gallery-thumbnails.splide--nav > .splide__track > .splide__list > .splide__slide .pckz-thumb,
+.pckz-product--cloudlift .cl-po--gallery-thumbnails.splide--nav > .splide__track > .splide__list > .splide__slide .cl-po--gallery-thumbnail {
+	border: 2px solid transparent;
+}
+
+.pckz-product--cloudlift .cl-po--gallery-thumbnails.splide--nav > .splide__track > .splide__list > .splide__slide.is-active .pckz-thumb,
+.pckz-product--cloudlift .cl-po--gallery-thumbnails.splide--nav > .splide__track > .splide__list > .splide__slide.is-active .cl-po--gallery-thumbnail {
+	border: 2px solid #121212;
+}
+
+.pckz-product--cloudlift .cl-po--gallery .splide__arrow {
+	background: #f3f3f3;
+}
+
+.pckz-product--cloudlift .cl-po--gallery .splide__arrow svg {
+	fill: #121212;
+}
+
+@media only screen and (max-width: 450px) {
+	.pckz-product--cloudlift .cl-po--gallery-thumbnails.splide--nav > .splide__track > .splide__list > .splide__slide {
+		min-width: 66px;
+	}
+}
+
+.pckz-product--cloudlift .cl-po--preview-sticky {
+	z-index: 100;
+}
+
+@media only screen and (max-width: 989px) {
+	.pckz-product--cloudlift .pckz-product__media-column.cl-po--preview-sticky {
+		position: sticky;
+		top: 0;
+		z-index: 100;
+		box-sizing: border-box;
+		background: #fff;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+		padding-bottom: 10px;
+	}
+}
+
+.pckz-product--cloudlift .cl-po--help {
+	display: block;
+	margin-top: 5px;
+	line-height: 1.5;
+	font-size: 13px;
+	color: #767676;
+}
+
+.pckz-product--cloudlift .pckz-options {
+	background: #f3f3f3;
+	border: 1px solid #e8e8e8;
+}

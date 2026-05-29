@@ -1,0 +1,17 @@
+{
+  "name": "node",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node export-fabric-wysiwyg-structure.mjs && node export-wysiwyg-parity.mjs && node fabric-export-parity.mjs && node text-placement-parity.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "canvas": "^3.2.3",
+    "fabric": "^5.3.0",
+    "jsdom": "^29.1.1"
+  }
+}

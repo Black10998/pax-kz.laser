@@ -1,0 +1,215 @@
+/**
+ * Dawn-style horizontal slider (Shopify component-slider.css reference).
+ * Scoped to PCKZ Canonical Engine — monochrome scroll for swatch rows.
+ *
+ * @package PCKZCanonicalEngine
+ */
+
+.pckz-product {
+	--color-foreground: 18, 18, 18;
+	--grid-desktop-horizontal-spacing: 8px;
+	--page-width: 1200px;
+}
+
+.pckz-product .pckz-slider-component {
+	--desktop-margin-left-first-item: max(1.5rem, calc((100vw - var(--page-width) + 10rem - var(--grid-desktop-horizontal-spacing)) / 2));
+	position: relative;
+	display: block;
+}
+
+.pckz-product .pckz-slider-component.pckz-slider-component--full {
+	--desktop-margin-left-first-item: 1.5rem;
+}
+
+.pckz-product .slider__slide {
+	--focus-outline-padding: 0.5rem;
+	scroll-snap-align: start;
+	flex-shrink: 0;
+	padding-bottom: 0;
+}
+
+@media screen and (max-width: 749px) {
+	.pckz-product .slider.slider--mobile {
+		position: relative;
+		display: flex;
+		flex-wrap: inherit;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		scroll-behavior: smooth;
+		scroll-padding-left: 1.5rem;
+		-webkit-overflow-scrolling: touch;
+		margin-bottom: 0.5rem;
+	}
+
+	.pckz-product .slider--mobile::after {
+		content: '';
+		width: 0;
+		padding-left: 1.5rem;
+	}
+
+	.pckz-product .slider.slider--mobile .slider__slide {
+		margin-bottom: 0;
+		padding-top: var(--focus-outline-padding);
+		padding-bottom: var(--focus-outline-padding);
+	}
+}
+
+@media screen and (min-width: 750px) {
+	.pckz-product .slider.slider--tablet-up {
+		position: relative;
+		display: flex;
+		flex-wrap: inherit;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		scroll-behavior: smooth;
+		scroll-padding-left: 1rem;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.pckz-product .slider.slider--tablet-up .slider__slide {
+		margin-bottom: 0;
+	}
+}
+
+@media screen and (max-width: 989px) {
+	.pckz-product .slider.slider--tablet {
+		position: relative;
+		display: flex;
+		flex-wrap: inherit;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		scroll-behavior: smooth;
+		scroll-padding-left: 1.5rem;
+		-webkit-overflow-scrolling: touch;
+		margin-bottom: 0.5rem;
+	}
+
+	.pckz-product .slider--tablet::after {
+		content: '';
+		width: 0;
+		padding-left: 1.5rem;
+	}
+}
+
+.pckz-product .slider--everywhere {
+	position: relative;
+	display: flex;
+	flex-wrap: inherit;
+	overflow-x: auto;
+	scroll-snap-type: x mandatory;
+	scroll-behavior: smooth;
+	-webkit-overflow-scrolling: touch;
+	margin-bottom: 0.5rem;
+}
+
+.pckz-product .slider.slider--everywhere .slider__slide {
+	margin-bottom: 0;
+	scroll-snap-align: center;
+}
+
+@media screen and (min-width: 990px) {
+	.pckz-product .slider--desktop {
+		position: relative;
+		display: flex;
+		flex-wrap: inherit;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		scroll-behavior: smooth;
+		-webkit-overflow-scrolling: touch;
+		margin-bottom: 0.5rem;
+		scroll-padding-left: var(--desktop-margin-left-first-item);
+	}
+
+	.pckz-product .slider--desktop::after {
+		content: '';
+		width: 0;
+		padding-left: 1.5rem;
+	}
+
+	.pckz-product .slider--desktop .slider__slide:first-child {
+		margin-left: 0;
+		scroll-margin-left: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pckz-product .slider {
+		scroll-behavior: auto;
+	}
+}
+
+.pckz-product .slider {
+	scrollbar-color: rgb(var(--color-foreground)) rgba(var(--color-foreground), 0.04);
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+.pckz-product .slider::-webkit-scrollbar {
+	display: none;
+	height: 0.4rem;
+	width: 0.4rem;
+}
+
+.pckz-product .pckz-swatch-slider {
+	gap: 0;
+	align-items: flex-start;
+}
+
+.pckz-product .pckz-swatch-slider .slider__slide {
+	display: flex;
+	align-items: stretch;
+}
+
+.pckz-product .slider-buttons {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	margin-top: 4px;
+}
+
+@media screen and (min-width: 990px) {
+	.pckz-product .pckz-swatch-slider.slider--desktop + .slider-buttons {
+		display: none;
+	}
+}
+
+.pckz-product .slider-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: rgba(var(--color-foreground), 0.75);
+	cursor: pointer;
+}
+
+.pckz-product .slider-button:not([disabled]):hover {
+	color: rgb(var(--color-foreground));
+}
+
+.pckz-product .slider-button[disabled] {
+	color: rgba(var(--color-foreground), 0.3);
+	cursor: not-allowed;
+}
+
+.pckz-product .slider-button__icon {
+	display: block;
+	width: 10px;
+	height: 10px;
+	border-right: 2px solid currentColor;
+	border-bottom: 2px solid currentColor;
+}
+
+.pckz-product .slider-button--prev .slider-button__icon {
+	transform: rotate(135deg);
+	margin-left: 4px;
+}
+
+.pckz-product .slider-button--next .slider-button__icon {
+	transform: rotate(-45deg);
+	margin-right: 4px;
+}
