@@ -357,6 +357,77 @@
 	text-transform: none;
 }
 
+/* Font picker — visual preview per family */
+.pckz-font-picker__grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+	max-height: 320px;
+	overflow-y: auto;
+	padding: 4px;
+}
+
+@media (min-width: 750px) {
+	.pckz-font-picker__grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+.pckz-font-picker__option {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+	width: 100%;
+	padding: 10px 12px;
+	text-align: left;
+	background: var(--pckz-white);
+	border: 2px solid var(--pckz-gray-200);
+	border-radius: var(--pckz-radius-sm);
+	cursor: pointer;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pckz-font-picker__option:hover {
+	border-color: var(--pckz-gray-500);
+}
+
+.pckz-font-picker__option.is-active {
+	border-color: var(--pckz-black);
+	box-shadow: 0 0 0 1px var(--pckz-black);
+}
+
+.pckz-font-picker__sample {
+	font-size: 22px;
+	line-height: 1.2;
+	font-weight: 700;
+	color: var(--pckz-black);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.pckz-font-picker__meta {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.pckz-font-picker__name {
+	font-size: 12px;
+	font-weight: 600;
+	font-family: system-ui, sans-serif;
+	color: var(--pckz-gray-700);
+}
+
+.pckz-font-picker__cat {
+	font-size: 11px;
+	font-family: system-ui, sans-serif;
+	color: var(--pckz-gray-500);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
 .pckz-required {
 	color: var(--pckz-black);
 	margin-left: 2px;

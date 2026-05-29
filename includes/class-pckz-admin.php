@@ -63,6 +63,15 @@ class PCKZ_Admin {
 
 		add_submenu_page(
 			'pckz-canonical-engine',
+			__( 'Font Library', 'pckz-canonical-engine' ),
+			__( 'Font Library', 'pckz-canonical-engine' ),
+			'manage_options',
+			'pckz-font-library',
+			array( $this, 'render_font_library' )
+		);
+
+		add_submenu_page(
+			'pckz-canonical-engine',
 			__( 'Settings', 'pckz-canonical-engine' ),
 			__( 'Settings', 'pckz-canonical-engine' ),
 			'manage_options',
@@ -280,27 +289,81 @@ class PCKZ_Admin {
 			return;
 		}
 
-		if ( isset( $_POST['pckz_icon_library_save'] ) && check_admin_referer( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ) ) {
+		if ( isset( $_POST['pckz_icon_library_upload'] ) && check_admin_referer( 'pckz_icon_library_upload', 'pckz_icon_library_upload_nonce' ) ) {
+			$result = PCKZ_Icon_Library::handle_upload( $_FILES['pckz_icon_file'] ?? array() );
+			if ( is_wp_error( $result ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-success"><p>' . esc_html__( 'Icon uploaded.', 'pckz-canonical-engine' ) . '</p></div>';
+			}
+		}
+
+		if ( isset( $_POST['pckz_icon_delete'] ) && check_admin_referer( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ) ) {
+			$del = PCKZ_Icon_Library::delete_custom( sanitize_key( wp_unslash( $_POST['pckz_icon_delete'] ) ) );
+			if ( is_wp_error( $del ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $del->get_error_message() ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-success"><p>' . esc_html__( 'Icon deleted.', 'pckz-canonical-engine' ) . '</p></div>';
+			}
+		}
+
+		if ( isset( $_POST['pckz_icon_library_save'] ) && check_admin_referer( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ) && ! isset( $_POST['pckz_icon_delete'] ) ) {
 			$enabled = isset( $_POST['pckz_icon_enabled'] ) && is_array( $_POST['pckz_icon_enabled'] )
 				? array_map( 'sanitize_key', wp_unslash( $_POST['pckz_icon_enabled'] ) )
 				: array();
-			$all     = array_keys( PCKZ_Icon_Library::admin_catalog_entries() );
-			$disabled = array();
-			foreach ( $all as $slug ) {
-				if ( 'none' === $slug ) {
-					continue;
-				}
-				if ( ! in_array( $slug, $enabled, true ) ) {
-					$disabled[] = $slug;
-				}
-			}
-			update_option( PCKZ_Icon_Library::OPTION_DISABLED, $disabled );
+			$labels  = isset( $_POST['pckz_icon_labels'] ) && is_array( $_POST['pckz_icon_labels'] )
+				? wp_unslash( $_POST['pckz_icon_labels'] )
+				: array();
+			PCKZ_Icon_Library::save_admin_state( $enabled, $labels );
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Icon library updated.', 'pckz-canonical-engine' ) . '</p></div>';
 		}
 
 		$catalog  = PCKZ_Icon_Library::admin_catalog_entries();
 		$disabled = PCKZ_Icon_Library::disabled_slugs();
 		include PCKZCE_PLUGIN_DIR . 'admin/views/icon-library.php';
+	}
+
+	/**
+	 * Render font library admin.
+	 */
+	public function render_font_library() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		if ( isset( $_POST['pckz_font_library_upload'] ) && check_admin_referer( 'pckz_font_library_upload', 'pckz_font_library_upload_nonce' ) ) {
+			$result = PCKZ_Font_Library::handle_upload( $_FILES['pckz_font_file'] ?? array() );
+			if ( is_wp_error( $result ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-success"><p>' . esc_html__( 'Font uploaded.', 'pckz-canonical-engine' ) . '</p></div>';
+			}
+		}
+
+		if ( isset( $_POST['pckz_font_delete'] ) && check_admin_referer( 'pckz_font_library_save', 'pckz_font_library_nonce' ) ) {
+			$del = PCKZ_Font_Library::delete_custom( sanitize_key( wp_unslash( $_POST['pckz_font_delete'] ) ) );
+			if ( is_wp_error( $del ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $del->get_error_message() ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-success"><p>' . esc_html__( 'Font deleted.', 'pckz-canonical-engine' ) . '</p></div>';
+			}
+		}
+
+		if ( isset( $_POST['pckz_font_library_save'] ) && check_admin_referer( 'pckz_font_library_save', 'pckz_font_library_nonce' ) && ! isset( $_POST['pckz_font_delete'] ) ) {
+			$enabled = isset( $_POST['pckz_font_enabled'] ) && is_array( $_POST['pckz_font_enabled'] )
+				? array_map( 'sanitize_key', wp_unslash( $_POST['pckz_font_enabled'] ) )
+				: array();
+			$labels  = isset( $_POST['pckz_font_labels'] ) && is_array( $_POST['pckz_font_labels'] )
+				? wp_unslash( $_POST['pckz_font_labels'] )
+				: array();
+			PCKZ_Font_Library::save_admin_state( $enabled, $labels );
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Font library updated.', 'pckz-canonical-engine' ) . '</p></div>';
+		}
+
+		$entries    = PCKZ_Font_Library::all_entries();
+		$disabled   = PCKZ_Font_Library::disabled_ids();
+		$categories = PCKZ_Font_Library::categories();
+		include PCKZCE_PLUGIN_DIR . 'admin/views/font-library.php';
 	}
 
 	/**

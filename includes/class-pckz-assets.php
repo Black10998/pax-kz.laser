@@ -45,13 +45,26 @@ class PCKZ_Assets {
 			self::version( 'public/css/creator.css' )
 		);
 
-		if ( ! empty( $settings['google_fonts_url'] ) ) {
+		$google_url = '';
+		if ( class_exists( 'PCKZ_Font_Library' ) ) {
+			$google_url = PCKZ_Font_Library::google_fonts_css_url();
+		}
+		if ( ! $google_url && ! empty( $settings['google_fonts_url'] ) ) {
+			$google_url = $settings['google_fonts_url'];
+		}
+		if ( $google_url ) {
 			wp_enqueue_style(
 				'pckzce-google-fonts',
-				$settings['google_fonts_url'],
+				$google_url,
 				array(),
 				self::version( 'public/css/creator.css' )
 			);
+		}
+		if ( class_exists( 'PCKZ_Font_Library' ) ) {
+			$upload_css = PCKZ_Font_Library::uploaded_fonts_css();
+			if ( $upload_css ) {
+				wp_add_inline_style( 'pckzce-creator', $upload_css );
+			}
 		}
 
 		wp_enqueue_script(
@@ -172,9 +185,9 @@ class PCKZ_Assets {
 				'productId'    => $product_id,
 				'productTitle' => get_the_title( $product_id ),
 				'config'       => $config,
-				'fontFiles'    => array(
-					'russo one' => PCKZCE_PLUGIN_URL . 'public/fonts/RussoOne-Regular.ttf',
-				),
+				'fontFiles'    => class_exists( 'PCKZ_Font_Library' )
+					? PCKZ_Font_Library::font_files_for_js()
+					: array(),
 				'assets'       => array(
 					'day'    => esc_url_raw( $config['background_day'] ?: $config['background_image'] ),
 					'night'  => esc_url_raw( $config['background_night'] ?: $config['background_day'] ),
@@ -184,7 +197,12 @@ class PCKZ_Assets {
 				'ledosPreview' => class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::config_for_js() : null,
 				'stdSpec'      => class_exists( 'PCKZ_Std_Spec' ) ? PCKZ_Std_Spec::for_product( $config ) : array(),
 				'settings'     => array(
-					'fonts'        => $settings['fonts'],
+					'fonts'        => class_exists( 'PCKZ_Font_Library' )
+						? PCKZ_Font_Library::get_customer_fonts()
+						: ( $settings['fonts'] ?? array() ),
+					'fontCategories' => class_exists( 'PCKZ_Font_Library' )
+						? PCKZ_Font_Library::categories()
+						: array(),
 					'grayPalette'  => PCKZ_Settings::get_gray_palette(),
 					'defaultDpi'   => (int) $settings['default_dpi'],
 				),

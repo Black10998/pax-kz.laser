@@ -50,6 +50,8 @@ class PCKZ_Activator {
 				$upload['basedir'] . '/pckz-canonical-engine/designs',
 				$upload['basedir'] . '/pckz-canonical-engine/uploads',
 				$upload['basedir'] . '/pckz-canonical-engine/exports',
+				$upload['basedir'] . '/pckz-canonical-engine/fonts',
+				$upload['basedir'] . '/pckz-canonical-engine/icons',
 			);
 			foreach ( $dirs as $dir ) {
 				if ( ! file_exists( $dir ) ) {

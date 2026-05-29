@@ -230,8 +230,31 @@ class PCKZ_Ledos_Preview {
 					'url'      => $url,
 					'preview'  => $url,
 					'tintable' => true,
-					'label'    => $label,
+					'label'    => PCKZ_Icon_Library::label_for_slug( $slug, $label ),
+					'custom'   => false,
 				);
+			}
+			foreach ( PCKZ_Icon_Library::custom_manifest() as $slug => $row ) {
+				if ( isset( $items[ $slug ] ) ) {
+					continue;
+				}
+				$url = PCKZ_Icon_Library::custom_url( $slug );
+				if ( ! $url ) {
+					continue;
+				}
+				$items[ $slug ] = array(
+					'url'      => $url,
+					'preview'  => $url,
+					'tintable' => true,
+					'label'    => PCKZ_Icon_Library::label_for_slug( $slug, $row['label'] ?? $slug ),
+					'custom'   => true,
+				);
+			}
+			foreach ( $items as $slug => $data ) {
+				if ( 'none' === $slug ) {
+					continue;
+				}
+				$items[ $slug ]['label'] = PCKZ_Icon_Library::label_for_slug( $slug, $data['label'] ?? $slug );
 			}
 		}
 

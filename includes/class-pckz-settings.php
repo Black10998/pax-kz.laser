@@ -120,6 +120,12 @@ class PCKZ_Settings {
 	 * @return array
 	 */
 	public static function get_fonts() {
+		if ( class_exists( 'PCKZ_Font_Library' ) ) {
+			$from_library = PCKZ_Font_Library::get_customer_fonts();
+			if ( ! empty( $from_library ) ) {
+				return $from_library;
+			}
+		}
 		return self::get( 'fonts', self::default_options()['fonts'] );
 	}
 

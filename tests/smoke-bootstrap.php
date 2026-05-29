@@ -97,6 +97,21 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 		return $key;
 	}
 }
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( $str ) {
+		return trim( strip_tags( (string) $str ) );
+	}
+}
+if ( ! function_exists( 'sanitize_title' ) ) {
+	function sanitize_title( $title ) {
+		return strtolower( preg_replace( '/[^a-z0-9\-]/', '-', (string) $title ) );
+	}
+}
+if ( ! function_exists( 'wp_delete_file' ) ) {
+	function wp_delete_file( $file ) {
+		return is_readable( $file ) ? unlink( $file ) : false;
+	}
+}
 if ( ! function_exists( 'sanitize_hex_color' ) ) {
 	function sanitize_hex_color( $color ) {
 		return $color;

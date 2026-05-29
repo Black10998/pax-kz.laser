@@ -58,7 +58,7 @@ class PCKZ_Icons {
 	public static function all_slugs() {
 		$base = array( 'none', 'instagram', 'telegram', 'facebook', 'snapchat', 'tiktok', 'whatsapp', 'lines' );
 		if ( class_exists( 'PCKZ_Icon_Library' ) ) {
-			$base = array_merge( $base, array_keys( PCKZ_Icon_Library::bundled_manifest() ) );
+			$base = array_merge( $base, PCKZ_Icon_Library::all_slugs() );
 		}
 		return array_values( array_unique( $base ) );
 	}
@@ -77,9 +77,9 @@ class PCKZ_Icons {
 			return '';
 		}
 		if ( class_exists( 'PCKZ_Icon_Library' ) ) {
-			$bundled = PCKZ_Icon_Library::bundled_url( $slug );
-			if ( $bundled ) {
-				return $bundled;
+			$url = PCKZ_Icon_Library::icon_url( $slug );
+			if ( $url ) {
+				return $url;
 			}
 		}
 		$file = PCKZCE_PLUGIN_URL . 'public/images/icons/' . $slug . '-' . $color . '.svg';
@@ -118,10 +118,7 @@ class PCKZ_Icons {
 			}
 		}
 		if ( class_exists( 'PCKZ_Icon_Library' ) ) {
-			$bundled = PCKZ_Icon_Library::bundled_manifest();
-			if ( isset( $bundled[ $slug ] ) ) {
-				return $bundled[ $slug ];
-			}
+			return PCKZ_Icon_Library::label_for_slug( $slug, '' );
 		}
 		if ( 'lines' === $slug ) {
 			return 'Linien';

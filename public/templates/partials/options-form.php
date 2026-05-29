@@ -202,13 +202,43 @@ foreach ( $customer_options as $option ) :
 			</div>
 
 		<?php elseif ( 'font' === $type ) : ?>
-			<select class="pckz-field__control" id="pckz-opt-<?php echo esc_attr( $id ); ?>" name="pckz_options[<?php echo esc_attr( $id ); ?>]">
-				<?php foreach ( $fonts as $font ) : ?>
-					<option value="<?php echo esc_attr( $font['family'] ?? '' ); ?>" <?php selected( $default, $font['family'] ?? '' ); ?>>
-						<?php echo esc_html( $font['label'] ?? $font['family'] ?? '' ); ?>
-					</option>
-				<?php endforeach; ?>
-			</select>
+			<?php
+			$font_categories = class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::categories() : array();
+			$active_family   = $default ?: ( $fonts[0]['family'] ?? 'Russo One' );
+			?>
+			<div class="pckz-font-picker" data-font-picker data-option-id="<?php echo esc_attr( $id ); ?>">
+				<input
+					type="hidden"
+					class="pckz-font-hidden"
+					id="pckz-opt-<?php echo esc_attr( $id ); ?>"
+					name="pckz_options[<?php echo esc_attr( $id ); ?>]"
+					value="<?php echo esc_attr( $active_family ); ?>"
+				>
+				<div class="pckz-font-picker__grid" role="listbox" aria-label="<?php echo esc_attr( $label ); ?>">
+					<?php foreach ( $fonts as $font ) :
+						$family   = $font['family'] ?? '';
+						$cat      = $font['category'] ?? 'modern';
+						$cat_lbl  = $font_categories[ $cat ] ?? ucfirst( $cat );
+						$sample   = $font['sample'] ?? 'Aa Bb 123';
+						$is_active = $active_family === $family;
+						?>
+						<button
+							type="button"
+							class="pckz-font-picker__option<?php echo $is_active ? ' is-active' : ''; ?>"
+							role="option"
+							aria-selected="<?php echo $is_active ? 'true' : 'false'; ?>"
+							data-font-family="<?php echo esc_attr( $family ); ?>"
+							style="font-family: <?php echo esc_attr( $family ); ?>, sans-serif;"
+						>
+							<span class="pckz-font-picker__sample"><?php echo esc_html( $sample ); ?></span>
+							<span class="pckz-font-picker__meta">
+								<span class="pckz-font-picker__name"><?php echo esc_html( $font['label'] ?? $family ); ?></span>
+								<span class="pckz-font-picker__cat"><?php echo esc_html( $cat_lbl ); ?></span>
+							</span>
+						</button>
+					<?php endforeach; ?>
+				</div>
+			</div>
 
 		<?php elseif ( 'html' === $type && ! empty( $option['html'] ) ) : ?>
 			<div class="pckz-field__html"><?php echo wp_kses_post( $option['html'] ); ?></div>

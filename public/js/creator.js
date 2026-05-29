@@ -697,6 +697,31 @@
 			if (PCKZCE_GLOBAL.PCKZVisualPicker && PCKZCE_GLOBAL.PCKZVisualPicker.init) {
 				PCKZCE_GLOBAL.PCKZVisualPicker.init(this.root);
 			}
+			this.initFontPickers();
+		}
+
+		initFontPickers() {
+			this.root.querySelectorAll('[data-font-picker]').forEach((picker) => {
+				const hidden = picker.querySelector('.pckz-font-hidden');
+				const setActive = (family) => {
+					if (!hidden || !family) {
+						return;
+					}
+					hidden.value = family;
+					picker.querySelectorAll('.pckz-font-picker__option').forEach((btn) => {
+						const on = btn.dataset.fontFamily === family;
+						btn.classList.toggle('is-active', on);
+						btn.setAttribute('aria-selected', on ? 'true' : 'false');
+					});
+					this.syncFromForm();
+				};
+				picker.querySelectorAll('.pckz-font-picker__option').forEach((btn) => {
+					btn.addEventListener('click', () => setActive(btn.dataset.fontFamily));
+				});
+				if (hidden && hidden.value) {
+					setActive(hidden.value);
+				}
+			});
 		}
 
 		bindOptions() {
@@ -967,6 +992,11 @@
 				const iconHidden = field.querySelector('.pckz-icon-hidden');
 				if (iconHidden) {
 					data[id] = iconHidden.value;
+					return;
+				}
+				const fontHidden = field.querySelector('.pckz-font-hidden');
+				if (fontHidden) {
+					data[id] = fontHidden.value;
 					return;
 				}
 				const radios = field.querySelectorAll(`input[type="radio"][name="pckz_options[${id}]"]`);
