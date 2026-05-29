@@ -1,0 +1,99 @@
+%!PS-Adobe-3.0
+%%Creator: LightBurn Pro 2.1.00
+%%Title: 
+%%BoundingBox: 6 144 142 154
+%%HiResBoundingBox: 6.55557 144.946 141.572 153.941
+%%DocumentProcessColors: Cyan Magenta Yellow Black
+%%DocumentSuppliedResources: procset Adobe_level2_AI5 1.2 0
+%%+ procset Adobe_typography_AI5 1.0 1
+%%+ procset Adobe_ColorImage_AI6 1.1 0
+%%+ procset Adobe_Illustrator_AI5 1.2 0
+%%+ procset Adobe_cshow 2.0 8
+%AI3_ColorUsage: Color
+%AI3_DocumentPreview: None
+%AI5_NumLayers: 1
+%AI5_FileFormat 2.0
+%%EndComments
+%%BeginProlog
+%%IncludeResource: procset Adobe_level2_AI5 1.2 0
+%%IncludeResource: procset Adobe_typography_AI5 1.0 1
+%%IncludeResource: procset Adobe_ColorImage_AI6 1.1 0
+%%IncludeResource: procset Adobe_Illustrator_AI5 1.2 0
+%%IncludeResource: procset Adobe_cshow 2.0 8
+%%EndProlog
+%%BeginSetup
+Adobe_level2_AI5 /initialize get exec
+Adobe_cshow /initialize get exec
+Adobe_Illustrator_AI5_vars Adobe_Illustrator_AI5 Adobe_typography_AI5 /initialize get exec
+Adobe_ColorImage_AI6 /initialize get exec
+Adobe_Illustrator_AI5 /initialize get exec
+%%EndSetup
+%AI5_BeginLayer
+1 1 1 1 0 0 0 0 0 0 Lb
+(Layer 1) Ln
+1 XR
+0 A
+0 O
+0 J 0 j 1 w 10 M []0 d
+0 0 0 1 K
+18.582706 423.92136 m
+146.15685 423.71994 L
+S
+0 0 0 1 K
+273.73099 423.51849 m
+401.30515 423.31708 L
+S
+0 0 0 1 K
+186.34271 423.65652 m
+186.33005 426.21695 184.03513 428.2962 181.21684 428.30066 C
+178.39854 428.30511 176.12413 426.23309 176.13678 423.67261 C
+176.14944 421.11218 178.44438 419.03293 181.26266 419.02847 C
+184.08095 419.02402 186.35538 421.09607 186.34271 423.65652 C
+s
+0 0 0 1 K
+243.75107 423.56586 m
+243.7384 426.12628 241.44347 428.20557 238.62517 428.21002 C
+235.8069 428.21448 233.53247 426.14243 233.54512 423.58197 C
+233.5578 421.02155 235.85272 418.94226 238.67102 418.93781 C
+241.48929 418.93335 243.76372 421.0054 243.75107 423.56586 C
+s
+0 0 0 1 K
+170.39594 423.6817 m
+170.38327 426.24213 168.08833 428.32138 165.27005 428.32584 C
+162.45175 428.33029 160.17734 426.25824 160.19 423.69778 C
+160.20267 421.13736 162.49759 419.05811 165.31587 419.05365 C
+168.13417 419.04919 170.4086 421.12125 170.39594 423.6817 C
+s
+0 0 0 1 K
+259.69785 423.54068 m
+259.68518 426.1011 257.39026 428.18039 254.57196 428.18484 C
+251.75368 428.1893 249.47925 426.11725 249.49191 423.55679 C
+249.50458 420.99637 251.79951 418.91708 254.61781 418.91263 C
+257.4361 418.90817 259.71051 420.98022 259.69785 423.54068 C
+s
+0 0 0 1 K
+181.87761 423.66354 m
+189.47476 435.24173 204.78365 435.21756 212.49542 423.61517 C
+204.89825 412.03702 189.58936 412.06119 181.87761 423.66354 C
+s
+0 0 0 1 K
+207.39244 423.62323 m
+214.98958 435.20142 230.29849 435.17731 238.01024 423.57492 C
+230.41309 411.99673 215.10417 412.02087 207.39244 423.62323 C
+s
+0 0 0 1 K
+209.88089 436.36856 m
+219.04652 427.4296 214.18851 416.60049 210.00691 410.8699 C
+205.76859 416.61377 200.80344 427.45844 209.88089 436.36856 C
+s
+LB
+%AI5_EndLayer--
+%%PageTrailer
+gsave annotatepage grestore showpage
+%%Trailer
+Adobe_Illustrator_AI5 /terminate get exec
+Adobe_ColorImage_AI6 /terminate get exec
+Adobe_typography_AI5 /terminate get exec
+Adobe_cshow /terminate get exec
+Adobe_level2_AI5 /terminate get exec
+%%EOF

@@ -18,15 +18,13 @@ Do **not** use legacy zip-only layouts or old `product-creator-kz` copies.
 ## Line models (Typ 1–38)
 
 - **Typ 1–20:** Cloudlift CDN SVGs (unchanged).
-- **Typ 21–38:** Bundled ornaments in `public/assets/lines/type_21.svg` … `type_38.svg`.
+- **Typ 21–38:** Bundled ornaments in `public/assets/lines/type_21.svg` … `type_38.svg` (included in this repository).
 
-To import your prepared artwork (from Illustrator or exported SVG):
+Source artwork from LightBurn `.ai` exports is archived under `import/line-models/`. To regenerate SVGs after editing sources:
 
-1. Place files in `import/line-models/` (e.g. `model 23.svg` or `model 23.ai`).
-2. Run: `bash tools/import-line-models.sh`
-3. Confirm files exist under `public/assets/lines/`.
-
-Only files present on disk are shown in the customer **Linien** selector.
+```bash
+python3 tools/convert-lightburn-ai-to-svg.py import/line-models -o public/assets/lines
+```
 
 ## Architecture
 

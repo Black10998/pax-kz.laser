@@ -40,14 +40,14 @@ Localized JS global: `pckzceConfig` (not `pckzCreator`).
 
 ## Line models (Typ 21–38)
 
-Bundled divider ornaments live in `public/assets/lines/` as `type_21.svg` … `type_38.svg`.  
-To install your prepared files from Illustrator or SVG export:
+Bundled divider ornaments are included as `public/assets/lines/type_21.svg` … `type_38.svg`.  
+They appear in the customer **Linien** selector automatically (types **1–20** still use Cloudlift CDN).
 
-1. Copy `model 21.svg` / `model 23.ai` (etc.) into `import/line-models/`.
-2. Run `bash tools/import-line-models.sh` from the plugin root.
-3. Reload the configurator — new types appear in **Linien** automatically.
+To regenerate SVGs after editing LightBurn sources in `import/line-models/`:
 
-Existing types **1–20** still load from Cloudlift CDN (unchanged).
+```bash
+python3 tools/convert-lightburn-ai-to-svg.py import/line-models -o public/assets/lines
+```
 
 ## Requirements
 

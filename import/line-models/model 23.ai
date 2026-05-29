@@ -1,0 +1,71 @@
+%!PS-Adobe-3.0
+%%Creator: LightBurn Pro 2.1.00
+%%Title: 
+%%BoundingBox: 10 176 146 188
+%%HiResBoundingBox: 10.492 176.375 145.508 187.625
+%%DocumentProcessColors: Cyan Magenta Yellow Black
+%%DocumentSuppliedResources: procset Adobe_level2_AI5 1.2 0
+%%+ procset Adobe_typography_AI5 1.0 1
+%%+ procset Adobe_ColorImage_AI6 1.1 0
+%%+ procset Adobe_Illustrator_AI5 1.2 0
+%%+ procset Adobe_cshow 2.0 8
+%AI3_ColorUsage: Color
+%AI3_DocumentPreview: None
+%AI5_NumLayers: 1
+%AI5_FileFormat 2.0
+%%EndComments
+%%BeginProlog
+%%IncludeResource: procset Adobe_level2_AI5 1.2 0
+%%IncludeResource: procset Adobe_typography_AI5 1.0 1
+%%IncludeResource: procset Adobe_ColorImage_AI6 1.1 0
+%%IncludeResource: procset Adobe_Illustrator_AI5 1.2 0
+%%IncludeResource: procset Adobe_cshow 2.0 8
+%%EndProlog
+%%BeginSetup
+Adobe_level2_AI5 /initialize get exec
+Adobe_cshow /initialize get exec
+Adobe_Illustrator_AI5_vars Adobe_Illustrator_AI5 Adobe_typography_AI5 /initialize get exec
+Adobe_ColorImage_AI6 /initialize get exec
+Adobe_Illustrator_AI5 /initialize get exec
+%%EndSetup
+%AI5_BeginLayer
+1 1 1 1 0 0 0 0 0 0 Lb
+(Layer 1) Ln
+1 XR
+0 A
+0 O
+0 J 0 j 1 w 10 M []0 d
+0 0 0 1 K
+29.74114 511.21591 m
+172.62416 510.99033 L
+S
+0 0 0 1 K
+269.58051 510.83719 m
+412.46362 510.61157 L
+S
+0 0 0 1 K
+190.51291 505.22491 m
+173.61642 516.72589 182.68126 528.18579 190.44989 517.97418 C
+198.11774 528.16144 207.29597 516.67267 190.51291 505.22491 C
+s
+0 0 0 1 K
+221.15649 499.96094 m
+188.89954 521.91736 206.20511 543.79547 221.03619 524.30054 C
+235.67476 543.74896 253.1969 521.8158 221.15649 499.96094 C
+s
+0 0 0 1 K
+251.74852 505.1282 m
+234.85199 516.62921 243.91684 528.08917 251.6855 517.8775 C
+259.35333 528.06482 268.53159 516.57599 251.74852 505.1282 C
+s
+LB
+%AI5_EndLayer--
+%%PageTrailer
+gsave annotatepage grestore showpage
+%%Trailer
+Adobe_Illustrator_AI5 /terminate get exec
+Adobe_ColorImage_AI6 /terminate get exec
+Adobe_typography_AI5 /terminate get exec
+Adobe_cshow /terminate get exec
+Adobe_level2_AI5 /terminate get exec
+%%EOF

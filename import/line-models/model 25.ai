@@ -1,0 +1,91 @@
+%!PS-Adobe-3.0
+%%Creator: LightBurn Pro 2.1.00
+%%Title: 
+%%BoundingBox: 8 140 144 155
+%%HiResBoundingBox: 8.5101 140.466 143.526 154.368
+%%DocumentProcessColors: Cyan Magenta Yellow Black
+%%DocumentSuppliedResources: procset Adobe_level2_AI5 1.2 0
+%%+ procset Adobe_typography_AI5 1.0 1
+%%+ procset Adobe_ColorImage_AI6 1.1 0
+%%+ procset Adobe_Illustrator_AI5 1.2 0
+%%+ procset Adobe_cshow 2.0 8
+%AI3_ColorUsage: Color
+%AI3_DocumentPreview: None
+%AI5_NumLayers: 1
+%AI5_FileFormat 2.0
+%%EndComments
+%%BeginProlog
+%%IncludeResource: procset Adobe_level2_AI5 1.2 0
+%%IncludeResource: procset Adobe_typography_AI5 1.0 1
+%%IncludeResource: procset Adobe_ColorImage_AI6 1.1 0
+%%IncludeResource: procset Adobe_Illustrator_AI5 1.2 0
+%%IncludeResource: procset Adobe_cshow 2.0 8
+%%EndProlog
+%%BeginSetup
+Adobe_level2_AI5 /initialize get exec
+Adobe_cshow /initialize get exec
+Adobe_Illustrator_AI5_vars Adobe_Illustrator_AI5 Adobe_typography_AI5 /initialize get exec
+Adobe_ColorImage_AI6 /initialize get exec
+Adobe_Illustrator_AI5 /initialize get exec
+%%EndSetup
+%AI5_BeginLayer
+1 1 1 1 0 0 0 0 0 0 Lb
+(Layer 1) Ln
+1 XR
+0 A
+0 O
+0 J 0 j 1 w 10 M []0 d
+0 0 0 1 K
+24.123114 418.17599 m
+145.31854 417.98465 L
+S
+0 0 0 1 K
+285.65012 417.76306 m
+406.84558 417.57172 L
+S
+0 0 0 1 K
+164.40312 428.38565 m
+175.93634 417.93628 L
+164.50624 407.52319 L
+152.97299 417.97256 L
+164.40312 428.38565 L
+s
+0 0 0 1 K
+186.71428 431.24799 m
+201.45116 417.89603 L
+186.84604 404.59036 L
+172.10912 417.94235 L
+186.71428 431.24799 L
+s
+0 0 0 1 K
+215.38695 437.57733 m
+237.17192 417.8396 L
+215.58174 398.17038 L
+193.79674 417.90808 L
+215.38695 437.57733 L
+s
+0 0 0 1 K
+244.12262 431.15735 m
+258.85956 417.80536 L
+244.25439 404.49969 L
+229.51749 417.85168 L
+244.12262 431.15735 L
+s
+0 0 0 1 K
+266.46243 428.22455 m
+277.99567 417.77518 L
+266.56558 407.36203 L
+255.03232 417.8114 L
+266.46243 428.22455 L
+s
+LB
+%AI5_EndLayer--
+%%PageTrailer
+gsave annotatepage grestore showpage
+%%Trailer
+Adobe_Illustrator_AI5 /terminate get exec
+Adobe_ColorImage_AI6 /terminate get exec
+Adobe_typography_AI5 /terminate get exec
+Adobe_cshow /terminate get exec
+Adobe_level2_AI5 /terminate get exec
+%%EOF

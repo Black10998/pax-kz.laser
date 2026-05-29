@@ -1,0 +1,85 @@
+%!PS-Adobe-3.0
+%%Creator: LightBurn Pro 2.1.00
+%%Title: 
+%%BoundingBox: 157 127 293 140
+%%HiResBoundingBox: 157.928 127.719 292.944 139.985
+%%DocumentProcessColors: Cyan Magenta Yellow Black
+%%DocumentSuppliedResources: procset Adobe_level2_AI5 1.2 0
+%%+ procset Adobe_typography_AI5 1.0 1
+%%+ procset Adobe_ColorImage_AI6 1.1 0
+%%+ procset Adobe_Illustrator_AI5 1.2 0
+%%+ procset Adobe_cshow 2.0 8
+%AI3_ColorUsage: Color
+%AI3_DocumentPreview: None
+%AI5_NumLayers: 1
+%AI5_FileFormat 2.0
+%%EndComments
+%%BeginProlog
+%%IncludeResource: procset Adobe_level2_AI5 1.2 0
+%%IncludeResource: procset Adobe_typography_AI5 1.0 1
+%%IncludeResource: procset Adobe_ColorImage_AI6 1.1 0
+%%IncludeResource: procset Adobe_Illustrator_AI5 1.2 0
+%%IncludeResource: procset Adobe_cshow 2.0 8
+%%EndProlog
+%%BeginSetup
+Adobe_level2_AI5 /initialize get exec
+Adobe_cshow /initialize get exec
+Adobe_Illustrator_AI5_vars Adobe_Illustrator_AI5 Adobe_typography_AI5 /initialize get exec
+Adobe_ColorImage_AI6 /initialize get exec
+Adobe_Illustrator_AI5 /initialize get exec
+%%EndSetup
+%AI5_BeginLayer
+1 1 1 1 0 0 0 0 0 0 Lb
+(Layer 1) Ln
+1 XR
+0 A
+0 O
+0 J 0 j 1 w 10 M []0 d
+0 0 0 1 K
+447.67047 379.72601 m
+593.10498 379.49637 L
+S
+0 0 0 1 K
+684.95837 379.35135 m
+830.39288 379.1217 L
+S
+0 0 0 1 K
+638.94574 396.80923 m
+651.44446 384.61984 644.81982 369.85284 639.11761 362.03842 C
+633.33813 369.87097 626.56732 384.65912 638.94574 396.80923 C
+s
+0 0 0 1 K
+598.84589 379.48734 m
+605.48053 392.22601 618.87579 392.20493 625.63635 379.44504 C
+619.00183 366.70627 605.60657 366.72745 598.84589 379.48734 C
+s
+0 0 0 1 K
+652.427 379.40274 m
+659.06165 392.14142 672.45691 392.1203 679.21753 379.36044 C
+672.58295 366.62164 659.18768 366.64285 652.427 379.40274 C
+s
+0 0 0 1 K
+586.08838 379.50745 m
+586.07733 381.74783 584.06927 383.5672 581.60327 383.57111 C
+579.13727 383.57498 577.14716 381.76193 577.15826 379.52155 C
+577.16931 377.28116 579.17737 375.46179 581.64337 375.45792 C
+584.10938 375.45401 586.09949 377.26706 586.08838 379.50745 C
+s
+0 0 0 1 K
+700.90515 379.32617 m
+700.89404 381.56656 698.88605 383.38593 696.41998 383.38983 C
+693.95398 383.39371 691.96393 381.58066 691.97498 379.34027 C
+691.98602 377.09988 693.99408 375.28052 696.46014 375.27664 C
+698.92615 375.27274 700.9162 377.08578 700.90515 379.32617 C
+s
+LB
+%AI5_EndLayer--
+%%PageTrailer
+gsave annotatepage grestore showpage
+%%Trailer
+Adobe_Illustrator_AI5 /terminate get exec
+Adobe_ColorImage_AI6 /terminate get exec
+Adobe_typography_AI5 /terminate get exec
+Adobe_cshow /terminate get exec
+Adobe_level2_AI5 /terminate get exec
+%%EOF

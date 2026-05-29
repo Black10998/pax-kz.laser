@@ -1,0 +1,95 @@
+%!PS-Adobe-3.0
+%%Creator: LightBurn Pro 2.1.00
+%%Title: 
+%%BoundingBox: 26 159 162 167
+%%HiResBoundingBox: 26.492 159.665 161.508 166.335
+%%DocumentProcessColors: Cyan Magenta Yellow Black
+%%DocumentSuppliedResources: procset Adobe_level2_AI5 1.2 0
+%%+ procset Adobe_typography_AI5 1.0 1
+%%+ procset Adobe_ColorImage_AI6 1.1 0
+%%+ procset Adobe_Illustrator_AI5 1.2 0
+%%+ procset Adobe_cshow 2.0 8
+%AI3_ColorUsage: Color
+%AI3_DocumentPreview: None
+%AI5_NumLayers: 1
+%AI5_FileFormat 2.0
+%%EndComments
+%%BeginProlog
+%%IncludeResource: procset Adobe_level2_AI5 1.2 0
+%%IncludeResource: procset Adobe_typography_AI5 1.0 1
+%%IncludeResource: procset Adobe_ColorImage_AI6 1.1 0
+%%IncludeResource: procset Adobe_Illustrator_AI5 1.2 0
+%%IncludeResource: procset Adobe_cshow 2.0 8
+%%EndProlog
+%%BeginSetup
+Adobe_level2_AI5 /initialize get exec
+Adobe_cshow /initialize get exec
+Adobe_Illustrator_AI5_vars Adobe_Illustrator_AI5 Adobe_typography_AI5 /initialize get exec
+Adobe_ColorImage_AI6 /initialize get exec
+Adobe_Illustrator_AI5 /initialize get exec
+%%EndSetup
+%AI5_BeginLayer
+1 1 1 1 0 0 0 0 0 0 Lb
+(Layer 1) Ln
+1 XR
+0 A
+0 O
+0 J 0 j 1 w 10 M []0 d
+0 0 0 1 K
+75.095482 462.21326 m
+209.04834 462.00174 L
+S
+0 0 0 1 K
+323.86505 461.82043 m
+457.81796 461.60892 L
+S
+0 0 0 1 K
+100.57594 469.12714 m
+432.26874 468.60342 L
+S
+0 0 0 1 K
+100.64468 455.21878 m
+432.33746 454.69507 L
+S
+0 0 0 1 K
+230.09273 471.27551 m
+246.98228 473.3736 255.89468 460.79645 259.44547 452.61514 C
+249.78752 452.83105 233.75012 456.11517 230.09273 471.27551 C
+s
+0 0 0 1 K
+302.72867 471.1608 m
+299.22113 456.01178 283.21591 452.7782 273.55994 452.59286 C
+277.02991 460.76306 285.81808 473.31223 302.72867 471.1608 C
+s
+0 0 0 1 K
+266.41373 470.60379 m
+276.02475 461.896 L
+266.49966 453.21841 L
+256.88864 461.92624 L
+266.41373 470.60379 L
+s
+0 0 0 1 K
+229.4201 470.08267 m
+238.39037 461.95538 L
+229.50032 453.85629 L
+220.53 461.98358 L
+229.4201 470.08267 L
+s
+0 0 0 1 K
+303.41312 469.96588 m
+312.38339 461.83859 L
+303.49332 453.7395 L
+294.52301 461.86679 L
+303.41312 469.96588 L
+s
+LB
+%AI5_EndLayer--
+%%PageTrailer
+gsave annotatepage grestore showpage
+%%Trailer
+Adobe_Illustrator_AI5 /terminate get exec
+Adobe_ColorImage_AI6 /terminate get exec
+Adobe_typography_AI5 /terminate get exec
+Adobe_cshow /terminate get exec
+Adobe_level2_AI5 /terminate get exec
+%%EOF

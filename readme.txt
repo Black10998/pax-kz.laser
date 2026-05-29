@@ -56,9 +56,9 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 == Changelog ==
 
 = 2.10.0 =
-* Add bundled line ornaments Typ 21–38 (`public/assets/lines/type_21.svg` … `type_38.svg`).
+* Add bundled line ornaments Typ 21–38 (`public/assets/lines/type_21.svg` … `type_38.svg`, shipped in repo).
 * Line selector lists all registered types from `PCKZ_Ledos_Preview::line_types()` (CDN 1–20 unchanged).
-* Repository is the plugin root (no nested zip-only package); use `tools/import-line-models.sh` to install artwork.
+* Repository is the plugin root (single deployable package, no nested zip-only layout).
 
 = 2.9.5 =
 * Fix text export placement parity: OpenType paths scaled to Fabric getBoundingRect (no shift/size drift).
