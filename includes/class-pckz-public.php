@@ -69,8 +69,9 @@ class PCKZ_Public {
 			if ( $internal_id ) {
 				PCKZ_Commerce::update_order( $internal_id, array( 'status' => 'cancelled' ) );
 			}
-			$cancel = (string) PCKZ_Settings::get( 'paypal_cancel_url', '' );
-			wp_safe_redirect( $cancel ? $cancel : wp_get_referer() ?: home_url( '/' ) );
+			$cancel   = (string) PCKZ_Settings::get( 'paypal_cancel_url', '' );
+			$redirect = $cancel ? $cancel : ( wp_get_referer() ?: home_url( '/' ) );
+			wp_safe_redirect( $redirect );
 			exit;
 		}
 
