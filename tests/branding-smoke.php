@@ -30,6 +30,11 @@ foreach ( $checks as $needle => $label ) {
 if ( ! defined( 'ABSPATH' ) ) {
 	define( 'ABSPATH', $root . '/' );
 }
+if ( ! defined( 'PCKZCE_VERSION' ) ) {
+	define( 'PCKZCE_VERSION', '2.17.7' );
+	define( 'PCKZCE_BUILD', '2.17.7.20260529-font-export-ttf-latin' );
+	define( 'PCKZCE_PLUGIN_DIR', $root . '/' );
+}
 require_once $root . '/includes/class-pckz-branding.php';
 
 if ( PCKZ_Branding::AUTHOR_NAME !== 'PAXDesign' ) {

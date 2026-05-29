@@ -49,4 +49,10 @@ if ( $count < 15 ) {
 	exit( 1 );
 }
 
+$customer = PCKZ_Font_Library::get_customer_fonts();
+if ( count( $customer ) !== $count ) {
+	fwrite( STDERR, 'FAIL customer font list must match export-ready count (' . count( $customer ) . " vs {$count})\n" );
+	exit( 1 );
+}
+
 echo "OK font-export-urls-smoke: {$count} fonts have OpenType binary URLs (Google + uploads)\n";

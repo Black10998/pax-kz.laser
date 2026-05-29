@@ -1468,6 +1468,17 @@
 				throw new Error('Font fetch failed: ' + url);
 			}
 			const font = global.opentype.parse(await res.arrayBuffer());
+			const probe = font.getPath('Laser AB 12', 0, 0, 48);
+			if (
+				!probe ||
+				!probe.commands ||
+				!probe.commands.length ||
+				!isFinite(probe.getBoundingBox().x2 - probe.getBoundingBox().x1)
+			) {
+				throw new Error(
+					'Font file has no exportable Latin glyphs for ' + fontFamily + ' (' + url + ')'
+				);
+			}
 			this._openTypeFonts[key] = font;
 			return font;
 		}

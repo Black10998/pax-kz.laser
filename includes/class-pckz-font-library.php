@@ -156,8 +156,12 @@ class PCKZ_Font_Library {
 	 */
 	public static function get_customer_fonts() {
 		$list = array();
+		$maps = self::build_font_file_maps();
 		foreach ( self::all_entries() as $id => $row ) {
 			if ( ! self::is_visible( $id ) ) {
+				continue;
+			}
+			if ( empty( $maps['byId'][ $id ] ) ) {
 				continue;
 			}
 			$list[] = array(
@@ -388,12 +392,13 @@ class PCKZ_Font_Library {
 		}
 
 		$css_url  = 'https://fonts.googleapis.com/css2?family=' . $google_id . '&display=swap';
+		// TTF/OTF for OpenType.js (woff2 is preview-only via Google CSS in the browser).
 		$response = wp_remote_get(
 			$css_url,
 			array(
 				'timeout' => 20,
 				'headers' => array(
-					'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+					'User-Agent' => 'Mozilla/5.0 (Linux; U; Android 2.2; en-us; Droid Build/FRG22D) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1',
 				),
 			)
 		);
@@ -425,29 +430,30 @@ class PCKZ_Font_Library {
 			return '';
 		}
 
-		$blocks = preg_split( '/@font-face\s*\{/i', $css );
-		if ( ! is_array( $blocks ) ) {
-			return '';
-		}
-
 		$candidates = array();
-		foreach ( $blocks as $index => $block ) {
-			if ( 0 === $index ) {
-				continue;
+		if ( preg_match_all(
+			'#(?:/\*\s*([^*]+?)\s*\*/\s*)?@font-face\s*\{([^}]+)\}#is',
+			$css,
+			$faces,
+			PREG_SET_ORDER
+		) ) {
+			foreach ( $faces as $face ) {
+				$comment = strtolower( trim( (string) ( $face[1] ?? '' ) ) );
+				$block   = (string) ( $face[2] ?? '' );
+				if ( ! preg_match( '#url\((https://fonts\.gstatic\.com/[^)]+\.(woff2|woff|ttf|otf))\)#i', $block, $match ) ) {
+					continue;
+				}
+				$weight = 400;
+				if ( preg_match( '/font-weight:\s*(\d+)/i', $block, $wm ) ) {
+					$weight = (int) $wm[1];
+				}
+				$candidates[] = array(
+					'url'          => $match[1],
+					'ext'          => strtolower( $match[2] ),
+					'weight'       => $weight,
+					'subset_score' => self::google_font_subset_score( $comment, $block ),
+				);
 			}
-			$block = '{' . $block;
-			if ( ! preg_match( '#url\((https://fonts\.gstatic\.com/[^)]+\.(woff2|woff|ttf|otf))\)#i', $block, $match ) ) {
-				continue;
-			}
-			$weight = 400;
-			if ( preg_match( '/font-weight:\s*(\d+)/i', $block, $wm ) ) {
-				$weight = (int) $wm[1];
-			}
-			$candidates[] = array(
-				'url'    => $match[1],
-				'ext'    => strtolower( $match[2] ),
-				'weight' => $weight,
-			);
 		}
 
 		if ( empty( $candidates ) ) {
@@ -455,11 +461,14 @@ class PCKZ_Font_Library {
 		}
 
 		$weight_rank = array( 700 => 0, 600 => 1, 500 => 2, 400 => 3 );
-		$ext_rank    = array( 'woff2' => 0, 'woff' => 1, 'ttf' => 2, 'otf' => 3 );
+		$ext_rank    = array( 'ttf' => 0, 'otf' => 1, 'woff' => 2, 'woff2' => 3 );
 
 		usort(
 			$candidates,
 			function ( $a, $b ) use ( $weight_rank, $ext_rank ) {
+				if ( $a['subset_score'] !== $b['subset_score'] ) {
+					return $a['subset_score'] - $b['subset_score'];
+				}
 				$wa = $weight_rank[ $a['weight'] ] ?? ( 10 + abs( 700 - $a['weight'] ) );
 				$wb = $weight_rank[ $b['weight'] ] ?? ( 10 + abs( 700 - $b['weight'] ) );
 				if ( $wa !== $wb ) {
@@ -475,6 +484,33 @@ class PCKZ_Font_Library {
 		);
 
 		return $candidates[0]['url'];
+	}
+
+	/**
+	 * Rank @font-face subset for export (Latin plate text). Lower is better.
+	 *
+	 * @param string $comment CSS comment before @font-face (e.g. "latin").
+	 * @param string $block   @font-face rule body.
+	 * @return int
+	 */
+	private static function google_font_subset_score( $comment, $block ) {
+		if ( 'latin' === $comment ) {
+			return 0;
+		}
+		if ( false !== strpos( $comment, 'latin-ext' ) ) {
+			return 1;
+		}
+		if ( preg_match( '/unicode-range:\s*([^;]+)/i', $block, $um ) ) {
+			$range = $um[1];
+			if ( preg_match( '/U\+0000-00FF/i', $range ) ) {
+				return 0;
+			}
+			if ( preg_match( '/U\+0100-02BA/i', $range ) || preg_match( '/U\+0100-024F/i', $range ) ) {
+				return 1;
+			}
+			return 10;
+		}
+		return 2;
 	}
 
 	/**

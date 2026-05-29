@@ -239,13 +239,74 @@ if ( ! function_exists( 'set_transient' ) ) {
 		return true;
 	}
 }
+if ( ! function_exists( 'pckz_smoke_live_http_get' ) ) {
+	/**
+	 * @param string $url  URL.
+	 * @param array  $args Args.
+	 * @return array|WP_Error
+	 */
+	function pckz_smoke_live_http_get( $url, $args = array() ) {
+		$ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+		if ( ! empty( $args['headers']['User-Agent'] ) ) {
+			$ua = $args['headers']['User-Agent'];
+		}
+		if ( function_exists( 'curl_init' ) ) {
+			$ch = curl_init( $url );
+			curl_setopt_array(
+				$ch,
+				array(
+					CURLOPT_RETURNTRANSFER => true,
+					CURLOPT_FOLLOWLOCATION => true,
+					CURLOPT_TIMEOUT        => 25,
+					CURLOPT_HTTPHEADER     => array( 'User-Agent: ' . $ua ),
+				)
+			);
+			$body = curl_exec( $ch );
+			$code = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+			curl_close( $ch );
+			if ( false === $body || $code < 200 || $code >= 300 ) {
+				return new WP_Error( 'http_fail', 'HTTP ' . $code );
+			}
+			return array(
+				'response' => array( 'code' => $code ),
+				'body'     => $body,
+			);
+		}
+		$ctx = stream_context_create(
+			array(
+				'http' => array(
+					'method'  => 'GET',
+					'timeout' => 25,
+					'header'  => "User-Agent: {$ua}\r\n",
+				),
+			)
+		);
+		$body = @file_get_contents( $url, false, $ctx );
+		if ( false === $body || '' === $body ) {
+			return new WP_Error( 'http_fail', 'file_get_contents failed' );
+		}
+		return array(
+			'response' => array( 'code' => 200 ),
+			'body'     => $body,
+		);
+	}
+}
 	if ( ! function_exists( 'wp_remote_get' ) ) {
 	function wp_remote_get( $url, $args = array() ) {
+		if ( getenv( 'PCKZ_LIVE_FONT_HTTP' ) ) {
+			return pckz_smoke_live_http_get( $url, $args );
+		}
 		if ( strpos( $url, 'fonts.googleapis.com' ) !== false ) {
-			$woff = 'https://fonts.gstatic.com/s/russoone/v14/1Ptxg8zYS_SKggPN.woff2';
+			$fixture = dirname( __DIR__ ) . '/tests/fixtures/great-vibes-google.css';
+			if ( false !== strpos( $url, 'Great%2BVibes' ) || false !== strpos( $url, 'Great+Vibes' ) ) {
+				$body = is_readable( $fixture ) ? file_get_contents( $fixture ) : '';
+			} else {
+				$ttf  = 'https://fonts.gstatic.com/s/russoone/v14/1Ptxg8zYS_SKggPN.ttf';
+				$body = '@font-face{font-weight:700;font-style:normal;src:url(' . $ttf . ') format("truetype");}';
+			}
 			return array(
 				'response' => array( 'code' => 200 ),
-				'body'     => '@font-face{font-weight:700;font-style:normal;src:url(' . $woff . ') format("woff2");}',
+				'body'     => $body,
 			);
 		}
 		if ( strpos( $url, 'line' ) !== false || strpos( $url, 'Line' ) !== false ) {
