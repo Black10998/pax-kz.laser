@@ -1,0 +1,158 @@
+<?php
+/**
+ * Ledos-style license plate frame configurator (German UI).
+ *
+ * @package PCKZCanonicalEngine
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+$config           = PCKZ_Post_Type::get_product_config( $product_id );
+$price            = $config['price'] ?? '';
+$currency         = $config['currency'] ?? 'UAH';
+$customer_options = $config['customer_options'] ?? array();
+$benefits         = $config['benefits'] ?? array();
+$fonts            = PCKZ_Settings::get_fonts();
+$colors           = PCKZ_Settings::get_gray_palette();
+$description      = $config['description'] ?? '';
+$woo_linked       = class_exists( 'WooCommerce' ) && ! empty( $config['woo_product_id'] );
+$img_day          = $config['background_day'] ?: $config['background_image'];
+$img_night        = $config['background_night'] ?: $img_day;
+$use_cloudlift    = ! empty( $config['use_cloudlift_layout'] );
+?>
+<div
+	class="pckz-product<?php echo $use_cloudlift ? ' pckz-product--cloudlift' : ''; ?>"
+	id="pckz-creator-<?php echo esc_attr( (string) $product_id ); ?>"
+	data-product-id="<?php echo esc_attr( (string) $product_id ); ?>"
+	lang="de"
+>
+	<div class="pckz-product__inner page-width">
+		<div class="pckz-product__grid">
+			<div class="pckz-product__media-column">
+				<p class="pckz-product__preview-heading">Vorschau</p>
+				<div class="pckz-gallery" data-gallery>
+					<div class="pckz-gallery__stage-wrap">
+						<div class="pckz-gallery__stage" data-stage>
+							<?php if ( $img_day ) : ?>
+								<img
+									class="pckz-gallery__fallback"
+									data-preview-fallback
+									src="<?php echo esc_url( $img_day ); ?>"
+									alt="<?php echo esc_attr( get_the_title( $product_id ) ); ?>"
+									crossorigin="anonymous"
+								>
+							<?php endif; ?>
+							<div class="pckz-gallery__loader" data-loader>
+								<span class="pckz-spinner"></span>
+								<span>Vorschau wird geladen…</span>
+							</div>
+							<canvas
+								id="pckz-canvas-<?php echo esc_attr( (string) $product_id ); ?>"
+								class="pckz-gallery__canvas"
+								aria-label="Produktvorschau mit Ihrer Personalisierung"
+							></canvas>
+						</div>
+					</div>
+					<?php if ( $img_day || $img_night ) : ?>
+						<div class="pckz-gallery__thumbs" aria-label="<?php esc_attr_e( 'Vorschau Tag / Nacht', 'pckz-canonical-engine' ); ?>">
+							<?php if ( $img_day ) : ?>
+								<button type="button" class="pckz-thumb is-active" data-preview-thumb="day" aria-pressed="true">
+									<img src="<?php echo esc_url( $img_day ); ?>" alt="Tag" loading="lazy" width="72" height="42" crossorigin="anonymous">
+									<span class="pckz-thumb__label">Tag</span>
+								</button>
+							<?php endif; ?>
+							<?php if ( $img_night && $img_night !== $img_day ) : ?>
+								<button type="button" class="pckz-thumb" data-preview-thumb="night" aria-pressed="false">
+									<img src="<?php echo esc_url( $img_night ); ?>" alt="Nacht" loading="lazy" width="72" height="42" crossorigin="anonymous">
+									<span class="pckz-thumb__label">Nacht</span>
+								</button>
+							<?php endif; ?>
+						</div>
+					<?php endif; ?>
+				</div>
+				<p class="pckz-gallery__caption">
+					<?php
+					echo $use_cloudlift
+						? esc_html__( 'Live-Vorschau: Text, Symbole und Linien werden wie im Original-Configurator auf dem Rahmen platziert.', 'pckz-canonical-engine' )
+						: esc_html__( 'Text und Symbole erscheinen live im unteren Streifen des Rahmens.', 'pckz-canonical-engine' );
+					?>
+				</p>
+			</div>
+
+			<div class="pckz-product__info-column">
+				<div class="pckz-product__info">
+					<h1 class="pckz-product__title"><?php echo esc_html( get_the_title( $product_id ) ); ?></h1>
+
+					<?php if ( $price ) : ?>
+						<div class="pckz-product__price">
+							<span class="pckz-product__price-amount"><?php echo esc_html( $price ); ?></span>
+							<span class="pckz-product__price-currency"><?php echo esc_html( $currency ); ?></span>
+						</div>
+					<?php endif; ?>
+
+					<?php if ( $description ) : ?>
+						<div class="pckz-product__lead"><?php echo wp_kses_post( wpautop( $description ) ); ?></div>
+					<?php endif; ?>
+
+					<div class="pckz-product__divider"></div>
+
+					<form class="pckz-product__form" id="pckz-form-<?php echo esc_attr( (string) $product_id ); ?>" novalidate>
+						<input type="hidden" name="pckz_options[preview_mode]" value="day" data-preview-mode-input>
+						<div class="pckz-options" data-options>
+							<?php include PCKZCE_PLUGIN_DIR . 'public/templates/partials/options-form.php'; ?>
+						</div>
+
+						<?php if ( $woo_linked ) : ?>
+							<div class="pckz-product__buy">
+								<div class="pckz-quantity" data-quantity>
+									<label class="pckz-quantity__label" for="pckz-qty-<?php echo esc_attr( (string) $product_id ); ?>">
+										Menge
+									</label>
+									<div class="pckz-quantity__control">
+										<button type="button" class="pckz-quantity__btn" data-qty="minus" aria-label="Menge verringern">−</button>
+										<input
+											type="number"
+											class="pckz-quantity__input"
+											id="pckz-qty-<?php echo esc_attr( (string) $product_id ); ?>"
+											min="1"
+											value="1"
+											data-field="quantity"
+										>
+										<button type="button" class="pckz-quantity__btn" data-qty="plus" aria-label="Menge erhöhen">+</button>
+									</div>
+								</div>
+								<button type="button" class="pckz-btn pckz-btn--cart" data-action="add-to-cart">
+									<span class="pckz-btn__text">In den Warenkorb</span>
+									<span class="pckz-btn__spinner" aria-hidden="true"></span>
+								</button>
+							</div>
+						<?php else : ?>
+							<button type="button" class="pckz-btn pckz-btn--cart" data-action="submit-design">
+								<span class="pckz-btn__text">Personalisierung speichern</span>
+								<span class="pckz-btn__spinner" aria-hidden="true"></span>
+							</button>
+						<?php endif; ?>
+					</form>
+
+					<?php if ( ! empty( $benefits ) ) : ?>
+						<ul class="pckz-product__benefits">
+							<?php foreach ( $benefits as $benefit ) : ?>
+								<li>
+									<svg class="pckz-benefit-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6.5 11.5 3 8l1-1 2.5 2.5L12 4l1 1z"/></svg>
+									<span><?php echo esc_html( $benefit ); ?></span>
+								</li>
+							<?php endforeach; ?>
+						</ul>
+					<?php endif; ?>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="pckz-validation-panel pckz-hidden" data-validation-panel role="alert" aria-live="assertive">
+		<strong class="pckz-validation-panel__title" data-validation-title></strong>
+		<ul class="pckz-validation-panel__list" data-validation-list></ul>
+	</div>
+
+	<div class="pckz-toast" role="status" aria-live="polite" hidden></div>
+</div>

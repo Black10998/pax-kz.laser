@@ -1,0 +1,290 @@
+<?php
+/**
+ * Admin area hooks and menus.
+ *
+ * @package PCKZCanonicalEngine
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Class PCKZ_Admin
+ */
+class PCKZ_Admin {
+
+	/**
+	 * Constructor.
+	 */
+	public function __construct() {
+		add_action( 'admin_menu', array( $this, 'register_menus' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_init', array( $this, 'register_settings' ) );
+	}
+
+	/**
+	 * Register admin menus.
+	 */
+	public function register_menus() {
+		add_menu_page(
+			__( 'Product Creator', 'pckz-canonical-engine' ),
+			__( 'Product Creator', 'pckz-canonical-engine' ),
+			'manage_options',
+			'pckz-canonical-engine',
+			array( $this, 'render_dashboard' ),
+			'dashicons-art',
+			56
+		);
+
+		add_submenu_page(
+			'pckz-canonical-engine',
+			__( 'Dashboard', 'pckz-canonical-engine' ),
+			__( 'Dashboard', 'pckz-canonical-engine' ),
+			'manage_options',
+			'pckz-canonical-engine',
+			array( $this, 'render_dashboard' )
+		);
+
+		add_submenu_page(
+			'pckz-canonical-engine',
+			__( 'Creator Products', 'pckz-canonical-engine' ),
+			__( 'Products', 'pckz-canonical-engine' ),
+			'manage_options',
+			'edit.php?post_type=' . PCKZ_Post_Type::POST_TYPE
+		);
+
+		add_submenu_page(
+			'pckz-canonical-engine',
+			__( 'Settings', 'pckz-canonical-engine' ),
+			__( 'Settings', 'pckz-canonical-engine' ),
+			'manage_options',
+			'pckz-settings',
+			array( $this, 'render_settings' )
+		);
+
+		add_submenu_page(
+			'pckz-canonical-engine',
+			__( 'Saved Designs', 'pckz-canonical-engine' ),
+			__( 'Designs', 'pckz-canonical-engine' ),
+			'manage_options',
+			'pckz-designs',
+			array( $this, 'render_designs' )
+		);
+	}
+
+	/**
+	 * Register settings.
+	 */
+	public function register_settings() {
+		register_setting(
+			'pckz_settings_group',
+			PCKZ_Settings::OPTION_KEY,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( $this, 'sanitize_settings' ),
+			)
+		);
+	}
+
+	/**
+	 * Sanitize global settings on save.
+	 *
+	 * @param array $input Raw input.
+	 * @return array
+	 */
+	public function sanitize_settings( $input ) {
+		if ( ! is_array( $input ) ) {
+			return PCKZ_Settings::default_options();
+		}
+
+		$defaults = PCKZ_Settings::default_options();
+		$output   = array(
+			'primary_color'        => sanitize_hex_color( $input['primary_color'] ?? $defaults['primary_color'] ) ?: $defaults['primary_color'],
+			'accent_color'         => sanitize_hex_color( $input['accent_color'] ?? $defaults['accent_color'] ) ?: $defaults['accent_color'],
+			'ui_theme'             => in_array( $input['ui_theme'] ?? '', array( 'dark', 'light' ), true ) ? $input['ui_theme'] : 'dark',
+			'default_dpi'          => max( 72, min( 600, intval( $input['default_dpi'] ?? 300 ) ) ),
+			'default_origin'       => in_array( $input['default_origin'] ?? '', array( 'top-left', 'bottom-left' ), true ) ? $input['default_origin'] : 'bottom-left',
+			'fabric_cdn'           => esc_url_raw( $input['fabric_cdn'] ?? $defaults['fabric_cdn'] ),
+			'google_fonts_url'     => esc_url_raw( $input['google_fonts_url'] ?? $defaults['google_fonts_url'] ),
+			'enable_woocommerce'   => ! empty( $input['enable_woocommerce'] ),
+			'cart_meta_key'        => sanitize_key( $input['cart_meta_key'] ?? '_pckz_design' ),
+			'require_design'       => ! empty( $input['require_design'] ),
+			'admin_email_notify'   => ! empty( $input['admin_email_notify'] ),
+			'max_designs_per_user' => max( 1, intval( $input['max_designs_per_user'] ?? 50 ) ),
+			'default_creator_product_id' => absint( $input['default_creator_product_id'] ?? 0 ),
+			'enable_dxf_export'    => ! empty( $input['enable_dxf_export'] ),
+			'fonts'                => $defaults['fonts'],
+			'color_palette'        => $defaults['color_palette'],
+		);
+
+		if ( ! empty( $input['color_palette'] ) && is_string( $input['color_palette'] ) ) {
+			$colors = array_filter( array_map( 'trim', explode( ',', $input['color_palette'] ) ) );
+			$output['color_palette'] = array();
+			foreach ( $colors as $color ) {
+				$sanitized = sanitize_hex_color( $color );
+				if ( $sanitized ) {
+					$output['color_palette'][] = $sanitized;
+				}
+			}
+		}
+
+		if ( ! empty( $input['fonts_json'] ) ) {
+			$fonts = json_decode( wp_unslash( $input['fonts_json'] ), true );
+			if ( is_array( $fonts ) ) {
+				$output['fonts'] = array();
+				foreach ( $fonts as $font ) {
+					if ( ! empty( $font['family'] ) ) {
+						$output['fonts'][] = array(
+							'family' => sanitize_text_field( $font['family'] ),
+							'label'  => sanitize_text_field( $font['label'] ?? $font['family'] ),
+						);
+					}
+				}
+			}
+		}
+
+		return $output;
+	}
+
+	/**
+	 * Enqueue admin assets.
+	 *
+	 * @param string $hook Current admin page hook.
+	 */
+	public function enqueue_assets( $hook ) {
+		$screen = get_current_screen();
+		$is_pckz = (
+			strpos( $hook, 'pckz-canonical-engine' ) !== false
+			|| strpos( $hook, 'pckz-' ) !== false
+			|| ( $screen && PCKZ_Post_Type::POST_TYPE === $screen->post_type )
+		);
+
+		if ( ! $is_pckz ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'pckz-admin',
+			PCKZCE_PLUGIN_URL . 'admin/css/admin.css',
+			array(),
+			PCKZ_Assets::version( 'admin/css/admin.css' )
+		);
+
+		wp_enqueue_media();
+		wp_enqueue_script(
+			'pckz-admin',
+			PCKZCE_PLUGIN_URL . 'admin/js/admin.js',
+			array( 'jquery' ),
+			PCKZ_Assets::version( 'admin/js/admin.js' ),
+			true
+		);
+	}
+
+	/**
+	 * Render dashboard page.
+	 */
+	public function render_dashboard() {
+		$products_count = wp_count_posts( PCKZ_Post_Type::POST_TYPE );
+		$published      = isset( $products_count->publish ) ? (int) $products_count->publish : 0;
+		include PCKZCE_PLUGIN_DIR . 'admin/views/dashboard.php';
+	}
+
+	/**
+	 * Render settings page.
+	 */
+	public function render_settings() {
+		$settings = PCKZ_Settings::get_all();
+		include PCKZCE_PLUGIN_DIR . 'admin/views/settings.php';
+	}
+
+	/**
+	 * Render saved designs list.
+	 */
+	public function render_designs() {
+		$design_id = isset( $_GET['design_id'] ) ? absint( $_GET['design_id'] ) : 0;
+
+		if ( $design_id ) {
+			$this->render_design_detail( $design_id );
+			return;
+		}
+
+		global $wpdb;
+		$table   = $wpdb->prefix . 'pckz_designs';
+		$designs = array();
+
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table ) {
+			$designs = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT 100" );
+		}
+
+		include PCKZCE_PLUGIN_DIR . 'admin/views/designs.php';
+	}
+
+	/**
+	 * Render single design with full LightBurn production data.
+	 *
+	 * @param int $design_id Design ID.
+	 */
+	private function render_design_detail( $design_id ) {
+		$design  = PCKZ_Design_Storage::get_design( $design_id );
+		$package = array();
+
+		if ( $design ) {
+			$meta = array();
+			if ( ! empty( $design['meta_json'] ) ) {
+				$meta = json_decode( $design['meta_json'], true );
+			}
+			if ( ! empty( $meta['production'] ) && is_array( $meta['production'] ) ) {
+				$package = $meta['production'];
+			}
+			if ( ! empty( $package ) && empty( $package['production_lbrn2_url'] ) && ! empty( $package['layout']['objects'] ) ) {
+				$package = PCKZ_Production::persist_export_files( $package, $design_id );
+				PCKZ_Design_Storage::update_meta(
+					$design_id,
+					array_merge(
+						$meta,
+						array(
+							'production'          => $package,
+							'lightburn_json_url'  => $package['lightburn_json_url'] ?? '',
+							'canvas_json_url'     => $package['canvas_json_url'] ?? '',
+							'production_svg_url'   => $package['production_svg_url'] ?? '',
+							'production_lbrn2_url' => $package['production_lbrn2_url'] ?? '',
+							'production_lbrn_url'  => $package['production_lbrn_url'] ?? '',
+							'production_dxf_url'   => $package['production_dxf_url'] ?? '',
+						)
+					)
+				);
+			}
+			if ( empty( $package ) ) {
+				$config = PCKZ_Post_Type::get_product_config( (int) ( $design['product_id'] ?? 0 ) );
+				$package = PCKZ_Production::build_package(
+					array(
+						'selections'  => $meta['selections'] ?? array(),
+						'canvas_json' => $design['canvas_json'] ?? '',
+						'config'      => $config,
+						'preview_url' => $design['preview_url'] ?? '',
+						'export_url'  => $design['export_url'] ?? '',
+						'std_spec'    => $meta['std_spec'] ?? array(),
+						'design_id'   => $design_id,
+					)
+				);
+				$package = PCKZ_Production::persist_export_files( $package, $design_id );
+				PCKZ_Design_Storage::update_meta(
+					$design_id,
+					array_merge(
+						$meta,
+						array(
+							'production'         => $package,
+							'lightburn_json_url'  => $package['lightburn_json_url'] ?? '',
+							'canvas_json_url'     => $package['canvas_json_url'] ?? '',
+							'production_svg_url'   => $package['production_svg_url'] ?? '',
+							'production_lbrn2_url' => $package['production_lbrn2_url'] ?? '',
+							'production_lbrn_url'  => $package['production_lbrn_url'] ?? '',
+							'production_dxf_url'   => $package['production_dxf_url'] ?? '',
+						)
+					)
+				);
+			}
+		}
+
+		include PCKZCE_PLUGIN_DIR . 'admin/views/design-detail.php';
+	}
+}

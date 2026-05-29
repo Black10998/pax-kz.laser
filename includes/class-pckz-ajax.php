@@ -1,0 +1,443 @@
+<?php
+/**
+ * AJAX handlers for uploads, saves, exports.
+ *
+ * @package PCKZCanonicalEngine
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Class PCKZ_Ajax
+ */
+class PCKZ_Ajax {
+
+	/**
+	 * Constructor.
+	 */
+	public function __construct() {
+		$actions = array(
+			'pckzce_upload_image',
+			'pckzce_save_design',
+			'pckzce_export_design',
+			'pckzce_add_to_cart',
+		);
+
+		foreach ( $actions as $action ) {
+			add_action( 'wp_ajax_' . $action, array( $this, str_replace( 'pckzce_', 'handle_', $action ) ) );
+			add_action( 'wp_ajax_nopriv_' . $action, array( $this, str_replace( 'pckzce_', 'handle_', $action ) ) );
+		}
+
+		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
+	}
+
+	/**
+	 * Verify nonce for AJAX requests.
+	 *
+	 * @return bool
+	 */
+	private function verify_nonce() {
+		$nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+		return (bool) wp_verify_nonce( $nonce, 'pckzce_creator' );
+	}
+
+	/**
+	 * Structured JSON error payload for export failures.
+	 *
+	 * @param string          $message User-facing message.
+	 * @param int             $status  HTTP status.
+	 * @param array           $extra   Extra fields.
+	 * @param Throwable|null  $error   Optional exception.
+	 */
+	private function send_export_error( $message, $status = 500, $extra = array(), $error = null ) {
+		$payload = array_merge(
+			array( 'message' => $message ),
+			$extra
+		);
+		if ( ! empty( $extra['validation']['errors'] ) && is_array( $extra['validation']['errors'] ) ) {
+			$payload['errors'] = $extra['validation']['errors'];
+		} elseif ( ! empty( $extra['errors'] ) && is_array( $extra['errors'] ) ) {
+			$payload['errors'] = $extra['errors'];
+		}
+		if ( $error instanceof \Throwable ) {
+			$payload['exception'] = get_class( $error );
+			$payload['file']      = $error->getFile();
+			$payload['line']      = $error->getLine();
+		}
+		wp_send_json_error( $payload, $status );
+	}
+
+
+	/**
+	 * Register REST routes.
+	 */
+	public function register_rest_routes() {
+		register_rest_route(
+			'pckzce/v1',
+			'/design/(?P<id>\d+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'rest_get_design' ),
+				'permission_callback' => '__return_true',
+				'args'                => array(
+					'id' => array(
+						'validate_callback' => function ( $param ) {
+							return is_numeric( $param );
+						},
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * REST: get design by ID.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function rest_get_design( $request ) {
+		$design = PCKZ_Design_Storage::get_design( (int) $request['id'] );
+		if ( ! $design ) {
+			return new WP_Error( 'not_found', __( 'Design not found.', 'pckz-canonical-engine' ), array( 'status' => 404 ) );
+		}
+		return rest_ensure_response( $design );
+	}
+
+	/**
+	 * Handle image upload.
+	 */
+	public function handle_upload_image() {
+		if ( ! $this->verify_nonce() ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
+		}
+
+		if ( empty( $_FILES['file'] ) ) {
+			wp_send_json_error( array( 'message' => __( 'No file uploaded.', 'pckz-canonical-engine' ) ), 400 );
+		}
+
+		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
+		$config     = PCKZ_Post_Type::get_product_config( $product_id );
+		$max_mb     = (int) ( $config['max_upload_mb'] ?? 5 );
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+
+		$overrides = array(
+			'test_form' => false,
+			'mimes'     => array(
+				'jpg|jpeg|jpe' => 'image/jpeg',
+				'gif'          => 'image/gif',
+				'png'          => 'image/png',
+				'svg'          => 'image/svg+xml',
+				'webp'         => 'image/webp',
+			),
+		);
+
+		$file = $_FILES['file'];
+		if ( $file['size'] > $max_mb * 1024 * 1024 ) {
+			wp_send_json_error(
+				array(
+					'message' => sprintf(
+						/* translators: %d: max MB */
+						__( 'File exceeds maximum size of %d MB.', 'pckz-canonical-engine' ),
+						$max_mb
+					),
+				),
+				400
+			);
+		}
+
+		$upload = wp_handle_upload( $file, $overrides );
+
+		if ( isset( $upload['error'] ) ) {
+			wp_send_json_error( array( 'message' => $upload['error'] ), 400 );
+		}
+
+		$attachment_id = wp_insert_attachment(
+			array(
+				'post_mime_type' => $upload['type'],
+				'post_title'     => sanitize_file_name( basename( $upload['file'] ) ),
+				'post_content'   => '',
+				'post_status'    => 'inherit',
+			),
+			$upload['file']
+		);
+
+		if ( ! is_wp_error( $attachment_id ) ) {
+			wp_update_attachment_metadata( $attachment_id, wp_generate_attachment_metadata( $attachment_id, $upload['file'] ) );
+		}
+
+		wp_send_json_success(
+			array(
+				'url'           => $upload['url'],
+				'attachment_id' => $attachment_id,
+			)
+		);
+	}
+
+	/**
+	 * Handle design save.
+	 */
+	public function handle_save_design() {
+		if ( ! $this->verify_nonce() ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
+		}
+
+		$product_id   = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
+		$canvas_json  = isset( $_POST['canvas_json'] ) ? wp_unslash( $_POST['canvas_json'] ) : '';
+		$preview_data = isset( $_POST['preview_png'] ) ? wp_unslash( $_POST['preview_png'] ) : '';
+		$design_meta  = isset( $_POST['design_meta'] ) ? wp_unslash( $_POST['design_meta'] ) : '';
+
+		if ( empty( $canvas_json ) ) {
+			wp_send_json_error( array( 'message' => __( 'Empty design data.', 'pckz-canonical-engine' ) ), 400 );
+		}
+
+		$meta = array();
+		if ( ! empty( $design_meta ) ) {
+			$decoded = json_decode( $design_meta, true );
+			if ( is_array( $decoded ) ) {
+				$meta = $decoded;
+			}
+		}
+
+		$selections = array();
+		if ( ! empty( $_POST['selections'] ) ) {
+			$decoded_sel = json_decode( wp_unslash( $_POST['selections'] ), true );
+			if ( is_array( $decoded_sel ) ) {
+				$selections = $decoded_sel;
+			}
+		}
+		$meta['selections'] = $selections;
+
+		$canonical_scene_json = '';
+		if ( ! empty( $_POST['canonical_scene_json'] ) ) {
+			$canonical_scene_json = wp_unslash( $_POST['canonical_scene_json'] );
+		}
+
+		$production_vector_svg = '';
+		if ( ! empty( $_POST['production_vector_svg'] ) ) {
+			$production_vector_svg = wp_unslash( $_POST['production_vector_svg'] );
+		}
+
+		$text_plate_paths = '';
+		if ( ! empty( $_POST['text_plate_paths'] ) ) {
+			$text_plate_paths = wp_unslash( $_POST['text_plate_paths'] );
+		}
+
+		if ( ! empty( $_POST['design_meta'] ) ) {
+			$extra = json_decode( wp_unslash( $_POST['design_meta'] ), true );
+			if ( is_array( $extra ) ) {
+				$meta = array_merge( $meta, $extra );
+			}
+		}
+
+		$config = PCKZ_Post_Type::get_product_config( $product_id );
+
+		$design_id = PCKZ_Design_Storage::save_design(
+			array(
+				'product_id'  => $product_id,
+				'user_id'     => get_current_user_id(),
+				'canvas_json' => $canvas_json,
+				'preview_png' => $preview_data,
+				'meta'        => $meta,
+			)
+		);
+
+		if ( is_wp_error( $design_id ) ) {
+			wp_send_json_error( array( 'message' => $design_id->get_error_message() ), 500 );
+		}
+
+		$export_payload = array();
+		$design = PCKZ_Design_Storage::get_design( $design_id );
+		if ( $design ) {
+			$layout = $meta['layout'] ?? array();
+			if ( empty( $layout ) ) {
+				$parsed = json_decode( $canvas_json, true );
+				if ( is_array( $parsed ) && ! empty( $parsed['pckzMeta']['layout'] ) ) {
+					$layout = $parsed['pckzMeta']['layout'];
+				}
+			}
+			if ( $production_vector_svg ) {
+				$layout['production_vector_svg']         = $production_vector_svg;
+				$meta['production_vector_svg']           = $production_vector_svg;
+				$meta['layout']['production_vector_svg'] = $production_vector_svg;
+			}
+			if ( $text_plate_paths ) {
+				$layout['text_plate_paths']         = $text_plate_paths;
+				$meta['text_plate_paths']           = $text_plate_paths;
+				$meta['layout']['text_plate_paths'] = $text_plate_paths;
+			}
+			$export_args = array(
+				'selections'  => $selections,
+				'canvas_json' => $canvas_json,
+				'config'      => $config,
+				'preview_url' => $design['preview_url'] ?? '',
+				'export_url'  => $design['export_url'] ?? '',
+				'std_spec'    => $meta['std_spec'] ?? array(),
+				'design_id'   => (int) $design_id,
+				'layout'      => $layout,
+			);
+
+			try {
+				if ( $canonical_scene_json ) {
+					$export_args['canonical_scene'] = $canonical_scene_json;
+					if ( $production_vector_svg ) {
+						$export_args['production_vector_svg'] = $production_vector_svg;
+					}
+					if ( $text_plate_paths ) {
+						$export_args['text_plate_paths'] = $text_plate_paths;
+					}
+					$package = PCKZ_Export_Engine::run( $export_args );
+					if ( is_wp_error( $package ) ) {
+						$data   = $package->get_error_data();
+						$status = 422;
+						if ( is_array( $data ) && ! empty( $data['http_status'] ) ) {
+							$status = (int) $data['http_status'];
+						}
+						$this->send_export_error(
+							$package->get_error_message(),
+							$status,
+							array(
+								'code'       => $package->get_error_code(),
+								'validation' => $data,
+								'errors'     => is_array( $data ) ? ( $data['errors'] ?? array() ) : array(),
+								'parity'     => is_array( $data ) ? ( $data['parity'] ?? null ) : null,
+							)
+						);
+					}
+				} else {
+					$export_args['production_vector_svg'] = $production_vector_svg;
+					$package = PCKZ_Production::build_package( $export_args );
+				}
+
+				$package = PCKZ_Production::persist_export_files( $package, $design_id );
+			} catch ( \Throwable $export_error ) {
+				$this->send_export_error(
+					$export_error->getMessage(),
+					500,
+					array( 'stage' => 'export' ),
+					$export_error
+				);
+			}
+
+			PCKZ_Design_Storage::update_meta(
+				$design_id,
+				array_merge(
+					$meta,
+					array(
+						'canonical_scene'      => $package['canonical_scene'] ?? ( $canonical_scene_json ? json_decode( $canonical_scene_json, true ) : null ),
+						'validation'           => $package['validation'] ?? null,
+						'parity'               => $package['parity'] ?? null,
+						'production'           => $package,
+						'lightburn_json_url'   => $package['lightburn_json_url'] ?? '',
+						'canvas_json_url'      => $package['canvas_json_url'] ?? '',
+						'production_svg_url'   => $package['production_svg_url'] ?? '',
+						'production_lbrn2_url' => $package['production_lbrn2_url'] ?? '',
+						'production_lbrn_url'  => $package['production_lbrn_url'] ?? '',
+						'production_dxf_url'   => $package['production_dxf_url'] ?? '',
+					)
+				)
+			);
+
+			$export_payload = array(
+				'validation'           => $package['validation'] ?? null,
+				'parity'               => $package['parity'] ?? null,
+				'lightburn_json_url'   => $package['lightburn_json_url'] ?? '',
+				'canvas_json_url'      => $package['canvas_json_url'] ?? '',
+				'production_svg_url'   => $package['production_svg_url'] ?? '',
+				'production_lbrn2_url' => $package['production_lbrn2_url'] ?? '',
+			);
+		}
+
+		wp_send_json_success(
+			array_merge(
+				array(
+					'design_id' => $design_id,
+					'message'   => __( 'Design saved.', 'pckz-canonical-engine' ),
+				),
+				$export_payload
+			)
+		);
+	}
+
+	/**
+	 * Handle print-ready export.
+	 */
+	public function handle_export_design() {
+		if ( ! $this->verify_nonce() ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
+		}
+
+		$png_data   = isset( $_POST['export_png'] ) ? wp_unslash( $_POST['export_png'] ) : '';
+		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
+		$format     = isset( $_POST['format'] ) ? sanitize_text_field( wp_unslash( $_POST['format'] ) ) : 'png';
+
+		if ( empty( $png_data ) ) {
+			wp_send_json_error( array( 'message' => __( 'No export data.', 'pckz-canonical-engine' ) ), 400 );
+		}
+
+		$url = PCKZ_Design_Storage::save_export_file( $png_data, $product_id, $format );
+
+		if ( is_wp_error( $url ) ) {
+			wp_send_json_error( array( 'message' => $url->get_error_message() ), 500 );
+		}
+
+		wp_send_json_success( array( 'url' => $url ) );
+	}
+
+	/**
+	 * Handle add to cart (WooCommerce).
+	 */
+	public function handle_add_to_cart() {
+		if ( ! $this->verify_nonce() ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
+		}
+
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'WooCommerce is not active.', 'pckz-canonical-engine' ) ), 400 );
+		}
+
+		$woo_id    = isset( $_POST['woo_product_id'] ) ? absint( $_POST['woo_product_id'] ) : 0;
+		$design_id = isset( $_POST['design_id'] ) ? absint( $_POST['design_id'] ) : 0;
+		$quantity  = isset( $_POST['quantity'] ) ? max( 1, absint( $_POST['quantity'] ) ) : 1;
+
+		if ( ! $woo_id ) {
+			wp_send_json_error( array( 'message' => __( 'No WooCommerce product linked.', 'pckz-canonical-engine' ) ), 400 );
+		}
+
+		$cart_item_data = array();
+		if ( $design_id ) {
+			$design = PCKZ_Design_Storage::get_design( $design_id );
+			if ( $design ) {
+				$meta = array();
+				if ( ! empty( $design['meta_json'] ) ) {
+					$meta = json_decode( $design['meta_json'], true );
+				}
+				$cart_item_data[ PCKZ_Settings::get( 'cart_meta_key', '_pckz_design' ) ] = array(
+					'design_id'   => $design_id,
+					'preview_url' => $design['preview_url'] ?? '',
+					'export_url'  => $design['export_url'] ?? '',
+					'product_id'  => $design['product_id'] ?? 0,
+					'selections'  => $meta['selections'] ?? array(),
+					'production'  => $meta['production'] ?? array(),
+				);
+			}
+		}
+
+		$added = WC()->cart->add_to_cart( $woo_id, $quantity, 0, array(), $cart_item_data );
+
+		if ( ! $added ) {
+			wp_send_json_error( array( 'message' => __( 'Could not add to cart.', 'pckz-canonical-engine' ) ), 500 );
+		}
+
+		wp_send_json_success(
+			array(
+				'cart_url'    => wc_get_cart_url(),
+				'cart_count'  => WC()->cart->get_cart_contents_count(),
+				'message'     => __( 'Added to cart.', 'pckz-canonical-engine' ),
+			)
+		);
+	}
+}

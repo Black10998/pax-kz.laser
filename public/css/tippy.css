@@ -1,0 +1,119 @@
+/**
+ * Tippy.js tooltips (Cloudlift icon preview reference) — creator pages only.
+ *
+ * @package PCKZCanonicalEngine
+ */
+
+.tippy-box[data-animation='fade'][data-state='hidden'] {
+	opacity: 0;
+}
+
+[data-tippy-root] {
+	max-width: calc(100vw - 10px);
+}
+
+.tippy-box {
+	position: relative;
+	background-color: #121212;
+	color: #fff;
+	border-radius: 6px;
+	outline: 0;
+	font-size: 14px;
+	line-height: 1.4;
+	transition-property: transform, visibility, opacity;
+	white-space: normal;
+}
+
+.tippy-box[data-placement^='top'] > .tippy-arrow {
+	bottom: 0;
+}
+
+.tippy-box[data-placement^='top'] > .tippy-arrow::before {
+	bottom: -7px;
+	left: 0;
+	border-width: 8px 8px 0;
+	border-top-color: initial;
+	transform-origin: top;
+}
+
+.tippy-box[data-placement^='bottom'] > .tippy-arrow {
+	top: 0;
+}
+
+.tippy-box[data-placement^='bottom'] > .tippy-arrow::before {
+	top: -7px;
+	left: 0;
+	border-width: 0 8px 8px;
+	border-bottom-color: initial;
+	transform-origin: bottom;
+}
+
+.tippy-box[data-placement^='left'] > .tippy-arrow {
+	right: 0;
+}
+
+.tippy-box[data-placement^='left'] > .tippy-arrow::before {
+	right: -7px;
+	border-width: 8px 0 8px 8px;
+	border-left-color: initial;
+	transform-origin: 0;
+}
+
+.tippy-box[data-placement^='right'] > .tippy-arrow {
+	left: 0;
+}
+
+.tippy-box[data-placement^='right'] > .tippy-arrow::before {
+	left: -7px;
+	border-width: 8px 8px 8px 0;
+	border-right-color: initial;
+	transform-origin: 100%;
+}
+
+.tippy-arrow {
+	width: 16px;
+	height: 16px;
+	color: #121212;
+}
+
+.tippy-arrow::before {
+	content: '';
+	position: absolute;
+	border-style: solid;
+	border-color: transparent;
+}
+
+.tippy-content {
+	position: relative;
+	z-index: 1;
+	padding: 8px 12px;
+	text-align: center;
+}
+
+.tippy-content img {
+	display: block;
+	max-width: 100%;
+	max-height: 280px;
+	margin: 0 auto 6px;
+}
+
+@media only screen and (max-width: 450px) {
+	.tippy-content img {
+		max-height: 180px;
+	}
+}
+
+.tippy-box[data-theme='pckz'] {
+	background-color: #121212;
+	color: #fff;
+}
+
+.tippy-box[data-theme='pckz'] > .tippy-arrow {
+	color: #121212;
+}
+
+.tippy-box[data-theme='pckz'] .tippy-content__label {
+	font-size: 12px;
+	font-weight: 600;
+	opacity: 0.9;
+}
