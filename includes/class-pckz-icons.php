@@ -51,12 +51,31 @@ class PCKZ_Icons {
 	}
 
 	/**
+	 * Bundled generic icon slugs (auto-generated manifest).
+	 *
+	 * @return array<string,string> slug => label
+	 */
+	public static function bundled_generic_icons() {
+		static $cache = null;
+		if ( null !== $cache ) {
+			return $cache;
+		}
+		$file = PCKZCE_PLUGIN_DIR . 'includes/bundled-generic-icons.php';
+		$cache = is_readable( $file ) ? include $file : array();
+		if ( ! is_array( $cache ) ) {
+			$cache = array();
+		}
+		return $cache;
+	}
+
+	/**
 	 * All registered icon slugs.
 	 *
 	 * @return string[]
 	 */
 	public static function all_slugs() {
-		return array( 'none', 'instagram', 'telegram', 'facebook', 'snapchat', 'tiktok', 'whatsapp', 'lines' );
+		$base = array( 'none', 'instagram', 'telegram', 'facebook', 'snapchat', 'tiktok', 'whatsapp', 'lines' );
+		return array_values( array_unique( array_merge( $base, array_keys( self::bundled_generic_icons() ) ) ) );
 	}
 
 	/**
@@ -106,6 +125,10 @@ class PCKZ_Icons {
 			if ( ( $choice['value'] ?? '' ) === $slug ) {
 				return $choice['label'] ?? $slug;
 			}
+		}
+		$generic = self::bundled_generic_icons();
+		if ( isset( $generic[ $slug ] ) ) {
+			return $generic[ $slug ];
 		}
 		if ( 'lines' === $slug ) {
 			return 'Linien';

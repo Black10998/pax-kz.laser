@@ -216,6 +216,23 @@ class PCKZ_Ledos_Preview {
 			}
 		}
 
+		foreach ( PCKZ_Icons::bundled_generic_icons() as $slug => $label ) {
+			if ( 'none' === $slug || isset( $items[ $slug ] ) ) {
+				continue;
+			}
+			$white = PCKZ_Icons::icon_url( $slug, 'white' );
+			$black = PCKZ_Icons::icon_url( $slug, 'black' );
+			if ( ! $white && ! $black ) {
+				continue;
+			}
+			$items[ $slug ] = array(
+				'url'      => esc_url_raw( $white ?: $black ),
+				'preview'  => esc_url_raw( $black ?: $white ),
+				'tintable' => true,
+				'label'    => $label,
+			);
+		}
+
 		foreach ( $items as $slug => $data ) {
 			if ( 'none' === $slug ) {
 				continue;
