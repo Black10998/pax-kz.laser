@@ -66,5 +66,9 @@ $default_id = PCKZ_Post_Type::resolve_product_id();
 				<li><?php esc_html_e( 'Fabric.js loaded from CDN (no npm build required)', 'pckz-canonical-engine' ); ?></li>
 			</ul>
 		</div>
+
+		<div class="pckz-card pckz-card--wide pckz-card--developer">
+			<?php PCKZ_Branding::render_settings_panel( true ); ?>
+		</div>
 	</div>
 </div>

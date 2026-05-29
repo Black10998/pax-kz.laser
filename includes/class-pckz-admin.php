@@ -81,6 +81,15 @@ class PCKZ_Admin {
 
 		add_submenu_page(
 			'pckz-canonical-engine',
+			__( 'About the Developer', 'pckz-canonical-engine' ),
+			__( 'Über den Entwickler', 'pckz-canonical-engine' ),
+			'manage_options',
+			'pckz-about',
+			array( $this, 'render_about_developer' )
+		);
+
+		add_submenu_page(
+			'pckz-canonical-engine',
 			__( 'Saved Designs', 'pckz-canonical-engine' ),
 			__( 'Designs', 'pckz-canonical-engine' ),
 			'manage_options',
@@ -372,6 +381,13 @@ class PCKZ_Admin {
 	public function render_settings() {
 		$settings = PCKZ_Settings::get_all();
 		include PCKZCE_PLUGIN_DIR . 'admin/views/settings.php';
+	}
+
+	/**
+	 * Render about-the-developer page (PAXDesign).
+	 */
+	public function render_about_developer() {
+		PCKZ_Branding::render_about_page();
 	}
 
 	/**

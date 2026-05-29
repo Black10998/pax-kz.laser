@@ -171,3 +171,165 @@
 	padding-top: 0;
 	margin-top: 0;
 }
+
+/* —— PAXDesign developer branding —— */
+.pckz-settings-layout {
+	display: grid;
+	grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+	gap: 24px;
+	align-items: start;
+	margin-top: 12px;
+}
+
+@media (max-width: 960px) {
+	.pckz-settings-layout {
+		grid-template-columns: 1fr;
+	}
+}
+
+.pckz-developer-panel {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-left: 4px solid #334fb4;
+	border-radius: 8px;
+	padding: 16px 18px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.pckz-developer-panel__brand {
+	margin: 0 0 12px;
+	line-height: 1.4;
+}
+
+.pckz-developer-panel__brand strong {
+	display: block;
+	font-size: 1.05em;
+	color: #1d2327;
+}
+
+.pckz-developer-panel__by {
+	display: block;
+	margin-top: 4px;
+	font-size: 12px;
+	color: #646970;
+}
+
+.pckz-developer-panel__links {
+	margin: 0 0 12px;
+	padding: 0;
+	list-style: none;
+}
+
+.pckz-developer-panel__links li {
+	margin: 0 0 10px;
+}
+
+.pckz-developer-panel__label {
+	display: block;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #646970;
+	margin-bottom: 2px;
+}
+
+.pckz-developer-panel__links a {
+	word-break: break-word;
+}
+
+.pckz-developer-panel__version {
+	margin: 0 0 10px;
+	font-size: 12px;
+	color: #50575e;
+}
+
+.pckz-developer-panel__version code {
+	font-size: 11px;
+}
+
+.pckz-developer-panel__about-link {
+	margin: 0;
+	font-size: 12px;
+}
+
+.pckz-card--developer {
+	background: linear-gradient(180deg, #fff 0%, #f6f7f7 100%);
+}
+
+.pckz-about-wrap {
+	max-width: 720px;
+}
+
+.pckz-about-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 10px;
+	padding: 28px 32px;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+	margin-top: 16px;
+}
+
+.pckz-about-card__header {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 20px;
+	padding-bottom: 20px;
+	border-bottom: 1px solid #e8e8e8;
+}
+
+.pckz-about-card__logo {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 56px;
+	height: 56px;
+	border-radius: 10px;
+	background: #334fb4;
+	color: #fff;
+	font-weight: 700;
+	font-size: 14px;
+	letter-spacing: 0.06em;
+}
+
+.pckz-about-card__title {
+	margin: 0;
+	font-size: 1.5em;
+	line-height: 1.2;
+}
+
+.pckz-about-card__subtitle {
+	margin: 6px 0 0;
+	color: #646970;
+	font-size: 14px;
+}
+
+.pckz-about-card__body p {
+	font-size: 15px;
+	line-height: 1.65;
+	color: #1d2327;
+}
+
+.pckz-about-card__meta {
+	margin: 24px 0;
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 8px 20px;
+}
+
+.pckz-about-card__meta dt {
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.pckz-about-card__meta dd {
+	margin: 0;
+}
+
+.pckz-about-card__actions {
+	margin: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}

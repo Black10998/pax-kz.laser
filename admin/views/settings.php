@@ -12,9 +12,13 @@ $fonts_json        = wp_json_encode( $settings['fonts'] ?? array(), JSON_PRETTY_
 $creator_products  = PCKZ_Post_Type::get_published_products();
 $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 ?>
-<div class="wrap pckz-admin-wrap">
+<div class="wrap pckz-admin-wrap pckz-settings-wrap">
 	<h1><?php esc_html_e( 'Product Creator Settings', 'pckz-canonical-engine' ); ?></h1>
 
+	<div class="pckz-settings-layout">
+		<?php PCKZ_Branding::render_settings_panel( true ); ?>
+
+	<div class="pckz-settings-layout__main">
 	<form method="post" action="options.php" class="pckz-settings-form">
 		<?php settings_fields( 'pckz_settings_group' ); ?>
 
@@ -277,4 +281,6 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 
 		<?php submit_button(); ?>
 	</form>
+	</div>
+	</div>
 </div>
