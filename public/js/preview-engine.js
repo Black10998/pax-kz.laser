@@ -1563,10 +1563,7 @@
 			// Primary export path: layout OpenType paths (reliable for all catalog fonts).
 			for (let i = 0; i < layoutTexts.length; i++) {
 				const textObj = layoutTexts[i];
-				const layerId =
-					'text' === (textObj.role || '') || 'main-text' === (textObj.role || '')
-						? textObj.id || textObj.object_id || 'pckz-text-engrave-' + i
-						: 'pckz-text-engrave-' + i;
+				const layerId = 'pckz-text-engrave-' + (textObj.id || textObj.object_id || i);
 				try {
 					const frag = await this.buildTextVectorPathsFragment(textObj, mmW, mmH, layerId);
 					if (frag) {

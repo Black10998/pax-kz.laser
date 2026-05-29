@@ -55,6 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.17.9 =
+* Fix vector_text_invalid on script fonts (e.g. Great Vibes): merge browser text_plate_paths even when Fabric SVG has a pckz-text path stub.
+* Align text-engrave detection with LBRN2 validation; drop preview text path stubs before OpenType merge.
+* Export fragments use pckz-text-engrave layer ids; E2E smoke: OpenType → SVG → LBRN2 for Great Vibes.
+
 = 2.10.0 =
 * Add bundled line ornaments Typ 21–71 (`public/assets/lines/type_21.svg` … `type_71.svg`, shipped in repo).
 * Line selector lists all registered types from `PCKZ_Ledos_Preview::line_types()` (CDN 1–20 unchanged).

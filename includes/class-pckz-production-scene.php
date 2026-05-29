@@ -296,39 +296,48 @@ class PCKZ_Production_Scene {
 	 */
 	private static function scene_has_vector_text_engrave( $scene ) {
 		foreach ( (array) ( $scene['layers'] ?? array() ) as $layer ) {
-			if ( 'path' !== ( $layer['type'] ?? '' ) || empty( $layer['verts'] ) ) {
+			if ( ! self::layer_is_authoritative_text_engrave_path( $layer ) ) {
 				continue;
 			}
-			$role = (string) ( $layer['role'] ?? '' );
-			$lid  = (string) ( $layer['layer_id'] ?? '' );
-			if ( in_array( $role, array( 'text-engrave', 'pckz-text-engrave' ), true ) ) {
-				return true;
-			}
-			if ( in_array( $lid, array( 'pckz-text-engrave', 'pckz-text', 'pckz-main-text' ), true ) ) {
-				return true;
-			}
-			if ( 0 === strpos( $lid, 'pckz-text-engrave' ) ) {
-				return true;
-			}
+			return true;
 		}
 		return false;
 	}
 
+	/**
+	 * Path layer counts as production vector text (must match require_vector_text_layers).
+	 *
+	 * @param array $layer Scene layer.
+	 * @return bool
+	 */
+	private static function layer_is_authoritative_text_engrave_path( $layer ) {
+		if ( 'path' !== ( $layer['type'] ?? '' ) || empty( $layer['verts'] ) ) {
+			return false;
+		}
+		$role = (string) ( $layer['role'] ?? '' );
+		$lid  = (string) ( $layer['layer_id'] ?? '' );
+		if ( in_array( $role, array( 'text-engrave', 'pckz-text-engrave' ), true ) ) {
+			return true;
+		}
+		return in_array( $lid, array( 'pckz-text-engrave' ), true )
+			|| 0 === strpos( $lid, 'pckz-text-engrave-' );
+	}
+
 
 	public static function merge_text_plate_paths_from_layout( &$scene, $ctx, $package = array() ) {
-		if ( self::scene_has_vector_text_engrave( $scene ) ) {
-			return;
-		}
-		if ( empty( $scene['layers'] ) ) {
-			$scene['layers'] = array();
-		}
-
 		$fragment = trim( (string) ( $ctx['layout']['text_plate_paths'] ?? '' ) );
 		if ( '' === $fragment && ! empty( $package['text_plate_paths'] ) ) {
 			$fragment = trim( (string) $package['text_plate_paths'] );
 		}
 		if ( '' === $fragment ) {
 			return;
+		}
+		// Browser OpenType paths override Fabric preview stubs (e.g. id=pckz-text with wrong role).
+		if ( self::scene_has_vector_text_engrave( $scene ) ) {
+			return;
+		}
+		if ( empty( $scene['layers'] ) ) {
+			$scene['layers'] = array();
 		}
 		$w = (float) $ctx['canvas_w'];
 		$h = (float) $ctx['canvas_h'];
@@ -370,10 +379,19 @@ class PCKZ_Production_Scene {
 				if ( 'path' !== ( $layer['type'] ?? '' ) ) {
 					return true;
 				}
-				$role = $layer['role'] ?? '';
-				$lid  = $layer['layer_id'] ?? '';
-				return ! in_array( $role, array( 'text-engrave', 'pckz-text-engrave' ), true )
-					&& ! in_array( $lid, array( 'pckz-text-engrave' ), true );
+				$role = (string) ( $layer['role'] ?? '' );
+				$lid  = (string) ( $layer['layer_id'] ?? '' );
+				if ( in_array( $role, array( 'text-engrave', 'pckz-text-engrave' ), true ) ) {
+					return false;
+				}
+				if ( in_array( $lid, array( 'pckz-text-engrave' ), true ) || 0 === strpos( $lid, 'pckz-text-engrave-' ) ) {
+					return false;
+				}
+				// Drop Fabric/preview text path stubs so OpenType plate paths replace them.
+				if ( in_array( $role, array( 'pckz-text', 'text', 'main-text' ), true ) ) {
+					return false;
+				}
+				return ! in_array( $lid, array( 'pckz-text', 'pckz-main-text' ), true );
 			}
 		) );
 		foreach ( $parsed['layers'] ?? array() as $layer ) {
@@ -444,12 +462,7 @@ class PCKZ_Production_Scene {
 		}
 		$has_vector = false;
 		foreach ( $scene['layers'] ?? array() as $layer ) {
-			if ( 'path' !== ( $layer['type'] ?? '' ) || empty( $layer['verts'] ) ) {
-				continue;
-			}
-			$role = $layer['role'] ?? '';
-			$lid  = $layer['layer_id'] ?? '';
-			if ( in_array( $role, array( 'text-engrave', 'pckz-text-engrave' ), true ) || in_array( $lid, array( 'pckz-text-engrave' ), true ) ) {
+			if ( self::layer_is_authoritative_text_engrave_path( $layer ) ) {
 				$has_vector = true;
 				break;
 			}
