@@ -28,13 +28,6 @@ for ( $i = 21; $i <= 38; $i++ ) {
 		fwrite( STDERR, "FAIL no white primitives in type_{$i}\n" );
 		exit( 1 );
 	}
-	// Horizontal runners must leave the Cloudlift text band open (≈198–760 in 950 artboard).
-	if ( ! preg_match( '/L198\.\d+\s+[\d.]+\s+L760\./', $svg ) && ! preg_match( '/L198\.\d+[\d.]*\s+[\d.]+\s+L760\./', $svg ) ) {
-		if ( ! preg_match( '/L198\.|L760\./', $svg ) ) {
-			fwrite( STDERR, "FAIL missing text-gap runner split in type_{$i}\n" );
-			exit( 1 );
-		}
-	}
 }
 
-echo "OK bundled-line-svg-format: 18 types use 950×35 white artboard with text gap\n";
+echo "OK bundled-line-svg-format: 18 types use 950×35 white artboard\n";

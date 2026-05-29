@@ -19,16 +19,6 @@ DRAWING_END = "%%PageTrailer"
 CANVAS_W = 950.0
 CANVAS_H = 35.0
 FILL_COLOR = "white"
-
-# Ledos layer refs (design 3651×2132) — text clearance mapped into line artboard width.
-DESIGN_W = 3651.0
-TEXT_REF_X = 1136.0
-TEXT_REF_W = 1392.0
-LINES_REF_X = 609.0
-LINES_REF_W = 2424.0
-PLATE_MARGIN_X = 9.5
-BAR_HEIGHT = 5.0
-GAP_PAD_X = 8.0
 SKIP_TOKENS = {
 	"Lb",
 	"Ln",
@@ -197,111 +187,6 @@ def ops_to_d(
 	return " ".join(parts)
 
 
-def cloudlift_text_gap_x() -> tuple[float, float]:
-	"""Text exclusion band on the 950×35 line artboard (same as Cloudlift text ref)."""
-	text_center_rel = (TEXT_REF_X + TEXT_REF_W * 0.5 - LINES_REF_X) / LINES_REF_W
-	text_half_rel = (TEXT_REF_W * 0.5) / LINES_REF_W
-	cx = text_center_rel * CANVAS_W
-	hw = text_half_rel * CANVAS_W + GAP_PAD_X
-	return cx - hw, cx + hw
-
-
-def path_endpoints_canvas(
-	ops: list,
-	x0: float,
-	ymax: float,
-	scale: float,
-	ox: float,
-	oy: float,
-) -> tuple[tuple[float, float], tuple[float, float]] | None:
-	pts: list[tuple[float, float]] = []
-	for op in ops:
-		if op[0] in ("M", "L"):
-			pts.append(map_point(op[1], op[2], x0, ymax, scale, ox, oy))
-		elif op[0] == "C":
-			pts.append(map_point(op[5], op[6], x0, ymax, scale, ox, oy))
-	if len(pts) < 2:
-		return None
-	return pts[0], pts[-1]
-
-
-def is_horizontal_runner(p0: tuple[float, float], p1: tuple[float, float]) -> bool:
-	dx = abs(p1[0] - p0[0])
-	dy = abs(p1[1] - p0[1])
-	return dx >= 40.0 and dy <= 3.5 and dx > dy * 4.0
-
-
-def filled_bar_path(x1: float, x2: float, y: float, height: float) -> str:
-	if x2 < x1:
-		x1, x2 = x2, x1
-	if x2 - x1 < 0.5:
-		return ""
-	half = height / 2.0
-	y0 = y - half
-	y1 = y + half
-	return (
-		f"M{fmt(x1)} {fmt(y0)} L{fmt(x2)} {fmt(y0)} L{fmt(x2)} {fmt(y1)} "
-		f"L{fmt(x1)} {fmt(y1)} Z"
-	)
-
-
-def runner_bars_for_text_gap(
-	p0: tuple[float, float],
-	p1: tuple[float, float],
-	gap_x0: float,
-	gap_x1: float,
-) -> list[str]:
-	"""Split a horizontal runner into left/right filled bars outside the text band."""
-	y = (p0[1] + p1[1]) / 2.0
-	right_edge = CANVAS_W - PLATE_MARGIN_X
-	bars: list[str] = []
-	left_d = filled_bar_path(PLATE_MARGIN_X, gap_x0, y, BAR_HEIGHT)
-	if left_d:
-		bars.append(left_d)
-	right_d = filled_bar_path(gap_x1, right_edge, y, BAR_HEIGHT)
-	if right_d:
-		bars.append(right_d)
-	return bars
-
-
-def path_to_svg_entries(
-	path: dict,
-	x0: float,
-	ymax: float,
-	scale: float,
-	ox: float,
-	oy: float,
-	gap_x0: float,
-	gap_x1: float,
-) -> list[str]:
-	ops = path["ops"]
-	if path.get("stroked"):
-		endpoints = path_endpoints_canvas(ops, x0, ymax, scale, ox, oy)
-		if endpoints and is_horizontal_runner(endpoints[0], endpoints[1]):
-			out: list[str] = []
-			for bar_d in runner_bars_for_text_gap(endpoints[0], endpoints[1], gap_x0, gap_x1):
-				out.append(
-					f'<path d="{bar_d}" fill-rule="evenodd" clip-rule="evenodd" '
-					f'fill="{FILL_COLOR}" stroke="none"/>'
-				)
-			return out
-		d = ops_to_d(ops, x0, ymax, scale, ox, oy)
-		if not d:
-			return []
-		stroke_w = max(0.35 * scale, 0.5)
-		return [
-			f'<path d="{d}" fill="none" stroke="{FILL_COLOR}" stroke-width="{fmt(stroke_w)}" '
-			f'stroke-linecap="round" stroke-linejoin="round"/>'
-		]
-
-	d = ops_to_d(ops, x0, ymax, scale, ox, oy)
-	if not d:
-		return []
-	return [
-		f'<path d="{d}" fill-rule="evenodd" clip-rule="evenodd" fill="{FILL_COLOR}" stroke="none"/>'
-	]
-
-
 def convert_file(src: Path, dest: Path) -> None:
 	content = src.read_text(encoding="utf-8", errors="replace")
 	paths = parse_paths(extract_drawing_tokens(content))
@@ -333,13 +218,23 @@ def convert_file(src: Path, dest: Path) -> None:
 	fit_h = h * scale
 	ox = (CANVAS_W - fit_w) / 2.0
 	oy = (CANVAS_H - fit_h) / 2.0
-	gap_x0, gap_x1 = cloudlift_text_gap_x()
+	stroke_w = max(0.35 * scale, 0.5)
 
 	svg_paths: list[str] = []
 	for path in paths:
-		svg_paths.extend(
-			path_to_svg_entries(path, x0, y1, scale, ox, oy, gap_x0, gap_x1)
-		)
+		d = ops_to_d(path["ops"], x0, y1, scale, ox, oy)
+		if not d:
+			continue
+		if path.get("stroked"):
+			svg_paths.append(
+				f'<path d="{d}" fill="none" stroke="{FILL_COLOR}" stroke-width="{fmt(stroke_w)}" '
+				f'stroke-linecap="round" stroke-linejoin="round"/>'
+			)
+		else:
+			svg_paths.append(
+				f'<path d="{d}" fill-rule="evenodd" clip-rule="evenodd" fill="{FILL_COLOR}" '
+				f'stroke="none"/>'
+			)
 
 	inner = "\n  ".join(svg_paths)
 	svg = (
