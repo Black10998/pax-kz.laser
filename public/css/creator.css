@@ -63,9 +63,27 @@
 }
 
 @media (max-width: 989px) {
+	/* Mobile/tablet: preview → options → checkout (desktop column DOM order unchanged) */
 	.pckz-product__grid {
-		grid-template-columns: 1fr;
-		gap: 24px;
+		display: flex;
+		flex-direction: column;
+		gap: 20px;
+	}
+
+	.pckz-product__checkout-column {
+		display: contents;
+	}
+
+	.pckz-product__media-column {
+		order: 1;
+	}
+
+	.pckz-product__config-column {
+		order: 2;
+	}
+
+	.pckz-checkout-panel {
+		order: 3;
 	}
 }
 
@@ -1525,12 +1543,35 @@ select.pckz-field__control {
 		grid-template-columns: 1fr;
 	}
 
+	.pckz-checkout-panel {
+		margin-top: 4px;
+	}
+
+	.pckz-checkout__header {
+		margin-bottom: 14px;
+		padding-bottom: 12px;
+	}
+
+	.pckz-checkout__body {
+		gap: 14px;
+	}
+
+	.pckz-checkout__summary {
+		padding: 12px;
+	}
+
+	.pckz-checkout__customer {
+		margin-top: 0;
+	}
+
+	/* Sticky PayPal only while checkout block is in view — not during options */
 	.pckz-checkout__payment {
 		position: sticky;
 		bottom: 0;
 		z-index: 20;
-		margin-top: 8px;
-		box-shadow: 0 -8px 24px rgba(255, 255, 255, 0.9);
+		margin-top: 12px;
+		padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+		box-shadow: 0 -6px 20px rgba(255, 255, 255, 0.92);
 	}
 
 	.pckz-checkout__actions {
