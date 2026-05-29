@@ -1425,12 +1425,28 @@
 		fontUrlForFamily(fontFamily) {
 			const key = String(fontFamily || 'Russo One')
 				.trim()
-				.toLowerCase();
+				.toLowerCase()
+				.replace(/['"]/g, '');
 			const cfg = (global.pckzceConfig && global.pckzceConfig.fontFiles) || {};
 			if (cfg[key]) {
 				return cfg[key];
 			}
-			return cfg['russo one'] || '';
+			const byId = (global.pckzceConfig && global.pckzceConfig.fontFilesById) || {};
+			const fonts = (global.pckzceConfig && global.pckzceConfig.settings && global.pckzceConfig.settings.fonts) || [];
+			for (let i = 0; i < fonts.length; i++) {
+				const row = fonts[i];
+				if (!row) {
+					continue;
+				}
+				const fam = String(row.family || '')
+					.trim()
+					.toLowerCase()
+					.replace(/['"]/g, '');
+				if (fam === key && row.id && byId[row.id]) {
+					return byId[row.id];
+				}
+			}
+			return cfg['russo one'] || byId['russo-one'] || '';
 		}
 
 		async loadOpenTypeFont(fontFamily) {
@@ -1577,6 +1593,18 @@
 				} catch (err) {
 					/* continue other text objects */
 				}
+			}
+
+			if (!parts.length) {
+				const sample = layoutTexts[0] || (fabricText ? { font_family: fabricText.fontFamily } : null);
+				const fam = sample
+					? sample.font_family || sample.fontFamily || 'Russo One'
+					: 'Russo One';
+				throw new Error(
+					'Vector text paths could not be built for font "' +
+						fam +
+						'". Check that the font file is available for export.'
+				);
 			}
 
 			return parts.join('\n');

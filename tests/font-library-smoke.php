@@ -42,4 +42,10 @@ if ( '' === $url || false === strpos( $url, 'fonts.googleapis.com' ) ) {
 
 update_option( PCKZ_Font_Library::OPTION_DISABLED, array() );
 
-echo "OK font-library-smoke: catalog, categories, visibility, Google URL\n";
+$maps = PCKZ_Font_Library::build_font_file_maps();
+if ( empty( $maps['byFamily']['russo one'] ) || empty( $maps['byId']['russo-one'] ) ) {
+	fwrite( STDERR, "FAIL russo one missing from font export map\n" );
+	exit( 1 );
+}
+
+echo "OK font-library-smoke: catalog, categories, visibility, Google URL, export map\n";

@@ -279,22 +279,238 @@ class PCKZ_Font_Library {
 	}
 
 	/**
-	 * Font files map for opentype.js (lowercase family => url).
+	 * Build OpenType binary URL maps for all visible catalog fonts.
+	 *
+	 * @return array{byFamily: array<string,string>, byId: array<string,string>}
+	 */
+	/** @var array|null Request-level cache for font URL maps. */
+	private static $font_maps_cache = null;
+
+	/**
+	 * Drop in-memory font URL map (after catalog/cache changes).
+	 */
+	public static function reset_font_file_maps_cache() {
+		self::$font_maps_cache = null;
+	}
+
+	public static function build_font_file_maps() {
+		if ( null !== self::$font_maps_cache ) {
+			return self::$font_maps_cache;
+		}
+
+		$by_family = array();
+		$by_id     = array();
+
+		foreach ( self::all_entries() as $id => $row ) {
+			if ( ! self::is_visible( $id ) ) {
+				continue;
+			}
+			$url = self::resolve_font_binary_url( $id, $row );
+			if ( ! $url ) {
+				continue;
+			}
+			$by_id[ $id ] = $url;
+			$family       = trim( (string) ( $row['family'] ?? '' ) );
+			if ( '' !== $family ) {
+				$by_family[ strtolower( $family ) ] = $url;
+			}
+		}
+
+		self::$font_maps_cache = array(
+			'byFamily' => $by_family,
+			'byId'     => $by_id,
+		);
+		return self::$font_maps_cache;
+	}
+
+	/**
+	 * Font files map for opentype.js (lowercase CSS family name => binary URL).
 	 *
 	 * @return array<string,string>
 	 */
 	public static function font_files_for_js() {
-		$map = array();
-		foreach ( self::custom_catalog() as $row ) {
-			if ( empty( $row['file'] ) || empty( $row['family'] ) ) {
+		$maps = self::build_font_file_maps();
+		return $maps['byFamily'];
+	}
+
+	/**
+	 * Font files by catalog ID (for picker / export lookup).
+	 *
+	 * @return array<string,string>
+	 */
+	public static function font_files_by_id_for_js() {
+		$maps = self::build_font_file_maps();
+		return $maps['byId'];
+	}
+
+	/**
+	 * Resolve a downloadable font binary for OpenType.js (Google CSS → gstatic, or upload).
+	 *
+	 * @param string $id  Font catalog ID.
+	 * @param array  $row Catalog row.
+	 * @return string
+	 */
+	public static function resolve_font_binary_url( $id, $row ) {
+		if ( ! empty( $row['file'] ) ) {
+			return self::font_file_url( $row['file'] );
+		}
+		if ( 'google' === ( $row['source'] ?? '' ) ) {
+			return self::resolve_google_font_binary_url( $id, $row );
+		}
+		return '';
+	}
+
+	/**
+	 * Resolve Google Fonts CSS to a gstatic woff2/woff/ttf URL (cached).
+	 *
+	 * @param string $id  Font ID.
+	 * @param array  $row Catalog row.
+	 * @return string
+	 */
+	public static function resolve_google_font_binary_url( $id, $row ) {
+		$id = sanitize_key( $id );
+		if ( ! $id ) {
+			return '';
+		}
+
+		$cache_key = 'pckzce_gfont_bin_' . $id;
+		$cached    = get_transient( $cache_key );
+		if ( is_string( $cached ) && '' !== $cached ) {
+			return $cached;
+		}
+
+		$google_id = trim( (string) ( $row['google_id'] ?? '' ) );
+		if ( '' === $google_id && ! empty( $row['family'] ) ) {
+			$google_id = str_replace( ' ', '+', trim( (string) $row['family'] ) );
+		}
+		if ( '' === $google_id ) {
+			return '';
+		}
+
+		$css_url  = 'https://fonts.googleapis.com/css2?family=' . $google_id . '&display=swap';
+		$response = wp_remote_get(
+			$css_url,
+			array(
+				'timeout' => 20,
+				'headers' => array(
+					'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return '';
+		}
+
+		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return '';
+		}
+
+		$url = self::parse_google_fonts_css_binary_url( wp_remote_retrieve_body( $response ) );
+		if ( $url ) {
+			set_transient( $cache_key, $url, 30 * DAY_IN_SECONDS );
+		}
+
+		return $url;
+	}
+
+	/**
+	 * Pick the best @font-face binary URL from a Google Fonts CSS response.
+	 *
+	 * @param string $css CSS body.
+	 * @return string
+	 */
+	public static function parse_google_fonts_css_binary_url( $css ) {
+		if ( ! is_string( $css ) || '' === $css ) {
+			return '';
+		}
+
+		$blocks = preg_split( '/@font-face\s*\{/i', $css );
+		if ( ! is_array( $blocks ) ) {
+			return '';
+		}
+
+		$candidates = array();
+		foreach ( $blocks as $index => $block ) {
+			if ( 0 === $index ) {
 				continue;
 			}
-			$url = self::font_file_url( $row['file'] );
+			$block = '{' . $block;
+			if ( ! preg_match( '#url\((https://fonts\.gstatic\.com/[^)]+\.(woff2|woff|ttf|otf))\)#i', $block, $match ) ) {
+				continue;
+			}
+			$weight = 400;
+			if ( preg_match( '/font-weight:\s*(\d+)/i', $block, $wm ) ) {
+				$weight = (int) $wm[1];
+			}
+			$candidates[] = array(
+				'url'    => $match[1],
+				'ext'    => strtolower( $match[2] ),
+				'weight' => $weight,
+			);
+		}
+
+		if ( empty( $candidates ) ) {
+			return '';
+		}
+
+		$weight_rank = array( 700 => 0, 600 => 1, 500 => 2, 400 => 3 );
+		$ext_rank    = array( 'woff2' => 0, 'woff' => 1, 'ttf' => 2, 'otf' => 3 );
+
+		usort(
+			$candidates,
+			function ( $a, $b ) use ( $weight_rank, $ext_rank ) {
+				$wa = $weight_rank[ $a['weight'] ] ?? ( 10 + abs( 700 - $a['weight'] ) );
+				$wb = $weight_rank[ $b['weight'] ] ?? ( 10 + abs( 700 - $b['weight'] ) );
+				if ( $wa !== $wb ) {
+					return $wa - $wb;
+				}
+				$ea = $ext_rank[ $a['ext'] ] ?? 9;
+				$eb = $ext_rank[ $b['ext'] ] ?? 9;
+				if ( $ea !== $eb ) {
+					return $ea - $eb;
+				}
+				return $b['weight'] - $a['weight'];
+			}
+		);
+
+		return $candidates[0]['url'];
+	}
+
+	/**
+	 * Clear cached Google font binary URLs (after catalog changes).
+	 */
+	public static function clear_google_font_cache() {
+		foreach ( array_keys( self::default_catalog() ) as $id ) {
+			delete_transient( 'pckzce_gfont_bin_' . sanitize_key( $id ) );
+		}
+		self::reset_font_file_maps_cache();
+	}
+
+	/**
+	 * Pre-resolve Google font binaries (admin / activation warm-up).
+	 *
+	 * @return array{resolved:int, failed:string[]}
+	 */
+	public static function warm_google_font_cache() {
+		$resolved = 0;
+		$failed   = array();
+		foreach ( self::default_catalog() as $id => $row ) {
+			if ( 'google' !== ( $row['source'] ?? '' ) || ! self::is_visible( $id ) ) {
+				continue;
+			}
+			$url = self::resolve_google_font_binary_url( $id, $row );
 			if ( $url ) {
-				$map[ strtolower( $row['family'] ) ] = $url;
+				++$resolved;
+			} else {
+				$failed[] = $id;
 			}
 		}
-		return $map;
+		self::reset_font_file_maps_cache();
+		return array(
+			'resolved' => $resolved,
+			'failed'   => $failed,
+		);
 	}
 
 	/**
@@ -344,6 +560,7 @@ class PCKZ_Font_Library {
 			'sample' => 'ABC 123',
 		);
 		update_option( self::OPTION_CUSTOM, $custom );
+		self::reset_font_file_maps_cache();
 		return array( 'id' => $slug, 'slug' => $slug );
 	}
 
@@ -402,5 +619,6 @@ class PCKZ_Font_Library {
 			}
 		}
 		update_option( self::OPTION_LABELS, $clean_labels );
+		self::clear_google_font_cache();
 	}
 }

@@ -230,16 +230,24 @@ if ( ! function_exists( 'wp_generate_uuid4' ) ) {
 }
 if ( ! function_exists( 'get_transient' ) ) {
 	function get_transient( $key ) {
-		return false;
+		return $GLOBALS['pckz_smoke_transients'][ $key ] ?? false;
 	}
 }
 if ( ! function_exists( 'set_transient' ) ) {
 	function set_transient( $key, $value, $expiration ) {
+		$GLOBALS['pckz_smoke_transients'][ $key ] = $value;
 		return true;
 	}
 }
-if ( ! function_exists( 'wp_remote_get' ) ) {
+	if ( ! function_exists( 'wp_remote_get' ) ) {
 	function wp_remote_get( $url, $args = array() ) {
+		if ( strpos( $url, 'fonts.googleapis.com' ) !== false ) {
+			$woff = 'https://fonts.gstatic.com/s/russoone/v14/1Ptxg8zYS_SKggPN.woff2';
+			return array(
+				'response' => array( 'code' => 200 ),
+				'body'     => '@font-face{font-weight:700;font-style:normal;src:url(' . $woff . ') format("woff2");}',
+			);
+		}
 		if ( strpos( $url, 'line' ) !== false || strpos( $url, 'Line' ) !== false ) {
 			return array(
 				'response' => array( 'code' => 200 ),
@@ -253,6 +261,12 @@ if ( ! function_exists( 'wp_remote_get' ) ) {
 			);
 		}
 		return new WP_Error( 'http_fail', 'not found' );
+	}
+}
+if ( ! function_exists( 'delete_transient' ) ) {
+	function delete_transient( $key ) {
+		unset( $GLOBALS['pckz_smoke_transients'][ $key ] );
+		return true;
 	}
 }
 if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {

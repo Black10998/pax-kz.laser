@@ -185,8 +185,11 @@ class PCKZ_Assets {
 				'productId'    => $product_id,
 				'productTitle' => get_the_title( $product_id ),
 				'config'       => $config,
-				'fontFiles'    => class_exists( 'PCKZ_Font_Library' )
+				'fontFiles'      => class_exists( 'PCKZ_Font_Library' )
 					? PCKZ_Font_Library::font_files_for_js()
+					: array(),
+				'fontFilesById'  => class_exists( 'PCKZ_Font_Library' )
+					? PCKZ_Font_Library::font_files_by_id_for_js()
 					: array(),
 				'assets'       => array(
 					'day'    => esc_url_raw( $config['background_day'] ?: $config['background_image'] ),
