@@ -81,48 +81,204 @@ class PCKZ_Commerce {
 	}
 
 	/**
-	 * Frontend pricing payload.
+	 * Supported checkout currencies (PayPal-compatible).
 	 *
-	 * @param int $product_id Creator product ID.
-	 * @return array
+	 * @return array<string, array{symbol:string,label:string}>
 	 */
-	public static function get_frontend_pricing( $product_id = 0 ) {
-		$config = $product_id ? PCKZ_Post_Type::get_product_config( $product_id ) : array();
-		$show   = (bool) PCKZ_Settings::get( 'price_show_enabled', true );
-		$base   = (float) PCKZ_Settings::get( 'price_base', 0 );
-		$setup  = (float) PCKZ_Settings::get( 'price_setup_fee', 0 );
-
-		if ( $base <= 0 && ! empty( $config['price'] ) ) {
-			$base = (float) preg_replace( '/[^0-9.]/', '', (string) $config['price'] );
-		}
-
-		$currency_code = (string) PCKZ_Settings::get( 'price_currency_code', 'EUR' );
-		$symbol        = (string) PCKZ_Settings::get( 'price_currency_symbol', '€' );
-		if ( ! empty( $config['currency'] ) && $base <= 0 ) {
-			$currency_code = strtoupper( sanitize_text_field( $config['currency'] ) );
-		}
-
+	public static function currency_catalog() {
 		return array(
-			'show'           => $show,
-			'base'           => round( $base, 2 ),
-			'setup_fee'      => round( $setup, 2 ),
-			'currency_code'  => $currency_code,
-			'currency_symbol'=> $symbol,
-			'formatted_base' => self::format_money( $base, $symbol, $currency_code ),
+			'EUR' => array(
+				'symbol' => '€',
+				'label'  => 'Euro (EUR)',
+			),
+			'USD' => array(
+				'symbol' => '$',
+				'label'  => 'US-Dollar (USD)',
+			),
+			'CHF' => array(
+				'symbol' => 'CHF',
+				'label'  => 'Schweizer Franken (CHF)',
+			),
+			'GBP' => array(
+				'symbol' => '£',
+				'label'  => 'Britisches Pfund (GBP)',
+			),
 		);
 	}
 
 	/**
-	 * Calculate order total.
+	 * Sanitize and validate a currency code against the catalog.
 	 *
-	 * @param int $quantity   Quantity.
-	 * @param int $product_id Creator product ID.
+	 * @param string $code Currency code.
+	 * @return string
+	 */
+	public static function sanitize_currency_code( $code ) {
+		$code = strtoupper( sanitize_text_field( (string) $code ) );
+		$catalog = self::currency_catalog();
+		return isset( $catalog[ $code ] ) ? $code : self::get_default_currency_code();
+	}
+
+	/**
+	 * Default checkout currency from admin.
+	 *
+	 * @return string
+	 */
+	public static function get_default_currency_code() {
+		$default = strtoupper( (string) PCKZ_Settings::get( 'price_default_currency', '' ) );
+		if ( $default && isset( self::currency_catalog()[ $default ] ) ) {
+			return $default;
+		}
+		$legacy = strtoupper( (string) PCKZ_Settings::get( 'price_currency_code', 'EUR' ) );
+		return isset( self::currency_catalog()[ $legacy ] ) ? $legacy : 'EUR';
+	}
+
+	/**
+	 * Currencies the admin allows for checkout / PayPal.
+	 *
+	 * @return string[]
+	 */
+	public static function get_allowed_currency_codes() {
+		$enabled = PCKZ_Settings::get( 'price_currencies_enabled', array() );
+		if ( ! is_array( $enabled ) ) {
+			$enabled = array_filter( array_map( 'trim', explode( ',', (string) $enabled ) ) );
+		}
+		$enabled = array_values(
+			array_filter(
+				array_map(
+					function ( $code ) {
+						return self::sanitize_currency_code( $code );
+					},
+					$enabled
+				)
+			)
+		);
+		if ( empty( $enabled ) ) {
+			$enabled = array( self::get_default_currency_code() );
+		}
+		$default = self::get_default_currency_code();
+		if ( ! in_array( $default, $enabled, true ) ) {
+			array_unshift( $enabled, $default );
+		}
+		return array_values( array_unique( $enabled ) );
+	}
+
+	/**
+	 * Whether customers may switch currency on the frontend.
+	 *
+	 * @return bool
+	 */
+	public static function currency_switch_enabled() {
+		if ( ! PCKZ_Settings::get( 'price_allow_currency_switch', false ) ) {
+			return false;
+		}
+		return count( self::get_allowed_currency_codes() ) > 1;
+	}
+
+	/**
+	 * Symbol for a currency (admin override for default, else catalog).
+	 *
+	 * @param string $code Currency code.
+	 * @return string
+	 */
+	public static function get_currency_symbol( $code ) {
+		$code = self::sanitize_currency_code( $code );
+		if ( $code === self::get_default_currency_code() ) {
+			$custom = (string) PCKZ_Settings::get( 'price_currency_symbol', '' );
+			if ( '' !== $custom ) {
+				return $custom;
+			}
+		}
+		$catalog = self::currency_catalog();
+		return $catalog[ $code ]['symbol'] ?? '€';
+	}
+
+	/**
+	 * Base price for a currency (per-currency override or global admin base).
+	 *
+	 * @param string $currency_code Currency code.
 	 * @return float
 	 */
-	public static function calculate_total( $quantity, $product_id = 0 ) {
-		$pricing = self::get_frontend_pricing( $product_id );
+	public static function get_base_price_for_currency( $currency_code ) {
+		$currency_code = self::sanitize_currency_code( $currency_code );
+		$by_currency   = PCKZ_Settings::get( 'price_by_currency', array() );
+		if ( is_array( $by_currency ) && isset( $by_currency[ $currency_code ] ) && '' !== $by_currency[ $currency_code ] ) {
+			return max( 0, (float) $by_currency[ $currency_code ] );
+		}
+		return max( 0, (float) PCKZ_Settings::get( 'price_base', 0 ) );
+	}
+
+	/**
+	 * Frontend pricing payload (admin settings only — no product metabox fallback).
+	 *
+	 * @param int    $product_id    Creator product ID (reserved for future use).
+	 * @param string $currency_code Active currency code.
+	 * @return array
+	 */
+	public static function get_frontend_pricing( $product_id = 0, $currency_code = '' ) {
+		unset( $product_id );
+		$show   = (bool) PCKZ_Settings::get( 'price_show_enabled', true );
+		$setup  = max( 0, (float) PCKZ_Settings::get( 'price_setup_fee', 0 ) );
+		$code   = $currency_code ? self::sanitize_currency_code( $currency_code ) : self::get_default_currency_code();
+		if ( ! in_array( $code, self::get_allowed_currency_codes(), true ) ) {
+			$code = self::get_default_currency_code();
+		}
+		$base   = self::get_base_price_for_currency( $code );
+		$symbol = self::get_currency_symbol( $code );
+		$unit   = round( $base + $setup, 2 );
+
+		return array(
+			'show'             => $show,
+			'base'             => round( $base, 2 ),
+			'setup_fee'        => round( $setup, 2 ),
+			'unit_price'       => $unit,
+			'currency_code'    => $code,
+			'currency_symbol'  => $symbol,
+			'formatted_base'   => self::format_money( $base, $symbol, $code ),
+			'formatted_setup'  => $setup > 0 ? self::format_money( $setup, $symbol, $code ) : '',
+			'formatted_unit'   => self::format_money( $unit, $symbol, $code ),
+		);
+	}
+
+	/**
+	 * Calculate order total for quantity and currency.
+	 *
+	 * @param int    $quantity      Quantity.
+	 * @param int    $product_id    Creator product ID (unused; admin pricing only).
+	 * @param string $currency_code Currency code.
+	 * @return float
+	 */
+	public static function calculate_total( $quantity, $product_id = 0, $currency_code = '' ) {
+		unset( $product_id );
+		$pricing = self::get_frontend_pricing( 0, $currency_code );
 		$qty     = max( 1, (int) $quantity );
 		return round( ( $pricing['base'] + $pricing['setup_fee'] ) * $qty, 2 );
+	}
+
+	/**
+	 * Unit price (base + setup) for WooCommerce cart overrides.
+	 *
+	 * @param string $currency_code Currency code.
+	 * @return float
+	 */
+	public static function get_unit_price( $currency_code = '' ) {
+		$pricing = self::get_frontend_pricing( 0, $currency_code );
+		return (float) $pricing['unit_price'];
+	}
+
+	/**
+	 * Customer reassurance notice HTML (admin-controlled).
+	 *
+	 * @return string
+	 */
+	public static function get_checkout_notice_html() {
+		if ( ! PCKZ_Settings::get( 'checkout_notice_enabled', true ) ) {
+			return '';
+		}
+		$message = (string) PCKZ_Settings::get( 'checkout_notice_message', '' );
+		if ( '' === trim( wp_strip_all_tags( $message ) ) ) {
+			$message = PCKZ_Settings::default_checkout_notice_message();
+		}
+		return wp_kses_post( $message );
 	}
 
 	/**
@@ -602,13 +758,31 @@ class PCKZ_Commerce {
 	 * @return array
 	 */
 	public static function config_for_js( $product_id ) {
-		$pricing = self::get_frontend_pricing( $product_id );
+		$default_code = self::get_default_currency_code();
+		$pricing      = self::get_frontend_pricing( $product_id, $default_code );
+		$currencies   = array();
+		foreach ( self::get_allowed_currency_codes() as $code ) {
+			$p = self::get_frontend_pricing( $product_id, $code );
+			$currencies[ $code ] = array(
+				'code'           => $code,
+				'symbol'         => $p['currency_symbol'],
+				'label'          => self::currency_catalog()[ $code ]['label'] ?? $code,
+				'base'           => $p['base'],
+				'setup_fee'      => $p['setup_fee'],
+				'unit_price'     => $p['unit_price'],
+				'formatted_unit' => $p['formatted_unit'],
+				'formatted_base' => $p['formatted_base'],
+			);
+		}
 		return array(
-			'pricing'        => $pricing,
-			'paypalEnabled'  => self::paypal_enabled(),
-			'requireEmail'   => true,
-			'successUrl'     => (string) PCKZ_Settings::get( 'paypal_success_url', '' ),
-			'cancelUrl'      => (string) PCKZ_Settings::get( 'paypal_cancel_url', '' ),
+			'pricing'              => $pricing,
+			'currencies'           => $currencies,
+			'defaultCurrency'      => $default_code,
+			'allowCurrencySwitch'  => self::currency_switch_enabled(),
+			'paypalEnabled'        => self::paypal_enabled(),
+			'requireEmail'         => true,
+			'successUrl'           => (string) PCKZ_Settings::get( 'paypal_success_url', '' ),
+			'cancelUrl'            => (string) PCKZ_Settings::get( 'paypal_cancel_url', '' ),
 		);
 	}
 }

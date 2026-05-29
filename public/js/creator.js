@@ -783,28 +783,83 @@
 				qtyInput.addEventListener('change', updateQty);
 				qtyInput.addEventListener('input', updateQty);
 			}
+			const currencyEl = this.root.querySelector('[data-field="currency"]');
+			if (currencyEl) {
+				currencyEl.addEventListener('change', () => {
+					this.applyCurrencyToUI();
+					this.updateCheckoutTotal();
+				});
+			}
+			this.applyCurrencyToUI();
 			this.updateCheckoutTotal();
 		}
 
+		getActiveCurrency() {
+			const el = this.root.querySelector('[data-field="currency"]');
+			const code = (el && el.value) || COMMERCE.defaultCurrency || COMMERCE.pricing?.currency_code || 'EUR';
+			if (COMMERCE.currencies && COMMERCE.currencies[code]) {
+				return code;
+			}
+			return COMMERCE.defaultCurrency || 'EUR';
+		}
+
+		getPricingForCurrency(code) {
+			if (COMMERCE.currencies && COMMERCE.currencies[code]) {
+				const row = COMMERCE.currencies[code];
+				return {
+					show: COMMERCE.pricing?.show !== false,
+					base: parseFloat(row.base) || 0,
+					setup_fee: parseFloat(row.setup_fee) || 0,
+					unit_price: parseFloat(row.unit_price) || 0,
+					currency_code: code,
+					currency_symbol: row.symbol || '€',
+					formatted_unit: row.formatted_unit || '',
+					formatted_base: row.formatted_base || '',
+				};
+			}
+			return COMMERCE.pricing || {};
+		}
+
+		formatMoneyAmount(amount, symbol, code) {
+			const n = (parseFloat(amount) || 0).toFixed(2);
+			if ((code || 'EUR').toUpperCase() === 'EUR') {
+				return n + ' ' + (symbol || '€');
+			}
+			return (symbol || '') + n + ' ' + (code || '');
+		}
+
+		applyCurrencyToUI() {
+			const pricing = this.getPricingForCurrency(this.getActiveCurrency());
+			if (!pricing.show) {
+				return;
+			}
+			const unitEl = this.root.querySelector('[data-price-unit]');
+			if (unitEl && pricing.formatted_unit) {
+				unitEl.textContent = pricing.formatted_unit;
+			}
+			const headerEl = this.root.querySelector('[data-product-price] .pckz-product__price-amount');
+			if (headerEl && pricing.formatted_unit) {
+				headerEl.textContent = pricing.formatted_unit;
+			}
+		}
+
 		updateCheckoutTotal() {
-			const pricing = COMMERCE.pricing;
+			const pricing = this.getPricingForCurrency(this.getActiveCurrency());
 			if (!pricing || !pricing.show) {
 				return;
 			}
 			const qty = parseInt(this.root.querySelector('[data-field="quantity"]')?.value, 10) || 1;
-			const unit = (parseFloat(pricing.base) || 0) + (parseFloat(pricing.setup_fee) || 0);
+			const unit = parseFloat(pricing.unit_price) || (parseFloat(pricing.base) || 0) + (parseFloat(pricing.setup_fee) || 0);
 			const total = unit * qty;
 			const el = this.root.querySelector('[data-price-total]');
 			if (!el) {
 				return;
 			}
 			if (qty > 1 && total > 0) {
-				const sym = pricing.currency_symbol || '€';
-				const code = pricing.currency_code || 'EUR';
 				el.textContent =
 					(I18N.totalLabel || 'Gesamtbetrag') +
 					': ' +
-					(code === 'EUR' ? total.toFixed(2) + ' ' + sym : sym + total.toFixed(2));
+					this.formatMoneyAmount(total, pricing.currency_symbol, pricing.currency_code);
 				el.hidden = false;
 			} else {
 				el.hidden = true;
@@ -830,6 +885,9 @@
 			}
 			if (wishEl) {
 				body.append('customer_wishes', wishEl.value.trim());
+			}
+			if (COMMERCE.currencies || COMMERCE.pricing) {
+				body.append('currency', this.getActiveCurrency());
 			}
 		}
 
@@ -1367,11 +1425,11 @@
 			const label = btn.querySelector('.pckz-btn__text');
 			if (label && !loading) {
 				if (btn.dataset.action === 'paypal-checkout') {
-					label.textContent = 'Sicher bezahlen mit PayPal';
+					label.textContent = 'Jetzt sicher bezahlen';
 				} else if (btn.dataset.action === 'add-to-cart') {
-					label.textContent = 'In den Warenkorb';
+					label.textContent = 'Zur Kasse – Bestellung abschließen';
 				} else {
-					label.textContent = 'Entwurf speichern';
+					label.textContent = 'Bestellung prüfen und fortfahren';
 				}
 			} else if (label && loading) {
 				label.textContent =

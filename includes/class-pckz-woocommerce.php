@@ -22,6 +22,7 @@ class PCKZ_WooCommerce {
 
 		add_filter( 'woocommerce_add_cart_item_data', array( $this, 'preserve_cart_item_data' ), 10, 3 );
 		add_filter( 'woocommerce_get_item_data', array( $this, 'display_cart_item_data' ), 10, 2 );
+		add_action( 'woocommerce_before_calculate_totals', array( $this, 'apply_admin_pricing_to_cart' ), 20, 1 );
 		add_action( 'woocommerce_checkout_create_order_line_item', array( $this, 'add_order_item_meta' ), 10, 4 );
 		add_action( 'add_meta_boxes', array( $this, 'order_design_metabox' ) );
 		add_action( 'woocommerce_email_after_order_table', array( $this, 'email_production_summary' ), 10, 4 );
@@ -67,6 +68,35 @@ class PCKZ_WooCommerce {
 			'selections'  => $meta['selections'] ?? array(),
 			'production'  => $meta['production'] ?? array(),
 		);
+	}
+
+	/**
+	 * Override WooCommerce line price with admin configurator pricing.
+	 *
+	 * @param WC_Cart $cart Cart.
+	 */
+	public function apply_admin_pricing_to_cart( $cart ) {
+		if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
+			return;
+		}
+		if ( ! class_exists( 'PCKZ_Commerce' ) ) {
+			return;
+		}
+		$key = PCKZ_Settings::get( 'cart_meta_key', '_pckz_design' );
+		foreach ( $cart->get_cart() as $cart_item ) {
+			if ( empty( $cart_item[ $key ]['product_id'] ) ) {
+				continue;
+			}
+			$creator_id = (int) $cart_item[ $key ]['product_id'];
+			$currency   = ! empty( $cart_item['pckz_currency'] )
+				? PCKZ_Commerce::sanitize_currency_code( $cart_item['pckz_currency'] )
+				: PCKZ_Commerce::get_default_currency_code();
+			$unit       = PCKZ_Commerce::get_unit_price( $currency );
+			if ( $unit > 0 && isset( $cart_item['data'] ) && is_object( $cart_item['data'] ) ) {
+				$cart_item['data']->set_price( $unit );
+			}
+			unset( $creator_id );
+		}
 	}
 
 	/**

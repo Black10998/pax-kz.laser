@@ -446,6 +446,13 @@ class PCKZ_Ajax {
 		}
 
 		$cart_item_data = array();
+		if ( class_exists( 'PCKZ_Commerce' ) ) {
+			$currency = PCKZ_Commerce::get_default_currency_code();
+			if ( isset( $_POST['currency'] ) ) {
+				$currency = PCKZ_Commerce::sanitize_currency_code( sanitize_text_field( wp_unslash( $_POST['currency'] ) ) );
+			}
+			$cart_item_data['pckz_currency'] = $currency;
+		}
 		if ( $design_id ) {
 			$design = PCKZ_Design_Storage::get_design( $design_id );
 			if ( $design ) {
@@ -510,9 +517,10 @@ class PCKZ_Ajax {
 
 		PCKZ_Commerce::attach_customer_meta_to_design( $design_id, $email, $wishes );
 
-		$pricing  = PCKZ_Commerce::get_frontend_pricing( $product_id );
-		$amount   = PCKZ_Commerce::calculate_total( $quantity, $product_id );
-		$currency = $pricing['currency_code'];
+		$currency_in = isset( $_POST['currency'] ) ? sanitize_text_field( wp_unslash( $_POST['currency'] ) ) : '';
+		$currency    = PCKZ_Commerce::sanitize_currency_code( $currency_in );
+		$pricing     = PCKZ_Commerce::get_frontend_pricing( $product_id, $currency );
+		$amount      = PCKZ_Commerce::calculate_total( $quantity, $product_id, $currency );
 
 		if ( $amount <= 0 ) {
 			wp_send_json_error( array( 'message' => __( 'Produktpreis ist nicht konfiguriert. Bitte kontaktieren Sie uns.', 'pckz-canonical-engine' ) ), 400 );

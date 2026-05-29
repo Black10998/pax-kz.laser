@@ -9,8 +9,8 @@ defined( 'ABSPATH' ) || exit;
 
 $config           = PCKZ_Post_Type::get_product_config( $product_id );
 $pricing          = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::get_frontend_pricing( $product_id ) : array();
-$price            = ! empty( $pricing['formatted_base'] ) ? $pricing['formatted_base'] : ( $config['price'] ?? '' );
-$currency         = ! empty( $pricing['currency_code'] ) ? $pricing['currency_code'] : ( $config['currency'] ?? 'EUR' );
+$show_header_price = ! empty( $pricing['show'] ) && (float) ( $pricing['unit_price'] ?? 0 ) > 0;
+$header_price      = $show_header_price ? ( $pricing['formatted_unit'] ?? '' ) : '';
 $paypal_enabled   = class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::paypal_enabled();
 $customer_options = $config['customer_options'] ?? array();
 $benefits         = $config['benefits'] ?? array();
@@ -85,12 +85,10 @@ $use_cloudlift    = ! empty( $config['use_cloudlift_layout'] );
 				<div class="pckz-product__info">
 					<h1 class="pckz-product__title"><?php echo esc_html( get_the_title( $product_id ) ); ?></h1>
 
-					<?php if ( ! empty( $pricing['show'] ) && $price ) : ?>
+					<?php if ( $show_header_price && $header_price ) : ?>
 						<div class="pckz-product__price" data-product-price>
-							<span class="pckz-product__price-amount"><?php echo esc_html( $price ); ?></span>
-							<?php if ( empty( $pricing['formatted_base'] ) ) : ?>
-								<span class="pckz-product__price-currency"><?php echo esc_html( $currency ); ?></span>
-							<?php endif; ?>
+							<span class="pckz-product__price-amount"><?php echo esc_html( $header_price ); ?></span>
+							<span class="pckz-product__price-note">pro Stück</span>
 						</div>
 					<?php endif; ?>
 
@@ -106,46 +104,52 @@ $use_cloudlift    = ! empty( $config['use_cloudlift_layout'] );
 							<?php include PCKZCE_PLUGIN_DIR . 'public/templates/partials/options-form.php'; ?>
 						</div>
 
-						<?php include PCKZCE_PLUGIN_DIR . 'public/templates/partials/checkout-fields.php'; ?>
+						<div class="pckz-checkout-panel">
+							<?php include PCKZCE_PLUGIN_DIR . 'public/templates/partials/checkout-fields.php'; ?>
 
-						<?php if ( $woo_linked ) : ?>
-							<div class="pckz-product__buy">
-								<div class="pckz-quantity" data-quantity>
-									<label class="pckz-quantity__label" for="pckz-qty-<?php echo esc_attr( (string) $product_id ); ?>">
-										Anzahl
-									</label>
-									<div class="pckz-quantity__control">
-										<button type="button" class="pckz-quantity__btn" data-qty="minus" aria-label="Anzahl verringern">−</button>
-										<input
-											type="number"
-											class="pckz-quantity__input"
-											id="pckz-qty-<?php echo esc_attr( (string) $product_id ); ?>"
-											min="1"
-											value="1"
-											data-field="quantity"
-										>
-										<button type="button" class="pckz-quantity__btn" data-qty="plus" aria-label="Anzahl erhöhen">+</button>
+							<?php if ( $woo_linked ) : ?>
+								<div class="pckz-checkout__actions">
+									<div class="pckz-quantity" data-quantity>
+										<label class="pckz-quantity__label" for="pckz-qty-<?php echo esc_attr( (string) $product_id ); ?>">
+											Anzahl
+										</label>
+										<div class="pckz-quantity__control">
+											<button type="button" class="pckz-quantity__btn" data-qty="minus" aria-label="Anzahl verringern">−</button>
+											<input
+												type="number"
+												class="pckz-quantity__input"
+												id="pckz-qty-<?php echo esc_attr( (string) $product_id ); ?>"
+												min="1"
+												value="1"
+												data-field="quantity"
+											>
+											<button type="button" class="pckz-quantity__btn" data-qty="plus" aria-label="Anzahl erhöhen">+</button>
+										</div>
 									</div>
+									<?php if ( $paypal_enabled ) : ?>
+										<button type="button" class="pckz-btn pckz-btn--paypal" data-action="paypal-checkout">
+											<span class="pckz-btn__text">Jetzt sicher bezahlen</span>
+											<span class="pckz-btn__spinner" aria-hidden="true"></span>
+										</button>
+										<p class="pckz-checkout__paypal-hint">Sie werden zu PayPal weitergeleitet. Ohne erfolgreiche Zahlung wird keine Bestellung ausgelöst.</p>
+									<?php else : ?>
+										<button type="button" class="pckz-btn pckz-btn--cart" data-action="add-to-cart">
+											<span class="pckz-btn__text">Zur Kasse – Bestellung abschließen</span>
+											<span class="pckz-btn__spinner" aria-hidden="true"></span>
+										</button>
+										<p class="pckz-checkout__paypal-hint">Im nächsten Schritt schließen Sie die Zahlung im Shop ab.</p>
+									<?php endif; ?>
 								</div>
-								<?php if ( $paypal_enabled ) : ?>
-									<button type="button" class="pckz-btn pckz-btn--paypal" data-action="paypal-checkout">
-										<span class="pckz-btn__text">Sicher bezahlen mit PayPal</span>
+							<?php else : ?>
+								<div class="pckz-checkout__actions">
+									<button type="button" class="pckz-btn pckz-btn--cart" data-action="submit-design">
+										<span class="pckz-btn__text">Bestellung prüfen und fortfahren</span>
 										<span class="pckz-btn__spinner" aria-hidden="true"></span>
 									</button>
-									<p class="pckz-checkout__paypal-hint">Die Bestellung wird erst nach erfolgreicher Zahlung abgeschlossen.</p>
-								<?php else : ?>
-									<button type="button" class="pckz-btn pckz-btn--cart" data-action="add-to-cart">
-										<span class="pckz-btn__text">In den Warenkorb</span>
-										<span class="pckz-btn__spinner" aria-hidden="true"></span>
-									</button>
-								<?php endif; ?>
-							</div>
-						<?php else : ?>
-							<button type="button" class="pckz-btn pckz-btn--cart" data-action="submit-design">
-								<span class="pckz-btn__text">Entwurf speichern</span>
-								<span class="pckz-btn__spinner" aria-hidden="true"></span>
-							</button>
-						<?php endif; ?>
+									<p class="pckz-checkout__paypal-hint">Ihre Personalisierung wird übermittelt. Unser Team meldet sich bei Rückfragen.</p>
+								</div>
+							<?php endif; ?>
+						</div>
 					</form>
 
 					<?php if ( ! empty( $benefits ) ) : ?>

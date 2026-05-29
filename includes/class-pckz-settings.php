@@ -61,6 +61,12 @@ class PCKZ_Settings {
 			'price_setup_fee'     => 0,
 			'price_currency_code' => 'EUR',
 			'price_currency_symbol' => '€',
+			'price_default_currency' => 'EUR',
+			'price_currencies_enabled' => array( 'EUR' ),
+			'price_allow_currency_switch' => false,
+			'price_by_currency'   => array(),
+			'checkout_notice_enabled' => true,
+			'checkout_notice_message' => self::default_checkout_notice_message(),
 			'paypal_enabled'      => false,
 			'paypal_test_mode'    => true,
 			'paypal_sandbox_client_id' => '',
@@ -131,6 +137,15 @@ class PCKZ_Settings {
 	 *
 	 * @return array
 	 */
+	/**
+	 * Default customer reassurance message (checkout).
+	 *
+	 * @return string
+	 */
+	public static function default_checkout_notice_message() {
+		return '<p><strong>Keine Sorge</strong> – Ihr Entwurf wird nach der Bestellung zusätzlich von unserem Team geprüft und für die bestmögliche Produktionsqualität optimiert. Das finale Ergebnis entspricht der Vorschau und wird für eine optimale Laserproduktion professionell vorbereitet.</p>';
+	}
+
 	public static function get_gray_palette() {
 		return array(
 			'#FFFFFF',

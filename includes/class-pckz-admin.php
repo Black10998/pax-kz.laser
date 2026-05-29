@@ -157,6 +157,10 @@ class PCKZ_Admin {
 			'price_setup_fee'      => max( 0, (float) ( $input['price_setup_fee'] ?? 0 ) ),
 			'price_currency_code'  => strtoupper( sanitize_text_field( $input['price_currency_code'] ?? 'EUR' ) ),
 			'price_currency_symbol'=> sanitize_text_field( $input['price_currency_symbol'] ?? '€' ),
+			'price_default_currency' => strtoupper( sanitize_text_field( $input['price_default_currency'] ?? 'EUR' ) ),
+			'price_allow_currency_switch' => ! empty( $input['price_allow_currency_switch'] ),
+			'checkout_notice_enabled' => ! empty( $input['checkout_notice_enabled'] ),
+			'checkout_notice_message' => wp_kses_post( $input['checkout_notice_message'] ?? '' ),
 			'paypal_enabled'       => ! empty( $input['paypal_enabled'] ),
 			'paypal_test_mode'     => ! empty( $input['paypal_test_mode'] ),
 			'paypal_sandbox_client_id' => sanitize_text_field( $input['paypal_sandbox_client_id'] ?? '' ),
@@ -189,6 +193,35 @@ class PCKZ_Admin {
 							'label'  => sanitize_text_field( $font['label'] ?? $font['family'] ),
 						);
 					}
+				}
+			}
+		}
+
+		$catalog = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::currency_catalog() : array();
+		$enabled = array();
+		if ( ! empty( $input['price_currencies_enabled'] ) && is_array( $input['price_currencies_enabled'] ) ) {
+			foreach ( $input['price_currencies_enabled'] as $code ) {
+				$code = strtoupper( sanitize_text_field( $code ) );
+				if ( isset( $catalog[ $code ] ) ) {
+					$enabled[] = $code;
+				}
+			}
+		}
+		$output['price_currencies_enabled'] = ! empty( $enabled ) ? array_values( array_unique( $enabled ) ) : array( 'EUR' );
+
+		$default = strtoupper( sanitize_text_field( $input['price_default_currency'] ?? 'EUR' ) );
+		if ( ! isset( $catalog[ $default ] ) || ! in_array( $default, $output['price_currencies_enabled'], true ) ) {
+			$default = $output['price_currencies_enabled'][0];
+		}
+		$output['price_default_currency'] = $default;
+		$output['price_currency_code']    = $default;
+
+		$output['price_by_currency'] = array();
+		if ( ! empty( $input['price_by_currency'] ) && is_array( $input['price_by_currency'] ) ) {
+			foreach ( $input['price_by_currency'] as $code => $amount ) {
+				$code = strtoupper( sanitize_text_field( $code ) );
+				if ( isset( $catalog[ $code ] ) && in_array( $code, $output['price_currencies_enabled'], true ) ) {
+					$output['price_by_currency'][ $code ] = max( 0, (float) $amount );
 				}
 			}
 		}

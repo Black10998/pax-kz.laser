@@ -110,18 +110,34 @@ if ( ! function_exists( 'dbDelta' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_kses_post' ) ) {
+	function wp_kses_post( $s ) {
+		return $s;
+	}
+}
+
+if ( ! function_exists( 'wp_strip_all_tags' ) ) {
+	function wp_strip_all_tags( $s ) {
+		return strip_tags( $s );
+	}
+}
+
 $GLOBALS['pckz_smoke_options'] = array(
 	'pckz_settings' => array_merge(
 		array(
-			'price_show_enabled' => true,
-			'price_base'         => 49.9,
-			'price_setup_fee'    => 5,
-			'price_currency_code'=> 'EUR',
-			'price_currency_symbol' => '€',
-			'paypal_enabled'     => true,
-			'paypal_test_mode'    => true,
-			'paypal_sandbox_client_id' => 'test-client',
-			'paypal_sandbox_secret'    => 'test-secret',
+			'price_show_enabled'      => true,
+			'price_base'              => 49.9,
+			'price_setup_fee'         => 5,
+			'price_default_currency'  => 'EUR',
+			'price_currencies_enabled'=> array( 'EUR', 'CHF' ),
+			'price_currency_code'     => 'EUR',
+			'price_currency_symbol'   => '€',
+			'price_by_currency'       => array( 'CHF' => 55.0 ),
+			'checkout_notice_enabled' => true,
+			'paypal_enabled'          => true,
+			'paypal_test_mode'        => true,
+			'paypal_sandbox_client_id'=> 'test-client',
+			'paypal_sandbox_secret'   => 'test-secret',
 		),
 		class_exists( 'PCKZ_Settings' ) ? PCKZ_Settings::default_options() : array()
 	),
@@ -135,9 +151,21 @@ if ( ! defined( 'PCKZCE_PLUGIN_DIR' ) ) {
 require_once $root . '/includes/class-pckz-settings.php';
 require_once $root . '/includes/class-pckz-commerce.php';
 
-$total = PCKZ_Commerce::calculate_total( 2, 0 );
+$total = PCKZ_Commerce::calculate_total( 2, 0, 'EUR' );
 if ( abs( $total - 109.8 ) > 0.01 ) {
-	fwrite( STDERR, "FAIL calculate_total expected 109.8 got {$total}\n" );
+	fwrite( STDERR, "FAIL calculate_total EUR expected 109.8 got {$total}\n" );
+	exit( 1 );
+}
+
+$chf_unit = PCKZ_Commerce::get_unit_price( 'CHF' );
+if ( abs( $chf_unit - 60.0 ) > 0.01 ) {
+	fwrite( STDERR, "FAIL CHF unit price expected 60 got {$chf_unit}\n" );
+	exit( 1 );
+}
+
+$pricing_zero = PCKZ_Commerce::get_frontend_pricing( 0, 'EUR' );
+if ( (float) $pricing_zero['base'] !== 49.9 ) {
+	fwrite( STDERR, "FAIL pricing must use admin base only\n" );
 	exit( 1 );
 }
 
@@ -159,9 +187,15 @@ if ( ! PCKZ_Commerce::paypal_enabled() ) {
 }
 
 $pricing = PCKZ_Commerce::get_frontend_pricing( 0 );
-if ( empty( $pricing['show'] ) || (float) $pricing['base'] <= 0 ) {
+if ( empty( $pricing['show'] ) || (float) $pricing['unit_price'] <= 0 ) {
 	fwrite( STDERR, "FAIL get_frontend_pricing\n" );
 	exit( 1 );
 }
 
-echo "OK commerce-smoke: pricing, email validation, PayPal config gate\n";
+$notice = PCKZ_Commerce::get_checkout_notice_html();
+if ( '' === trim( $notice ) ) {
+	fwrite( STDERR, "FAIL checkout notice should render when enabled\n" );
+	exit( 1 );
+}
+
+echo "OK commerce-smoke: admin pricing, currency overrides, email, PayPal gate, notice\n";
