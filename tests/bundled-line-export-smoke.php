@@ -1,6 +1,6 @@
 <?php
 /**
- * Smoke: bundled type_21–38 SVGs parse for production export.
+ * Smoke: bundled type_21–71 SVGs parse for production export.
  */
 define( 'ABSPATH', __DIR__ );
 if ( ! function_exists( 'trailingslashit' ) ) {
@@ -35,7 +35,7 @@ $w     = 529.1;
 $h     = 116;
 $ok    = 0;
 
-for ( $i = 21; $i <= 38; $i++ ) {
+for ( $i = PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MIN; $i <= PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MAX; $i++ ) {
 	$key = 'type_' . $i;
 	if ( empty( $lines[ $key ] ) ) {
 		fwrite( STDERR, "FAIL missing registry {$key}\n" );

@@ -52,7 +52,7 @@ import_one() {
 }
 
 count=0
-for num in $(seq 21 38); do
+for num in $(seq 21 71); do
   if import_one "$num"; then
     count=$((count + 1))
   else

@@ -90,10 +90,10 @@ class PCKZ_Ledos_Preview {
 	const LINE_ASSETS_DIR = 'public/assets/lines/';
 
 	/**
-	 * First / last bundled line type index (model 21–38 SVGs).
+	 * First / last bundled line type index (model 21–71 SVGs).
 	 */
 	const BUNDLED_LINE_TYPE_MIN = 21;
-	const BUNDLED_LINE_TYPE_MAX = 38;
+	const BUNDLED_LINE_TYPE_MAX = 71;
 
 	/**
 	 * Absolute path to bundled line SVG directory.
@@ -114,7 +114,7 @@ class PCKZ_Ledos_Preview {
 	}
 
 	/**
-	 * Line overlay SVGs shipped with the plugin (type_21–type_38).
+	 * Line overlay SVGs shipped with the plugin (type_21–type_71).
 	 *
 	 * @return array<string,string>
 	 */
@@ -135,7 +135,7 @@ class PCKZ_Ledos_Preview {
 	}
 
 	/**
-	 * Line overlay SVGs (Type 1–20 CDN + bundled type_21–38).
+	 * Line overlay SVGs (Type 1–20 CDN + bundled type_21–71).
 	 *
 	 * @return array<string,string>
 	 */

@@ -18,7 +18,7 @@ Do **not** use legacy zip-only layouts or old `product-creator-kz` copies.
 ## Line models (Typ 1–38)
 
 - **Typ 1–20:** Cloudlift CDN SVGs (unchanged).
-- **Typ 21–38:** Bundled ornaments in `public/assets/lines/type_21.svg` … `type_38.svg` (included in this repository).
+- **Typ 21–71:** Bundled ornaments in `public/assets/lines/type_21.svg` … `type_71.svg` (included in this repository).
 
 Source artwork from LightBurn `.ai` exports is archived under `import/line-models/`. To regenerate SVGs after editing sources:
 

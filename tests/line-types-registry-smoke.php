@@ -1,6 +1,6 @@
 <?php
 /**
- * Smoke: bundled line types 21–38 register when SVG assets exist.
+ * Smoke: bundled line types 21–71 register when SVG assets exist.
  *
  * @package PCKZCanonicalEngine
  */
@@ -39,7 +39,7 @@ for ( $i = 1; $i <= 20; $i++ ) {
 }
 
 $bundled = 0;
-for ( $i = 21; $i <= 38; $i++ ) {
+for ( $i = PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MIN; $i <= PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MAX; $i++ ) {
 	$key  = 'type_' . $i;
 	$path = PCKZ_Ledos_Preview::line_assets_dir() . $key . '.svg';
 	if ( is_readable( $path ) ) {

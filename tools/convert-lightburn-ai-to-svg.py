@@ -408,57 +408,39 @@ def main() -> int:
 		default=Path("public/assets/lines"),
 		help="Output directory for type_NN.svg",
 	)
+	parser.add_argument(
+		"--expect",
+		type=int,
+		default=0,
+		help="Expected conversion count (0 = all .ai files in source must convert)",
+	)
 	args = parser.parse_args()
-
-	mapping = {
-		"model 21": 21,
-		"model 22": 22,
-		"model 23": 23,
-		"model 24": 24,
-		"model 25": 25,
-		"model 26": 26,
-		"model27": 27,
-		"model 28": 28,
-		"model 29": 29,
-		"model 30": 30,
-		"model31": 31,
-		"model 32": 32,
-		"model 33": 33,
-		"model 34": 34,
-		"model 35": 35,
-		"model 36": 36,
-		"model 37": 37,
-		"model 38": 38,
-	}
 
 	sources: list[Path] = []
 	if args.source.is_dir():
-		sources = sorted(args.source.glob("*.ai"))
+		sources = sorted(args.source.glob("*.ai")) + sorted(args.source.glob("*.AI"))
 	else:
 		sources = [args.source]
 
 	ok = 0
 	for src in sources:
-		stem = src.stem
-		num = mapping.get(stem)
-		if num is None:
-			m = re.match(r"model\s*(\d+)", stem, re.I)
-			if m:
-				num = int(m.group(1))
-		if num is None:
+		m = re.match(r"model\s*(\d+)", src.stem, re.I)
+		if not m:
 			print(f"SKIP unknown name: {src.name}", file=sys.stderr)
 			continue
+		num = int(m.group(1))
 		dest = args.output / f"type_{num}.svg"
 		try:
 			convert_file(src, dest)
-			print(f"OK {src.name} -> {dest}")
+			print(f"OK {src.name} -> type_{num}.svg")
 			ok += 1
 		except Exception as exc:
 			print(f"FAIL {src.name}: {exc}", file=sys.stderr)
 			return 1
 
-	if ok != 18:
-		print(f"Expected 18 files, converted {ok}", file=sys.stderr)
+	expected = args.expect if args.expect > 0 else len(sources)
+	if ok != expected:
+		print(f"Expected {expected} files, converted {ok}", file=sys.stderr)
 		return 1
 	return 0
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * Smoke: bundled type_21–38 SVGs match Cloudlift line artboard (950×35, white).
+ * Smoke: bundled type_21–71 SVGs match Cloudlift line artboard (950×35, white).
  */
 if ( ! defined( 'PCKZCE_PLUGIN_DIR' ) ) {
 	define( 'PCKZCE_PLUGIN_DIR', dirname( __DIR__ ) . '/' );
@@ -9,7 +9,8 @@ if ( ! defined( 'PCKZCE_PLUGIN_DIR' ) ) {
 require_once dirname( __DIR__ ) . '/includes/class-pckz-ledos-preview.php';
 
 $dir = PCKZ_Ledos_Preview::line_assets_dir();
-for ( $i = 21; $i <= 38; $i++ ) {
+
+for ( $i = PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MIN; $i <= PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MAX; $i++ ) {
 	$path = $dir . 'type_' . $i . '.svg';
 	if ( ! is_readable( $path ) ) {
 		fwrite( STDERR, "FAIL missing {$path}\n" );
@@ -28,15 +29,22 @@ for ( $i = 21; $i <= 38; $i++ ) {
 		fwrite( STDERR, "FAIL no white primitives in type_{$i}\n" );
 		exit( 1 );
 	}
-	// Side runners + open center (no continuous horizontal through text band ~200–758).
-	if ( ! preg_match( '/M9\.5 [\d.]+ L(?:19[0-9]|20[0-5])\./', $svg ) ) {
-		fwrite( STDERR, "FAIL missing left runner before text band in type_{$i}\n" );
-		exit( 1 );
-	}
-	if ( ! preg_match( '/M75[0-9][\d.]* [\d.]+ L(?:93[0-9]|940)/', $svg ) ) {
-		fwrite( STDERR, "FAIL missing right runner after text band in type_{$i}\n" );
-		exit( 1 );
+	// Types with horizontal stroke runners must use plate-side text band (like CDN type 5).
+	$has_stroke_runner = (bool) preg_match(
+		'/<path d="M[^"]+ L[^"]+" fill="none" stroke="white"/',
+		$svg
+	);
+	if ( $has_stroke_runner ) {
+		if ( ! preg_match( '/M9\.5 [\d.]+ L(?:19[0-9]|20[0-5])\./', $svg ) ) {
+			fwrite( STDERR, "FAIL missing left runner before text band in type_{$i}\n" );
+			exit( 1 );
+		}
+		if ( ! preg_match( '/M75[0-9][\d.]* [\d.]+ L(?:93[0-9]|940)/', $svg ) ) {
+			fwrite( STDERR, "FAIL missing right runner after text band in type_{$i}\n" );
+			exit( 1 );
+		}
 	}
 }
 
-echo "OK bundled-line-svg-format: 18 types use 950×35 white artboard with text band\n";
+$total = PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MAX - PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MIN + 1;
+echo "OK bundled-line-svg-format: {$total} bundled types use 950×35 white artboard\n";
