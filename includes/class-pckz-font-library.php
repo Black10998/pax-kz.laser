@@ -12,10 +12,11 @@ defined( 'ABSPATH' ) || exit;
  */
 class PCKZ_Font_Library {
 
-	const OPTION_DISABLED = 'pckz_font_disabled_ids';
-	const OPTION_CUSTOM   = 'pckz_font_custom';
-	const OPTION_LABELS   = 'pckz_font_labels';
-	const UPLOAD_SUBDIR   = 'pckz-canonical-engine/fonts';
+	const OPTION_DISABLED   = 'pckz_font_disabled_ids';
+	const OPTION_CUSTOM     = 'pckz_font_custom';
+	const OPTION_LABELS     = 'pckz_font_labels';
+	const UPLOAD_SUBDIR     = 'pckz-canonical-engine/fonts';
+	const FONT_CACHE_PREFIX = 'pckzce_gfont_v2_';
 
 	/**
 	 * Category labels for admin / UI.
@@ -309,7 +310,7 @@ class PCKZ_Font_Library {
 			if ( ! self::is_visible( $id ) ) {
 				continue;
 			}
-			$url = self::resolve_font_binary_url( $id, $row );
+			$url = self::export_url_for_frontend( $id, $row );
 			if ( ! $url ) {
 				continue;
 			}
@@ -356,12 +357,59 @@ class PCKZ_Font_Library {
 	 */
 	public static function resolve_font_binary_url( $id, $row ) {
 		if ( ! empty( $row['file'] ) ) {
-			return self::font_file_url( $row['file'] );
+			$url = self::font_file_url( $row['file'] );
+			return self::is_export_safe_binary_url( $url ) ? $url : '';
 		}
 		if ( 'google' === ( $row['source'] ?? '' ) ) {
 			return self::resolve_google_font_binary_url( $id, $row );
 		}
 		return '';
+	}
+
+	/**
+	 * Whether a remote/binary URL is safe for OpenType.js export (TTF/OTF/WOFF, not WOFF2).
+	 *
+	 * @param string $url URL.
+	 * @return bool
+	 */
+	public static function is_export_safe_binary_url( $url ) {
+		$url = trim( (string) $url );
+		if ( '' === $url ) {
+			return false;
+		}
+		if ( preg_match( '/\.woff2(\?|$)/i', $url ) ) {
+			return false;
+		}
+		return (bool) preg_match( '/\.(ttf|otf|woff)(\?|$)/i', $url );
+	}
+
+	/**
+	 * Frontend OpenType.js URL (same-origin proxy for Google fonts).
+	 *
+	 * @param string $id  Font ID.
+	 * @param array  $row Catalog row.
+	 * @return string
+	 */
+	public static function export_url_for_frontend( $id, $row ) {
+		$id = sanitize_key( $id );
+		if ( ! $id ) {
+			return '';
+		}
+		$binary = self::resolve_font_binary_url( $id, $row );
+		if ( ! self::is_export_safe_binary_url( $binary ) ) {
+			return '';
+		}
+		if ( 'google' === ( $row['source'] ?? '' ) ) {
+			return add_query_arg(
+				array(
+					'action'  => 'pckzce_font_file',
+					'font_id' => $id,
+					'nonce'   => wp_create_nonce( 'pckzce_font_file' ),
+				),
+				admin_url( 'admin-ajax.php' )
+			);
+		}
+		return $binary;
 	}
 
 	/**
@@ -377,11 +425,16 @@ class PCKZ_Font_Library {
 			return '';
 		}
 
-		$cache_key = 'pckzce_gfont_bin_' . $id;
+		$cache_key = self::FONT_CACHE_PREFIX . $id;
 		$cached    = get_transient( $cache_key );
 		if ( is_string( $cached ) && '' !== $cached ) {
-			return $cached;
+			if ( self::is_export_safe_binary_url( $cached ) ) {
+				return $cached;
+			}
+			delete_transient( $cache_key );
 		}
+		// Drop legacy v1 transients that may still hold subset woff2 URLs.
+		delete_transient( 'pckzce_gfont_bin_' . $id );
 
 		$google_id = trim( (string) ( $row['google_id'] ?? '' ) );
 		if ( '' === $google_id && ! empty( $row['family'] ) ) {
@@ -412,11 +465,12 @@ class PCKZ_Font_Library {
 		}
 
 		$url = self::parse_google_fonts_css_binary_url( wp_remote_retrieve_body( $response ) );
-		if ( $url ) {
+		if ( $url && self::is_export_safe_binary_url( $url ) ) {
 			set_transient( $cache_key, $url, 30 * DAY_IN_SECONDS );
+			return $url;
 		}
 
-		return $url;
+		return '';
 	}
 
 	/**
@@ -518,9 +572,79 @@ class PCKZ_Font_Library {
 	 */
 	public static function clear_google_font_cache() {
 		foreach ( array_keys( self::default_catalog() ) as $id ) {
-			delete_transient( 'pckzce_gfont_bin_' . sanitize_key( $id ) );
+			$id = sanitize_key( $id );
+			delete_transient( self::FONT_CACHE_PREFIX . $id );
+			delete_transient( 'pckzce_gfont_bin_' . $id );
 		}
 		self::reset_font_file_maps_cache();
+	}
+
+	/**
+	 * Stream export-safe font binary for OpenType.js (admin-ajax proxy).
+	 *
+	 * @param string $font_id Font catalog ID.
+	 * @return true|WP_Error
+	 */
+	public static function stream_font_binary( $font_id ) {
+		$font_id = sanitize_key( $font_id );
+		$entries = self::all_entries();
+		if ( empty( $entries[ $font_id ] ) || ! self::is_visible( $font_id ) ) {
+			return new WP_Error( 'font_missing', __( 'Font not found.', 'pckz-canonical-engine' ), array( 'status' => 404 ) );
+		}
+		$row = $entries[ $font_id ];
+		$url = self::resolve_font_binary_url( $font_id, $row );
+		if ( ! self::is_export_safe_binary_url( $url ) ) {
+			return new WP_Error( 'font_unsafe', __( 'Font binary is not export-safe.', 'pckz-canonical-engine' ), array( 'status' => 404 ) );
+		}
+
+		if ( ! empty( $row['file'] ) && is_readable( self::upload_dir() . '/' . sanitize_file_name( $row['file'] ) ) ) {
+			$path = self::upload_dir() . '/' . sanitize_file_name( $row['file'] );
+			$body = file_get_contents( $path );
+			if ( false === $body || '' === $body ) {
+				return new WP_Error( 'font_read_fail', __( 'Could not read font file.', 'pckz-canonical-engine' ), array( 'status' => 500 ) );
+			}
+			self::send_font_binary_headers( $path );
+			echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			return true;
+		}
+
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout' => 30,
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return new WP_Error( 'font_remote_fail', __( 'Remote font fetch failed.', 'pckz-canonical-engine' ), array( 'status' => 502 ) );
+		}
+		$body = wp_remote_retrieve_body( $response );
+		if ( '' === $body ) {
+			return new WP_Error( 'font_empty', __( 'Font file is empty.', 'pckz-canonical-engine' ), array( 'status' => 502 ) );
+		}
+		self::send_font_binary_headers( $url );
+		echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		return true;
+	}
+
+	/**
+	 * @param string $path_or_url File path or URL (for extension).
+	 */
+	private static function send_font_binary_headers( $path_or_url ) {
+		$ext  = strtolower( pathinfo( parse_url( $path_or_url, PHP_URL_PATH ) ?? '', PATHINFO_EXTENSION ) );
+		$mime = 'font/ttf';
+		if ( 'otf' === $ext ) {
+			$mime = 'font/otf';
+		} elseif ( 'woff' === $ext ) {
+			$mime = 'font/woff';
+		}
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: ' . $mime );
+			header( 'Access-Control-Allow-Origin: *' );
+			header( 'Cache-Control: public, max-age=86400' );
+		}
 	}
 
 	/**

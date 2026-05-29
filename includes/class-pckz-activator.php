@@ -79,6 +79,9 @@ class PCKZ_Activator {
 			self::maybe_backfill_preview_images();
 			self::maybe_upgrade_product_config();
 			self::maybe_merge_default_fonts();
+			if ( class_exists( 'PCKZ_Font_Library' ) ) {
+				PCKZ_Font_Library::clear_google_font_cache();
+			}
 			if ( class_exists( 'PCKZ_Commerce' ) ) {
 				PCKZ_Commerce::create_table();
 			}

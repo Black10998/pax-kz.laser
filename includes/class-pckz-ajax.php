@@ -22,6 +22,7 @@ class PCKZ_Ajax {
 			'pckzce_export_design',
 			'pckzce_add_to_cart',
 			'pckzce_create_paypal_order',
+			'pckzce_font_file',
 		);
 
 		foreach ( $actions as $action ) {
@@ -103,6 +104,31 @@ class PCKZ_Ajax {
 			return new WP_Error( 'not_found', __( 'Design not found.', 'pckz-canonical-engine' ), array( 'status' => 404 ) );
 		}
 		return rest_ensure_response( $design );
+	}
+
+	/**
+	 * Stream export-safe font binary for OpenType.js (same-origin; avoids stale gstatic woff2).
+	 */
+	public function handle_font_file() {
+		$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, 'pckzce_font_file' ) ) {
+			status_header( 403 );
+			exit;
+		}
+
+		$font_id = isset( $_GET['font_id'] ) ? sanitize_key( wp_unslash( $_GET['font_id'] ) ) : '';
+		if ( ! $font_id || ! class_exists( 'PCKZ_Font_Library' ) ) {
+			status_header( 404 );
+			exit;
+		}
+
+		$result = PCKZ_Font_Library::stream_font_binary( $font_id );
+		if ( is_wp_error( $result ) ) {
+			$status = (int) ( $result->get_error_data()['status'] ?? 404 );
+			status_header( $status );
+			exit;
+		}
+		exit;
 	}
 
 	/**

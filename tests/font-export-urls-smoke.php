@@ -28,6 +28,10 @@ foreach ( PCKZ_Font_Library::default_catalog() as $id => $row ) {
 		$missing[] = $id . ' (byId)';
 		continue;
 	}
+	if ( 'google' === ( $row['source'] ?? '' ) && false === strpos( $maps['byId'][ $id ], 'pckzce_font_file' ) ) {
+		$missing[] = $id . ' (proxy)';
+		continue;
+	}
 	if ( $family && empty( $maps['byFamily'][ $family ] ) ) {
 		$missing[] = $id . ' (byFamily:' . $family . ')';
 	}

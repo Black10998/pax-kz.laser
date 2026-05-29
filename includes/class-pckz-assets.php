@@ -191,6 +191,8 @@ class PCKZ_Assets {
 				'fontFilesById'  => class_exists( 'PCKZ_Font_Library' )
 					? PCKZ_Font_Library::font_files_by_id_for_js()
 					: array(),
+				'pluginVersion'  => PCKZCE_VERSION,
+				'fontExportRev'  => 2,
 				'assets'       => array(
 					'day'    => esc_url_raw( $config['background_day'] ?: $config['background_image'] ),
 					'night'  => esc_url_raw( $config['background_night'] ?: $config['background_day'] ),

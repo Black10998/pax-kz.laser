@@ -1558,9 +1558,27 @@
 			const parts = [];
 			const layoutTexts = this.findLayoutTextObjects(layout);
 			const fabricText = this.objects.text;
-			let usedFabric = false;
+			let lastErr = null;
 
-			if (fabricText && String(fabricText.text || '').trim()) {
+			// Primary export path: layout OpenType paths (reliable for all catalog fonts).
+			for (let i = 0; i < layoutTexts.length; i++) {
+				const textObj = layoutTexts[i];
+				const layerId =
+					'text' === (textObj.role || '') || 'main-text' === (textObj.role || '')
+						? textObj.id || textObj.object_id || 'pckz-text-engrave-' + i
+						: 'pckz-text-engrave-' + i;
+				try {
+					const frag = await this.buildTextVectorPathsFragment(textObj, mmW, mmH, layerId);
+					if (frag) {
+						parts.push(frag);
+					}
+				} catch (err) {
+					lastErr = err;
+				}
+			}
+
+			// Fallback: Fabric transform path when layout path did not produce output.
+			if (!parts.length && fabricText && String(fabricText.text || '').trim()) {
 				try {
 					const frag = await this.buildTextVectorPathsFromFabric(
 						fabricText,
@@ -1569,40 +1587,9 @@
 					);
 					if (frag) {
 						parts.push(frag);
-						usedFabric = true;
 					}
 				} catch (err) {
-					/* fall through to layout-based paths */
-				}
-			}
-
-			for (let i = 0; i < layoutTexts.length; i++) {
-				const textObj = layoutTexts[i];
-				if (usedFabric && layoutTexts.length === 1) {
-					break;
-				}
-				const layerId =
-					'text' === (textObj.role || '') || 'main-text' === (textObj.role || '')
-						? textObj.id || textObj.object_id || 'pckz-text-engrave-' + i
-						: 'pckz-text-engrave-' + i;
-				try {
-					let frag = '';
-					if (
-						fabricText &&
-						!usedFabric &&
-						layoutTexts.length === 1 &&
-						String(fabricText.text || '').trim() === String(textObj.text || '').trim()
-					) {
-						frag = await this.buildTextVectorPathsFromFabric(fabricText, mmW, mmH);
-						usedFabric = !!frag;
-					} else {
-						frag = await this.buildTextVectorPathsFragment(textObj, mmW, mmH, layerId);
-					}
-					if (frag) {
-						parts.push(frag);
-					}
-				} catch (err) {
-					/* continue other text objects */
+					lastErr = err;
 				}
 			}
 
@@ -1611,11 +1598,21 @@
 				const fam = sample
 					? sample.font_family || sample.fontFamily || 'Russo One'
 					: 'Russo One';
-				throw new Error(
+				const url = this.fontUrlForFamily(fam);
+				let detail =
 					'Vector text paths could not be built for font "' +
-						fam +
-						'". Check that the font file is available for export.'
-				);
+					fam +
+					'". Check that the font file is available for export.';
+				if (lastErr && lastErr.message) {
+					detail += ' (' + lastErr.message + ')';
+				}
+				if (url) {
+					detail += ' [url=' + url + ']';
+				}
+				if (global.pckzceConfig && global.pckzceConfig.pluginVersion) {
+					detail += ' [pckz=' + global.pckzceConfig.pluginVersion + ']';
+				}
+				throw new Error(detail);
 			}
 
 			return parts.join('\n');

@@ -21,6 +21,7 @@ if ( false === strpos( $url, '.ttf' ) ) {
 }
 
 delete_transient( 'pckzce_gfont_bin_great-vibes' );
+delete_transient( PCKZ_Font_Library::FONT_CACHE_PREFIX . 'great-vibes' );
 $row  = PCKZ_Font_Library::default_catalog()['great-vibes'];
 $live = PCKZ_Font_Library::resolve_google_font_binary_url( 'great-vibes', $row );
 if ( false === strpos( $live, '.ttf' ) ) {
