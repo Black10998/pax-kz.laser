@@ -1475,7 +1475,36 @@ select.pckz-field__control {
 	}
 
 	.pckz-product__inner {
-		padding: 20px 0 36px;
+		padding: 16px 0 28px;
+	}
+
+	.pckz-product__config-column {
+		position: static;
+		max-height: none;
+		overflow: visible;
+	}
+
+	.pckz-product__title {
+		font-size: 18px;
+		margin-bottom: 6px;
+	}
+
+	.pckz-product__lead {
+		margin-bottom: 12px;
+		font-size: 14px;
+	}
+
+	.pckz-product__divider {
+		margin-bottom: 16px;
+	}
+
+	.pckz-options {
+		padding: 16px;
+		gap: 14px;
+	}
+
+	.pckz-product__benefits {
+		margin-top: 12px;
 	}
 
 	.pckz-visual-picker--icon-grid.is-open .pckz-visual-picker__list {
