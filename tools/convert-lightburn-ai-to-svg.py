@@ -14,6 +14,11 @@ from pathlib import Path
 
 DRAWING_START = "%%EndSetup"
 DRAWING_END = "%%PageTrailer"
+
+# Cloudlift / Shopify line ornaments use a fixed artboard (types 1–20).
+CANVAS_W = 950.0
+CANVAS_H = 35.0
+FILL_COLOR = "white"
 SKIP_TOKENS = {
 	"Lb",
 	"Ln",
@@ -148,20 +153,34 @@ def fmt(n: float) -> str:
 	return format(n, ".4f").rstrip("0").rstrip(".") or "0"
 
 
-def ops_to_d(ops: list, x0: float, ymax: float) -> str:
+def map_point(x: float, y: float, x0: float, ymax: float, scale: float, ox: float, oy: float) -> tuple[float, float]:
+	lx = x - x0
+	ly = ymax - y
+	return ox + lx * scale, oy + ly * scale
+
+
+def ops_to_d(
+	ops: list,
+	x0: float,
+	ymax: float,
+	scale: float,
+	ox: float,
+	oy: float,
+) -> str:
 	parts: list[str] = []
 	for op in ops:
 		if op[0] == "M":
-			x, y = op[1], op[2]
-			parts.append(f"M{fmt(x - x0)} {fmt(ymax - y)}")
+			x, y = map_point(op[1], op[2], x0, ymax, scale, ox, oy)
+			parts.append(f"M{fmt(x)} {fmt(y)}")
 		elif op[0] == "L":
-			x, y = op[1], op[2]
-			parts.append(f"L{fmt(x - x0)} {fmt(ymax - y)}")
+			x, y = map_point(op[1], op[2], x0, ymax, scale, ox, oy)
+			parts.append(f"L{fmt(x)} {fmt(y)}")
 		elif op[0] == "C":
-			cx1, cy1, cx2, cy2, cx3, cy3 = op[1], op[2], op[3], op[4], op[5], op[6]
+			cx1, cy1 = map_point(op[1], op[2], x0, ymax, scale, ox, oy)
+			cx2, cy2 = map_point(op[3], op[4], x0, ymax, scale, ox, oy)
+			cx3, cy3 = map_point(op[5], op[6], x0, ymax, scale, ox, oy)
 			parts.append(
-				f"C{fmt(cx1 - x0)} {fmt(ymax - cy1)} {fmt(cx2 - x0)} {fmt(ymax - cy2)} "
-				f"{fmt(cx3 - x0)} {fmt(ymax - cy3)}"
+				f"C{fmt(cx1)} {fmt(cy1)} {fmt(cx2)} {fmt(cy2)} {fmt(cx3)} {fmt(cy3)}"
 			)
 		elif op[0] == "Z":
 			parts.append("Z")
@@ -194,26 +213,35 @@ def convert_file(src: Path, dest: Path) -> None:
 	if w <= 0 or h <= 0:
 		raise ValueError(f"Invalid bounds in {src}")
 
+	scale = min(CANVAS_W / w, CANVAS_H / h)
+	fit_w = w * scale
+	fit_h = h * scale
+	ox = (CANVAS_W - fit_w) / 2.0
+	oy = (CANVAS_H - fit_h) / 2.0
+	stroke_w = max(0.35 * scale, 0.5)
+
 	svg_paths: list[str] = []
 	for path in paths:
-		d = ops_to_d(path["ops"], x0, y1)
+		d = ops_to_d(path["ops"], x0, y1, scale, ox, oy)
 		if not d:
 			continue
 		if path.get("stroked"):
 			svg_paths.append(
-				f'<path d="{d}" fill="none" stroke="#000000" stroke-width="0.35" '
+				f'<path d="{d}" fill="none" stroke="{FILL_COLOR}" stroke-width="{fmt(stroke_w)}" '
 				f'stroke-linecap="round" stroke-linejoin="round"/>'
 			)
 		else:
 			svg_paths.append(
-				f'<path d="{d}" fill="#000000" fill-rule="evenodd" stroke="none"/>'
+				f'<path d="{d}" fill-rule="evenodd" clip-rule="evenodd" fill="{FILL_COLOR}" '
+				f'stroke="none"/>'
 			)
 
 	inner = "\n  ".join(svg_paths)
 	svg = (
 		f'<?xml version="1.0" encoding="UTF-8"?>\n'
-		f'<svg xmlns="http://www.w3.org/2000/svg" '
-		f'viewBox="0 0 {fmt(w)} {fmt(h)}" width="{fmt(w)}" height="{fmt(h)}">\n'
+		f'<svg width="{int(CANVAS_W)}" height="{int(CANVAS_H)}" '
+		f'viewBox="0 0 {int(CANVAS_W)} {int(CANVAS_H)}" fill="none" '
+		f'xmlns="http://www.w3.org/2000/svg">\n'
 		f"  {inner}\n"
 		f"</svg>\n"
 	)

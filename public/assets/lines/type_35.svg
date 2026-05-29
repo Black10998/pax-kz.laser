@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 398.0314 38.2479" width="398.0314" height="38.2479">
-  <path d="M7.6544 18.8218 L146.7103 19.0414" fill="none" stroke="#000000" stroke-width="0.35" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M251.3211 19.2065 L390.3769 19.4261" fill="none" stroke="#000000" stroke-width="0.35" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M154.3246 10.9402 L163.2949 19.0675 L154.4048 27.1666 L145.4345 19.0393 L154.3246 10.9402 Z" fill="#000000" fill-rule="evenodd" stroke="none"/>
-  <path d="M173.4636 11.55 L181.7932 19.0967 L173.5381 26.6174 L165.2085 19.0705 L173.4636 11.55 Z" fill="#000000" fill-rule="evenodd" stroke="none"/>
-  <path d="M198.9297 1.7385 L218.1518 19.1542 L199.1016 36.5094 L179.8796 19.0937 L198.9297 1.7385 Z" fill="#000000" fill-rule="evenodd" stroke="none"/>
-  <path d="M224.4932 11.6305 L232.8228 19.1773 L224.5677 26.6979 L216.2382 19.1511 L224.4932 11.6305 Z" fill="#000000" fill-rule="evenodd" stroke="none"/>
-  <path d="M243.6265 11.0812 L252.5968 19.2085 L243.7067 27.3076 L234.7364 19.1803 L243.6265 11.0812 Z" fill="#000000" fill-rule="evenodd" stroke="none"/>
-  <path d="M70.1658 18.9205 C70.1531 16.36 67.8582 14.2808 65.0399 14.2763 C62.2216 14.2719 59.9472 16.3439 59.9599 18.9044 C59.9725 21.4648 62.2674 23.5441 65.0857 23.5485 C67.904 23.553 70.1784 21.4809 70.1658 18.9205 Z" fill="#000000" fill-rule="evenodd" stroke="none"/>
-  <path d="M338.0715 19.3435 C338.0588 16.7831 335.7639 14.7038 332.9456 14.6993 C330.1273 14.6949 327.8529 16.7669 327.8655 19.3274 C327.8782 21.8878 330.1731 23.9671 332.9914 23.9715 C335.8097 23.976 338.0841 21.9039 338.0715 19.3435 Z" fill="#000000" fill-rule="evenodd" stroke="none"/>
-  <path d="M14.0332 18.8318 L28.0319 11.8998 L23.6012 18.8469 L28.1007 25.8082 L14.0332 18.8318 Z" fill="#000000" fill-rule="evenodd" stroke="none"/>
-  <path d="M383.9982 19.416 L369.9307 12.4397 L374.4301 19.4009 L369.9994 26.348 L383.9982 19.416 Z" fill="#000000" fill-rule="evenodd" stroke="none"/>
+<svg width="950" height="35" viewBox="0 0 950 35" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M299.8886 17.2235 L427.1362 17.4244" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M522.8638 17.5755 L650.1114 17.7765" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M434.104 10.0112 L442.3125 17.4484 L434.1773 24.8597 L425.9688 17.4226 L434.104 10.0112 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
+  <path d="M451.6177 10.5692 L459.24 17.4751 L451.6859 24.3571 L444.0636 17.4511 L451.6177 10.5692 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
+  <path d="M474.9214 1.5909 L492.5111 17.5276 L475.0786 33.4091 L457.4889 17.4723 L474.9214 1.5909 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
+  <path d="M498.3141 10.6429 L505.9364 17.5488 L498.3823 24.4308 L490.76 17.5249 L498.3141 10.6429 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
+  <path d="M515.8226 10.1402 L524.0312 17.5774 L515.896 24.9888 L507.6875 17.5516 L515.8226 10.1402 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
+  <path d="M357.0916 17.3138 C357.08 14.9708 354.98 13.0681 352.401 13.064 C349.822 13.0599 347.7408 14.956 347.7524 17.2991 C347.7639 19.6421 349.864 21.5448 352.443 21.5488 C355.0219 21.5529 357.1032 19.6568 357.0916 17.3138 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
+  <path d="M602.2476 17.7009 C602.236 15.3579 600.136 13.4552 597.557 13.4511 C594.978 13.447 592.8968 15.3431 592.9083 17.6862 C592.9199 20.0292 595.02 21.9319 597.5989 21.936 C600.1779 21.94 602.2592 20.0439 602.2476 17.7009 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
+  <path d="M305.7256 17.2327 L318.5357 10.8893 L314.4812 17.2465 L318.5986 23.6166 L305.7256 17.2327 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
+  <path d="M644.2744 17.7673 L631.4014 11.3834 L635.5188 17.7535 L631.4643 24.1106 L644.2744 17.7673 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
 </svg>
