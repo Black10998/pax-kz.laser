@@ -33,6 +33,7 @@ $use_cloudlift     = ! empty( $config['use_cloudlift_layout'] );
 			<input type="hidden" name="pckz_options[preview_mode]" value="day" data-preview-mode-input>
 
 			<div class="pckz-product__grid">
+				<div class="pckz-product__configure-stack">
 				<div class="pckz-product__media-column">
 					<p class="pckz-product__preview-heading">Live-Vorschau Ihres Rahmens</p>
 					<div class="pckz-gallery" data-gallery>
@@ -116,6 +117,7 @@ $use_cloudlift     = ! empty( $config['use_cloudlift_layout'] );
 							</ul>
 						<?php endif; ?>
 					</div>
+				</div>
 				</div>
 
 				<?php if ( class_exists( 'PCKZ_Commerce' ) ) : ?>

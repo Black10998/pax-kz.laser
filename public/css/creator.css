@@ -66,6 +66,11 @@
 		align-items: start;
 	}
 
+	/* Flatten wrapper so desktop grid placement is unchanged */
+	.pckz-product__configure-stack {
+		display: contents;
+	}
+
 	.pckz-product__media-column {
 		grid-column: 1;
 		grid-row: 1;
@@ -1478,10 +1483,59 @@ select.pckz-field__control {
 		padding: 16px 0 28px;
 	}
 
+	/* Preview stays visible; options scroll below without covering controls */
+	.pckz-product__configure-stack {
+		display: flex;
+		flex-direction: column;
+		height: calc(100dvh - env(safe-area-inset-top, 0px));
+		max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+		overflow: hidden;
+		min-width: 0;
+	}
+
+	.pckz-product__media-column {
+		flex: 0 0 auto;
+		position: sticky;
+		top: env(safe-area-inset-top, 0);
+		z-index: 30;
+		background: var(--pckz-white);
+		box-shadow: 0 1px 0 var(--pckz-gray-200);
+		padding-bottom: 6px;
+	}
+
 	.pckz-product__config-column {
 		position: static;
+		flex: 1 1 auto;
+		min-height: 0;
 		max-height: none;
-		overflow: visible;
+		overflow-x: hidden;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		overscroll-behavior: contain;
+	}
+
+	.pckz-product__preview-heading {
+		margin-bottom: 6px;
+		font-size: 12px;
+	}
+
+	.pckz-product__media-column .pckz-gallery__stage {
+		min-height: 96px;
+		max-height: min(24dvh, 176px);
+	}
+
+	.pckz-product--cloudlift .pckz-product__media-column .pckz-gallery__stage {
+		max-height: min(26dvh, 190px);
+	}
+
+	.pckz-product__media-column .pckz-gallery__caption {
+		margin: 4px 0 0;
+		font-size: 11px;
+		line-height: 1.35;
+	}
+
+	.pckz-product__media-column .pckz-gallery__thumbs {
+		margin-top: 6px;
 	}
 
 	.pckz-product__title {
