@@ -28,6 +28,15 @@ for ( $i = 21; $i <= 38; $i++ ) {
 		fwrite( STDERR, "FAIL no white primitives in type_{$i}\n" );
 		exit( 1 );
 	}
+	// Side runners + open center (no continuous horizontal through text band ~200–758).
+	if ( ! preg_match( '/M9\.5 [\d.]+ L(?:19[0-9]|20[0-5])\./', $svg ) ) {
+		fwrite( STDERR, "FAIL missing left runner before text band in type_{$i}\n" );
+		exit( 1 );
+	}
+	if ( ! preg_match( '/M75[0-9][\d.]* [\d.]+ L(?:93[0-9]|940)/', $svg ) ) {
+		fwrite( STDERR, "FAIL missing right runner after text band in type_{$i}\n" );
+		exit( 1 );
+	}
 }
 
-echo "OK bundled-line-svg-format: 18 types use 950×35 white artboard\n";
+echo "OK bundled-line-svg-format: 18 types use 950×35 white artboard with text band\n";

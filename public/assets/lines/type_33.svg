@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="950" height="35" viewBox="0 0 950 35" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M181.9995 18.6789 L387.0998 19.0028" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M562.9001 19.2804 L768.0005 19.6043" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M221.0136 8.0928 L728.8811 8.8947" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M221.1189 29.3884 L728.9863 30.1903" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M9.5 18.8409 L200.5388 18.8409" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M758.0833 18.8409 L940.5 18.8409" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M9.5 19.4423 L200.5388 19.4423" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M758.0833 19.4423 L940.5 19.4423" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M9.5 8.4938 L200.5388 8.4938" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M758.0833 8.4938 L940.5 8.4938" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M9.5 29.7894 L200.5388 29.7894" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M758.0833 29.7894 L940.5 29.7894" fill="none" stroke="white" stroke-width="0.5359" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M419.3217 4.8034 C445.1819 1.5909 458.8281 20.8483 464.2648 33.375 C449.4772 33.0444 424.9217 28.0159 419.3217 4.8034 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
   <path d="M530.5374 4.979 C525.1668 28.1743 500.6606 33.1253 485.876 33.4091 C491.189 20.8994 504.6449 1.6849 530.5374 4.979 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
   <path d="M474.9342 5.8319 L489.65 19.1647 L475.0657 32.4513 L460.3499 19.1184 L474.9342 5.8319 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>

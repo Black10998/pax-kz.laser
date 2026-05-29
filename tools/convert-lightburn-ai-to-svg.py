@@ -19,6 +19,15 @@ DRAWING_END = "%%PageTrailer"
 CANVAS_W = 950.0
 CANVAS_H = 35.0
 FILL_COLOR = "white"
+
+# Ledos layer refs — text clearance band on the 950×35 line artboard (types 1–20 use side geometry + open center).
+DESIGN_W = 3651.0
+TEXT_REF_X = 1136.0
+TEXT_REF_W = 1392.0
+LINES_REF_X = 609.0
+LINES_REF_W = 2424.0
+PLATE_MARGIN_X = 9.5
+TEXT_GAP_PAD_X = 6.0
 SKIP_TOKENS = {
 	"Lb",
 	"Ln",
@@ -187,6 +196,143 @@ def ops_to_d(
 	return " ".join(parts)
 
 
+def cloudlift_text_band_x() -> tuple[float, float]:
+	"""Open center band for customer text (same proportions as Cloudlift text layer ref)."""
+	text_center_rel = (TEXT_REF_X + TEXT_REF_W * 0.5 - LINES_REF_X) / LINES_REF_W
+	text_half_rel = (TEXT_REF_W * 0.5) / LINES_REF_W
+	cx = text_center_rel * CANVAS_W
+	hw = text_half_rel * CANVAS_W + TEXT_GAP_PAD_X
+	return cx - hw, cx + hw
+
+
+def path_endpoints_canvas(
+	ops: list,
+	x0: float,
+	ymax: float,
+	scale: float,
+	ox: float,
+	oy: float,
+) -> tuple[tuple[float, float], tuple[float, float]] | None:
+	pts: list[tuple[float, float]] = []
+	for op in ops:
+		if op[0] in ("M", "L"):
+			pts.append(map_point(op[1], op[2], x0, ymax, scale, ox, oy))
+		elif op[0] == "C":
+			pts.append(map_point(op[5], op[6], x0, ymax, scale, ox, oy))
+	if len(pts) < 2:
+		return None
+	return pts[0], pts[-1]
+
+
+def is_horizontal_runner(p0: tuple[float, float], p1: tuple[float, float]) -> bool:
+	dx = abs(p1[0] - p0[0])
+	dy = abs(p1[1] - p0[1])
+	return dx >= 30.0 and dy <= 4.0 and dx > dy * 4.0
+
+
+def stroke_line_path(x1: float, x2: float, y: float, stroke_w: float) -> str:
+	if x2 < x1:
+		x1, x2 = x2, x1
+	if x2 - x1 < 0.5:
+		return ""
+	return (
+		f'<path d="M{fmt(x1)} {fmt(y)} L{fmt(x2)} {fmt(y)}" fill="none" '
+		f'stroke="{FILL_COLOR}" stroke-width="{fmt(stroke_w)}" '
+		f'stroke-linecap="round" stroke-linejoin="round"/>'
+	)
+
+
+def clip_runner_outside_text_band(
+	x1: float,
+	x2: float,
+	y: float,
+	gap_x0: float,
+	gap_x1: float,
+	stroke_w: float,
+) -> list[str]:
+	"""Keep only runner segments outside the text band (no geometry under text)."""
+	if x2 < x1:
+		x1, x2 = x2, x1
+	right_edge = CANVAS_W - PLATE_MARGIN_X
+	out: list[str] = []
+	if x1 < gap_x0 - 0.25:
+		seg = stroke_line_path(x1, min(x2, gap_x0), y, stroke_w)
+		if seg:
+			out.append(seg)
+	if x2 > gap_x1 + 0.25:
+		seg = stroke_line_path(max(x1, gap_x1), x2, y, stroke_w)
+		if seg:
+			out.append(seg)
+	return out
+
+
+def side_runners_for_text_band(y: float, gap_x0: float, gap_x1: float, stroke_w: float) -> list[str]:
+	"""Like CDN type 5: runners on plate sides, open center for text (ornaments unchanged)."""
+	out: list[str] = []
+	if gap_x0 > PLATE_MARGIN_X + 1.0:
+		seg = stroke_line_path(PLATE_MARGIN_X, gap_x0, y, stroke_w)
+		if seg:
+			out.append(seg)
+	right_edge = CANVAS_W - PLATE_MARGIN_X
+	if right_edge > gap_x1 + 1.0:
+		seg = stroke_line_path(gap_x1, right_edge, y, stroke_w)
+		if seg:
+			out.append(seg)
+	return out
+
+
+def runner_intersects_text_band(x1: float, x2: float, gap_x0: float, gap_x1: float) -> bool:
+	if x2 < x1:
+		x1, x2 = x2, x1
+	return x1 < gap_x1 - 0.25 and x2 > gap_x0 + 0.25
+
+
+def is_plate_side_runner(x1: float, x2: float, gap_x0: float, gap_x1: float) -> bool:
+	"""Already a left or right plate runner (like CDN type 5)."""
+	if x2 < x1:
+		x1, x2 = x2, x1
+	left = x1 <= PLATE_MARGIN_X + 2.0 and x2 <= gap_x0 + 2.0
+	right = x1 >= gap_x1 - 2.0 and x2 >= CANVAS_W - PLATE_MARGIN_X - 2.0
+	return left or right
+
+
+def path_to_svg_entries(
+	path: dict,
+	x0: float,
+	ymax: float,
+	scale: float,
+	ox: float,
+	oy: float,
+	gap_x0: float,
+	gap_x1: float,
+	stroke_w: float,
+) -> list[str]:
+	if path.get("stroked"):
+		endpoints = path_endpoints_canvas(path["ops"], x0, ymax, scale, ox, oy)
+		if endpoints and is_horizontal_runner(endpoints[0], endpoints[1]):
+			x1, x2 = endpoints[0][0], endpoints[1][0]
+			y = (endpoints[0][1] + endpoints[1][1]) / 2.0
+			if runner_intersects_text_band(x1, x2, gap_x0, gap_x1):
+				if is_plate_side_runner(x1, x2, gap_x0, gap_x1):
+					return clip_runner_outside_text_band(x1, x2, y, gap_x0, gap_x1, stroke_w)
+				return side_runners_for_text_band(y, gap_x0, gap_x1, stroke_w)
+			return clip_runner_outside_text_band(x1, x2, y, gap_x0, gap_x1, stroke_w)
+		d = ops_to_d(path["ops"], x0, ymax, scale, ox, oy)
+		if not d:
+			return []
+		return [
+			f'<path d="{d}" fill="none" stroke="{FILL_COLOR}" stroke-width="{fmt(stroke_w)}" '
+			f'stroke-linecap="round" stroke-linejoin="round"/>'
+		]
+
+	d = ops_to_d(path["ops"], x0, ymax, scale, ox, oy)
+	if not d:
+		return []
+	return [
+		f'<path d="{d}" fill-rule="evenodd" clip-rule="evenodd" fill="{FILL_COLOR}" stroke="none"/>'
+	]
+
+
 def convert_file(src: Path, dest: Path) -> None:
 	content = src.read_text(encoding="utf-8", errors="replace")
 	paths = parse_paths(extract_drawing_tokens(content))
@@ -219,22 +365,25 @@ def convert_file(src: Path, dest: Path) -> None:
 	ox = (CANVAS_W - fit_w) / 2.0
 	oy = (CANVAS_H - fit_h) / 2.0
 	stroke_w = max(0.35 * scale, 0.5)
+	gap_x0, gap_x1 = cloudlift_text_band_x()
 
 	svg_paths: list[str] = []
+	seen_side_runner_y: set[float] = set()
 	for path in paths:
-		d = ops_to_d(path["ops"], x0, y1, scale, ox, oy)
-		if not d:
-			continue
 		if path.get("stroked"):
-			svg_paths.append(
-				f'<path d="{d}" fill="none" stroke="{FILL_COLOR}" stroke-width="{fmt(stroke_w)}" '
-				f'stroke-linecap="round" stroke-linejoin="round"/>'
-			)
-		else:
-			svg_paths.append(
-				f'<path d="{d}" fill-rule="evenodd" clip-rule="evenodd" fill="{FILL_COLOR}" '
-				f'stroke="none"/>'
-			)
+			endpoints = path_endpoints_canvas(path["ops"], x0, y1, scale, ox, oy)
+			if endpoints and is_horizontal_runner(endpoints[0], endpoints[1]):
+				x1, x2 = endpoints[0][0], endpoints[1][0]
+				y = round((endpoints[0][1] + endpoints[1][1]) / 2.0, 1)
+				if runner_intersects_text_band(x1, x2, gap_x0, gap_x1) and not is_plate_side_runner(
+					x1, x2, gap_x0, gap_x1
+				):
+					if y in seen_side_runner_y:
+						continue
+					seen_side_runner_y.add(y)
+		svg_paths.extend(
+			path_to_svg_entries(path, x0, y1, scale, ox, oy, gap_x0, gap_x1, stroke_w)
+		)
 
 	inner = "\n  ".join(svg_paths)
 	svg = (

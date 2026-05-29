@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="950" height="35" viewBox="0 0 950 35" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M211.0545 19.9726 L406.3741 20.281" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M543.6258 20.4977 L738.9455 20.8061" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M9.5 20.1268 L200.5388 20.1268" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M758.0833 20.1268 L940.5 20.1268" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M9.5 20.6519 L200.5388 20.6519" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M758.0833 20.6519 L940.5 20.6519" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M401.0953 20.2726 C415.2558 1.5909 439.0251 4.506 434.3524 20.3251 C430.2989 33.2677 415.3697 24.6115 421.6688 17.4276" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M427.4899 20.3143 C441.6504 1.6326 465.4196 4.5477 460.747 20.3668 C456.6934 33.3094 441.7642 24.6532 448.0633 17.4692" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M522.5101 20.4643 C508.1647 1.7376 484.4237 4.5777 489.2531 20.4118 C493.4346 33.3675 508.2785 24.7582 501.9081 17.5542" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
