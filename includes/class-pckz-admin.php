@@ -152,6 +152,19 @@ class PCKZ_Admin {
 			'enable_dxf_export'    => ! empty( $input['enable_dxf_export'] ),
 			'fonts'                => $defaults['fonts'],
 			'color_palette'        => $defaults['color_palette'],
+			'price_show_enabled'   => ! empty( $input['price_show_enabled'] ),
+			'price_base'           => max( 0, (float) ( $input['price_base'] ?? 0 ) ),
+			'price_setup_fee'      => max( 0, (float) ( $input['price_setup_fee'] ?? 0 ) ),
+			'price_currency_code'  => strtoupper( sanitize_text_field( $input['price_currency_code'] ?? 'EUR' ) ),
+			'price_currency_symbol'=> sanitize_text_field( $input['price_currency_symbol'] ?? '€' ),
+			'paypal_enabled'       => ! empty( $input['paypal_enabled'] ),
+			'paypal_test_mode'     => ! empty( $input['paypal_test_mode'] ),
+			'paypal_sandbox_client_id' => sanitize_text_field( $input['paypal_sandbox_client_id'] ?? '' ),
+			'paypal_sandbox_secret'    => sanitize_text_field( $input['paypal_sandbox_secret'] ?? '' ),
+			'paypal_live_client_id'    => sanitize_text_field( $input['paypal_live_client_id'] ?? '' ),
+			'paypal_live_secret'       => sanitize_text_field( $input['paypal_live_secret'] ?? '' ),
+			'paypal_success_url'   => esc_url_raw( $input['paypal_success_url'] ?? '' ),
+			'paypal_cancel_url'    => esc_url_raw( $input['paypal_cancel_url'] ?? '' ),
 		);
 
 		if ( ! empty( $input['color_palette'] ) && is_string( $input['color_palette'] ) ) {

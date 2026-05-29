@@ -21,6 +21,7 @@ class PCKZ_Ajax {
 			'pckzce_save_design',
 			'pckzce_export_design',
 			'pckzce_add_to_cart',
+			'pckzce_create_paypal_order',
 		);
 
 		foreach ( $actions as $action ) {
@@ -211,6 +212,22 @@ class PCKZ_Ajax {
 		}
 		$meta['selections'] = $selections;
 
+		if ( class_exists( 'PCKZ_Commerce' ) ) {
+			$email_in = isset( $_POST['customer_email'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_email'] ) ) : '';
+			if ( $email_in ) {
+				$valid_email = PCKZ_Commerce::validate_email( $email_in );
+				if ( ! is_wp_error( $valid_email ) ) {
+					$meta['customer_email']              = $valid_email;
+					$meta['selections']['customer_email'] = $valid_email;
+				}
+			}
+			$wishes = isset( $_POST['customer_wishes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['customer_wishes'] ) ) : '';
+			if ( $wishes ) {
+				$meta['customer_note']               = $wishes;
+				$meta['selections']['customer_wishes'] = $wishes;
+			}
+		}
+
 		$canonical_scene_json = '';
 		if ( ! empty( $_POST['canonical_scene_json'] ) ) {
 			$canonical_scene_json = wp_unslash( $_POST['canonical_scene_json'] );
@@ -399,9 +416,30 @@ class PCKZ_Ajax {
 			wp_send_json_error( array( 'message' => __( 'WooCommerce is not active.', 'pckz-canonical-engine' ) ), 400 );
 		}
 
+		if ( class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::paypal_enabled() ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Bitte schließen Sie die Bestellung über PayPal ab. Unbezahlte Bestellungen werden nicht angenommen.', 'pckz-canonical-engine' ),
+				),
+				400
+			);
+		}
+
 		$woo_id    = isset( $_POST['woo_product_id'] ) ? absint( $_POST['woo_product_id'] ) : 0;
 		$design_id = isset( $_POST['design_id'] ) ? absint( $_POST['design_id'] ) : 0;
 		$quantity  = isset( $_POST['quantity'] ) ? max( 1, absint( $_POST['quantity'] ) ) : 1;
+
+		if ( class_exists( 'PCKZ_Commerce' ) ) {
+			$email_in = isset( $_POST['customer_email'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_email'] ) ) : '';
+			$email    = PCKZ_Commerce::validate_email( $email_in );
+			if ( is_wp_error( $email ) ) {
+				wp_send_json_error( array( 'message' => $email->get_error_message() ), 400 );
+			}
+			$wishes = isset( $_POST['customer_wishes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['customer_wishes'] ) ) : '';
+			if ( $design_id ) {
+				PCKZ_Commerce::attach_customer_meta_to_design( $design_id, $email, $wishes );
+			}
+		}
 
 		if ( ! $woo_id ) {
 			wp_send_json_error( array( 'message' => __( 'No WooCommerce product linked.', 'pckz-canonical-engine' ) ), 400 );
@@ -416,12 +454,14 @@ class PCKZ_Ajax {
 					$meta = json_decode( $design['meta_json'], true );
 				}
 				$cart_item_data[ PCKZ_Settings::get( 'cart_meta_key', '_pckz_design' ) ] = array(
-					'design_id'   => $design_id,
-					'preview_url' => $design['preview_url'] ?? '',
-					'export_url'  => $design['export_url'] ?? '',
-					'product_id'  => $design['product_id'] ?? 0,
-					'selections'  => $meta['selections'] ?? array(),
-					'production'  => $meta['production'] ?? array(),
+					'design_id'        => $design_id,
+					'preview_url'      => $design['preview_url'] ?? '',
+					'export_url'       => $design['export_url'] ?? '',
+					'product_id'       => $design['product_id'] ?? 0,
+					'selections'       => $meta['selections'] ?? array(),
+					'production'       => $meta['production'] ?? array(),
+					'customer_email'   => $meta['customer_email'] ?? ( $meta['selections']['customer_email'] ?? '' ),
+					'customer_wishes'  => $meta['customer_note'] ?? ( $meta['selections']['customer_wishes'] ?? '' ),
 				);
 			}
 		}
@@ -437,6 +477,89 @@ class PCKZ_Ajax {
 				'cart_url'    => wc_get_cart_url(),
 				'cart_count'  => WC()->cart->get_cart_contents_count(),
 				'message'     => __( 'Added to cart.', 'pckz-canonical-engine' ),
+			)
+		);
+	}
+
+	/**
+	 * Create PayPal checkout session (payment required before order completion).
+	 */
+	public function handle_create_paypal_order() {
+		if ( ! $this->verify_nonce() ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
+		}
+
+		if ( ! class_exists( 'PCKZ_Commerce' ) || ! PCKZ_Commerce::paypal_enabled() ) {
+			wp_send_json_error( array( 'message' => __( 'PayPal ist derzeit nicht verfügbar.', 'pckz-canonical-engine' ) ), 400 );
+		}
+
+		$design_id  = isset( $_POST['design_id'] ) ? absint( $_POST['design_id'] ) : 0;
+		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
+		$quantity   = isset( $_POST['quantity'] ) ? max( 1, absint( $_POST['quantity'] ) ) : 1;
+		$email_in   = isset( $_POST['customer_email'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_email'] ) ) : '';
+		$wishes     = isset( $_POST['customer_wishes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['customer_wishes'] ) ) : '';
+
+		$email = PCKZ_Commerce::validate_email( $email_in );
+		if ( is_wp_error( $email ) ) {
+			wp_send_json_error( array( 'message' => $email->get_error_message() ), 400 );
+		}
+
+		if ( ! $design_id ) {
+			wp_send_json_error( array( 'message' => __( 'Bitte speichern Sie zuerst Ihre Personalisierung.', 'pckz-canonical-engine' ) ), 400 );
+		}
+
+		PCKZ_Commerce::attach_customer_meta_to_design( $design_id, $email, $wishes );
+
+		$pricing  = PCKZ_Commerce::get_frontend_pricing( $product_id );
+		$amount   = PCKZ_Commerce::calculate_total( $quantity, $product_id );
+		$currency = $pricing['currency_code'];
+
+		if ( $amount <= 0 ) {
+			wp_send_json_error( array( 'message' => __( 'Produktpreis ist nicht konfiguriert. Bitte kontaktieren Sie uns.', 'pckz-canonical-engine' ) ), 400 );
+		}
+
+		$commerce_id = PCKZ_Commerce::insert_order(
+			array(
+				'design_id'      => $design_id,
+				'product_id'     => $product_id,
+				'customer_email' => $email,
+				'customer_note'  => $wishes,
+				'quantity'       => $quantity,
+				'amount'         => $amount,
+				'currency'       => $currency,
+				'status'         => 'pending',
+			)
+		);
+
+		$paypal = PCKZ_Commerce::create_paypal_checkout(
+			array(
+				'amount'      => $amount,
+				'currency'    => $currency,
+				'description' => get_the_title( $product_id ) ?: __( 'Personalisiertes Produkt', 'pckz-canonical-engine' ),
+				'return_url'  => PCKZ_Commerce::paypal_return_url( $commerce_id ),
+				'cancel_url'  => PCKZ_Commerce::paypal_cancel_url( $commerce_id ),
+			)
+		);
+
+		if ( is_wp_error( $paypal ) ) {
+			PCKZ_Commerce::update_order( $commerce_id, array( 'status' => 'failed' ) );
+			wp_send_json_error( array( 'message' => $paypal->get_error_message() ), 500 );
+		}
+
+		PCKZ_Commerce::update_order(
+			$commerce_id,
+			array(
+				'paypal_order_id' => $paypal['paypal_order_id'],
+				'status'          => 'paypal_created',
+			)
+		);
+
+		wp_send_json_success(
+			array(
+				'approve_url'   => $paypal['approve_url'],
+				'commerce_id'   => $commerce_id,
+				'paypal_order_id' => $paypal['paypal_order_id'],
+				'message'       => __( 'Weiterleitung zu PayPal…', 'pckz-canonical-engine' ),
 			)
 		);
 	}

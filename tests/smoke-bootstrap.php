@@ -137,6 +137,16 @@ if ( ! function_exists( 'esc_html__' ) ) {
 		return $text;
 	}
 }
+if ( ! function_exists( 'sanitize_email' ) ) {
+	function sanitize_email( $email ) {
+		return filter_var( $email, FILTER_SANITIZE_EMAIL );
+	}
+}
+if ( ! function_exists( 'is_email' ) ) {
+	function is_email( $email ) {
+		return (bool) filter_var( $email, FILTER_VALIDATE_EMAIL );
+	}
+}
 if ( ! function_exists( 'esc_textarea' ) ) {
 	function esc_textarea( $text ) {
 		return $text;

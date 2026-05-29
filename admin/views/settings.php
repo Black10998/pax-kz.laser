@@ -85,6 +85,85 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 				</td>
 			</tr>
 			<tr>
+				<th scope="row" colspan="2"><h2 class="title"><?php esc_html_e( 'Pricing (frontend display)', 'pckz-canonical-engine' ); ?></h2></th>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Show price', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_show_enabled]" value="1" <?php checked( ! empty( $settings['price_show_enabled'] ) ); ?>>
+						<?php esc_html_e( 'Display price in configurator', 'pckz-canonical-engine' ); ?>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Base price', 'pckz-canonical-engine' ); ?></th>
+				<td><input type="number" step="0.01" min="0" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_base]" value="<?php echo esc_attr( $settings['price_base'] ?? 0 ); ?>"></td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Setup fee', 'pckz-canonical-engine' ); ?></th>
+				<td><input type="number" step="0.01" min="0" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_setup_fee]" value="<?php echo esc_attr( $settings['price_setup_fee'] ?? 0 ); ?>"></td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Currency code', 'pckz-canonical-engine' ); ?></th>
+				<td><input type="text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_currency_code]" value="<?php echo esc_attr( $settings['price_currency_code'] ?? 'EUR' ); ?>" maxlength="3"></td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Currency symbol', 'pckz-canonical-engine' ); ?></th>
+				<td><input type="text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_currency_symbol]" value="<?php echo esc_attr( $settings['price_currency_symbol'] ?? '€' ); ?>" maxlength="4"></td>
+			</tr>
+			<tr>
+				<th scope="row" colspan="2"><h2 class="title"><?php esc_html_e( 'PayPal', 'pckz-canonical-engine' ); ?></h2></th>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Enable PayPal', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[paypal_enabled]" value="1" <?php checked( ! empty( $settings['paypal_enabled'] ) ); ?>>
+						<?php esc_html_e( 'Require PayPal payment before order completion', 'pckz-canonical-engine' ); ?>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'PayPal test mode', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[paypal_test_mode]" value="1" <?php checked( ! empty( $settings['paypal_test_mode'] ) ); ?>>
+						<?php esc_html_e( 'Use PayPal Sandbox (test mode)', 'pckz-canonical-engine' ); ?>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Sandbox Client ID', 'pckz-canonical-engine' ); ?></th>
+				<td><input type="text" class="large-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[paypal_sandbox_client_id]" value="<?php echo esc_attr( $settings['paypal_sandbox_client_id'] ?? '' ); ?>"></td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Sandbox Secret', 'pckz-canonical-engine' ); ?></th>
+				<td><input type="password" class="large-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[paypal_sandbox_secret]" value="<?php echo esc_attr( $settings['paypal_sandbox_secret'] ?? '' ); ?>" autocomplete="new-password"></td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Live Client ID', 'pckz-canonical-engine' ); ?></th>
+				<td><input type="text" class="large-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[paypal_live_client_id]" value="<?php echo esc_attr( $settings['paypal_live_client_id'] ?? '' ); ?>"></td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Live Secret', 'pckz-canonical-engine' ); ?></th>
+				<td><input type="password" class="large-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[paypal_live_secret]" value="<?php echo esc_attr( $settings['paypal_live_secret'] ?? '' ); ?>" autocomplete="new-password"></td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Payment success URL', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<input type="url" class="large-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[paypal_success_url]" value="<?php echo esc_attr( $settings['paypal_success_url'] ?? '' ); ?>" placeholder="<?php echo esc_attr( home_url( '/' ) ); ?>">
+					<p class="description"><?php esc_html_e( 'Customer is redirected here after successful PayPal payment.', 'pckz-canonical-engine' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Payment cancel URL', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<input type="url" class="large-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[paypal_cancel_url]" value="<?php echo esc_attr( $settings['paypal_cancel_url'] ?? '' ); ?>">
+					<p class="description"><?php esc_html_e( 'Customer is redirected here if PayPal payment is cancelled.', 'pckz-canonical-engine' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><?php esc_html_e( 'WooCommerce', 'pckz-canonical-engine' ); ?></th>
 				<td>
 					<label>

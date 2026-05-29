@@ -17,6 +17,7 @@
 	const CFG = pckzceConfig.config || {};
 	const SET = pckzceConfig.settings || {};
 	const I18N = pckzceConfig.i18n || {};
+	const COMMERCE = pckzceConfig.commerce || {};
 	const ASSETS = pckzceConfig.assets || {};
 	const ICONS = pckzceConfig.icons || {};
 	const STD = pckzceConfig.stdSpec || {};
@@ -760,25 +761,98 @@
 						this.submit(true);
 					} else if (btn.dataset.action === 'submit-design') {
 						this.submit(false);
+					} else if (btn.dataset.action === 'paypal-checkout') {
+						this.submitPaypal();
 					}
 				});
 			});
 
+			const qtyInput = this.root.querySelector('[data-field="quantity"]');
+			const updateQty = () => this.updateCheckoutTotal();
 			this.root.querySelectorAll('[data-qty]').forEach((btn) => {
 				btn.addEventListener('click', () => {
-					const input = this.root.querySelector('[data-field="quantity"]');
-					if (!input) {
+					if (!qtyInput) {
 						return;
 					}
-					const v = parseInt(input.value, 10) || 1;
-					input.value = btn.dataset.qty === 'plus' ? v + 1 : Math.max(1, v - 1);
+					const v = parseInt(qtyInput.value, 10) || 1;
+					qtyInput.value = btn.dataset.qty === 'plus' ? v + 1 : Math.max(1, v - 1);
+					updateQty();
 				});
 			});
+			if (qtyInput) {
+				qtyInput.addEventListener('change', updateQty);
+				qtyInput.addEventListener('input', updateQty);
+			}
+			this.updateCheckoutTotal();
+		}
+
+		updateCheckoutTotal() {
+			const pricing = COMMERCE.pricing;
+			if (!pricing || !pricing.show) {
+				return;
+			}
+			const qty = parseInt(this.root.querySelector('[data-field="quantity"]')?.value, 10) || 1;
+			const unit = (parseFloat(pricing.base) || 0) + (parseFloat(pricing.setup_fee) || 0);
+			const total = unit * qty;
+			const el = this.root.querySelector('[data-price-total]');
+			if (!el) {
+				return;
+			}
+			if (qty > 1 && total > 0) {
+				const sym = pricing.currency_symbol || '€';
+				const code = pricing.currency_code || 'EUR';
+				el.textContent =
+					(I18N.totalLabel || 'Gesamtbetrag') +
+					': ' +
+					(code === 'EUR' ? total.toFixed(2) + ' ' + sym : sym + total.toFixed(2));
+				el.hidden = false;
+			} else {
+				el.hidden = true;
+			}
+		}
+
+		collectCheckoutFields() {
+			const emailEl = this.root.querySelector('[data-field="customer_email"]');
+			const wishEl = this.root.querySelector('[data-field="customer_wishes"]');
+			if (emailEl) {
+				this.selections.customer_email = emailEl.value.trim();
+			}
+			if (wishEl) {
+				this.selections.customer_wishes = wishEl.value.trim();
+			}
+		}
+
+		appendCustomerFields(body) {
+			const emailEl = this.root.querySelector('[data-field="customer_email"]');
+			const wishEl = this.root.querySelector('[data-field="customer_wishes"]');
+			if (emailEl) {
+				body.append('customer_email', emailEl.value.trim());
+			}
+			if (wishEl) {
+				body.append('customer_wishes', wishEl.value.trim());
+			}
+		}
+
+		validateCommerce() {
+			const email = (this.root.querySelector('[data-field="customer_email"]')?.value || '').trim();
+			const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			if (!email || !re.test(email)) {
+				this.toast(I18N.requireEmail || I18N.invalidEmail, true);
+				const el = this.root.querySelector('[data-field="customer_email"]');
+				if (el) {
+					el.focus();
+				}
+				return false;
+			}
+			return true;
 		}
 
 		collectSelections() {
 			const data = {};
 			this.root.querySelectorAll('.pckz-field').forEach((field) => {
+				if (field.closest('[data-checkout]')) {
+					return;
+				}
 				const id = field.dataset.optionId;
 				const tone = field.querySelector('.pckz-tone-hidden');
 				if (tone) {
@@ -804,6 +878,7 @@
 			const modeInput = this.root.querySelector('[data-preview-mode-input]');
 			data.preview_mode = modeInput ? modeInput.value : this.previewMode;
 			this.selections = data;
+			this.collectCheckoutFields();
 			return data;
 		}
 
@@ -1092,6 +1167,9 @@
 				this.toast(I18N.loading, true);
 				return false;
 			}
+			if (COMMERCE.requireEmail !== false && !this.validateCommerce()) {
+				return false;
+			}
 			return true;
 		}
 
@@ -1225,6 +1303,7 @@
 			body.append('text_plate_paths', textPlatePaths);
 			body.append('preview_png', this.getPreviewPng());
 			body.append('selections', JSON.stringify(this.selections));
+			this.appendCustomerFields(body);
 			body.append(
 				'design_meta',
 				JSON.stringify({
@@ -1270,8 +1349,11 @@
 			return fetch(pckzceConfig.ajaxUrl, { method: 'POST', body }).then((r) => r.json());
 		}
 
-		setSubmitLoading(loading) {
-			const btn = this.root.querySelector('[data-action="add-to-cart"], [data-action="submit-design"]');
+		setSubmitLoading(loading, action) {
+			const selector = action
+				? `[data-action="${action}"]`
+				: '[data-action="add-to-cart"], [data-action="submit-design"], [data-action="paypal-checkout"]';
+			const btn = this.root.querySelector(selector);
 			if (!btn) {
 				return;
 			}
@@ -1283,20 +1365,84 @@
 				spinner.classList.toggle('pckz-hidden', !loading);
 			}
 			const label = btn.querySelector('.pckz-btn__text');
-			if (label) {
-				label.textContent = loading
-					? I18N.addingToCart || I18N.saving
-					: btn.dataset.action === 'add-to-cart'
-						? 'In den Warenkorb'
-						: 'Personalisierung speichern';
+			if (label && !loading) {
+				if (btn.dataset.action === 'paypal-checkout') {
+					label.textContent = 'Sicher bezahlen mit PayPal';
+				} else if (btn.dataset.action === 'add-to-cart') {
+					label.textContent = 'In den Warenkorb';
+				} else {
+					label.textContent = 'Entwurf speichern';
+				}
+			} else if (label && loading) {
+				label.textContent =
+					btn.dataset.action === 'paypal-checkout'
+						? I18N.paypalRedirect || I18N.saving
+						: I18N.addingToCart || I18N.saving;
 			}
+		}
+
+		setPaymentStatus(message, isError) {
+			const el = this.root.querySelector('[data-payment-status]');
+			if (!el) {
+				return;
+			}
+			el.textContent = message || '';
+			el.classList.toggle('pckz-hidden', !message);
+			el.classList.toggle('is-error', !!isError);
+		}
+
+		submitPaypal() {
+			if (!this.validate()) {
+				return;
+			}
+			this.setSubmitLoading(true, 'paypal-checkout');
+			this.setPaymentStatus(I18N.paypalRedirect || I18N.saving, false);
+			this.toast(I18N.saving);
+
+			this.saveDesign()
+				.then(() => this.exportPng())
+				.then(() => {
+					const qty = parseInt(this.root.querySelector('[data-field="quantity"]')?.value, 10) || 1;
+					const body = new FormData();
+					body.append('action', 'pckzce_create_paypal_order');
+					body.append('nonce', pckzceConfig.nonce);
+					body.append('product_id', this.productId);
+					body.append('design_id', this.designId);
+					body.append('quantity', qty);
+					this.appendCustomerFields(body);
+					return fetch(pckzceConfig.ajaxUrl, { method: 'POST', body }).then((r) => r.json());
+				})
+				.then((res) => {
+					if (res && res.success && res.data?.approve_url) {
+						this.setPaymentStatus(I18N.paypalRedirect, false);
+						window.location.href = res.data.approve_url;
+						return;
+					}
+					const msg = res?.data?.message || I18N.paypalError;
+					this.setPaymentStatus(msg, true);
+					this.toast(msg, true);
+				})
+				.catch((err) => {
+					if (err && err.payload) {
+						this.showValidationErrors(err.payload, err.message);
+						return;
+					}
+					this.setPaymentStatus(err.message || I18N.paypalError, true);
+					this.toast(err.message || I18N.paypalError, true);
+				})
+				.finally(() => this.setSubmitLoading(false, 'paypal-checkout'));
 		}
 
 		submit(toCart) {
 			if (!this.validate()) {
 				return;
 			}
-			this.setSubmitLoading(true);
+			if (toCart && COMMERCE.paypalEnabled) {
+				this.submitPaypal();
+				return;
+			}
+			const action = toCart ? 'add-to-cart' : 'submit-design';
+			this.setSubmitLoading(true, action);
 			this.toast(I18N.saving);
 
 			this.saveDesign()
@@ -1314,6 +1460,7 @@
 					body.append('woo_product_id', pckzceConfig.wooProductId);
 					body.append('design_id', this.designId);
 					body.append('quantity', qty);
+					this.appendCustomerFields(body);
 					return fetch(pckzceConfig.ajaxUrl, { method: 'POST', body }).then((r) => r.json());
 				})
 				.then((res) => {
@@ -1332,7 +1479,7 @@
 					}
 					this.toast(err.message || (I18N.saveFailed || 'Save failed'), true);
 				})
-				.finally(() => this.setSubmitLoading(false));
+				.finally(() => this.setSubmitLoading(false, action));
 		}
 
 

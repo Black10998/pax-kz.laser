@@ -150,6 +150,12 @@ class PCKZ_WooCommerce {
 		if ( ! empty( $design['production']['production_dxf_url'] ) ) {
 			$item->add_meta_data( '_pckz_production_dxf_url', esc_url_raw( $design['production']['production_dxf_url'] ), true );
 		}
+		if ( ! empty( $design['customer_email'] ) ) {
+			$item->add_meta_data( '_pckz_customer_email', sanitize_email( $design['customer_email'] ), true );
+		}
+		if ( ! empty( $design['customer_wishes'] ) ) {
+			$item->add_meta_data( '_pckz_customer_wishes', sanitize_textarea_field( $design['customer_wishes'] ), true );
+		}
 	}
 
 	/**
@@ -243,8 +249,21 @@ class PCKZ_WooCommerce {
 
 			$detail_url = admin_url( 'admin.php?page=pckz-designs&design_id=' . (int) $design_id );
 
+			$customer_email  = $item->get_meta( '_pckz_customer_email' );
+			$customer_wishes = $item->get_meta( '_pckz_customer_wishes' );
+			$payment_status  = $order->get_meta( '_pckz_payment_status' );
+
 			echo '<div class="pckz-order-production-block">';
 			echo '<h4>' . esc_html( $item->get_name() ) . ' — ' . esc_html__( 'Design #', 'pckz-canonical-engine' ) . esc_html( $design_id ) . '</h4>';
+			if ( $customer_email ) {
+				echo '<p><strong>' . esc_html__( 'Kunden-E-Mail:', 'pckz-canonical-engine' ) . '</strong> ' . esc_html( $customer_email ) . '</p>';
+			}
+			if ( $customer_wishes ) {
+				echo '<p><strong>' . esc_html__( 'Wünsche / Hinweise:', 'pckz-canonical-engine' ) . '</strong><br>' . esc_html( $customer_wishes ) . '</p>';
+			}
+			if ( $payment_status ) {
+				echo '<p><strong>' . esc_html__( 'Zahlungsstatus:', 'pckz-canonical-engine' ) . '</strong> ' . esc_html( $payment_status ) . '</p>';
+			}
 			echo '<p><a class="button" href="' . esc_url( $detail_url ) . '">' . esc_html__( 'Open full production package', 'pckz-canonical-engine' ) . '</a></p>';
 			echo PCKZ_Production::render_admin_production_panel( $package, array( 'design_id' => (int) $design_id ) );
 			echo '</div>';

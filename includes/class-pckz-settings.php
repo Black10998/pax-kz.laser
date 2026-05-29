@@ -56,6 +56,19 @@ class PCKZ_Settings {
 			'max_designs_per_user'=> 50,
 			'default_creator_product_id' => 0,
 			'enable_dxf_export'   => false,
+			'price_show_enabled'  => true,
+			'price_base'          => 0,
+			'price_setup_fee'     => 0,
+			'price_currency_code' => 'EUR',
+			'price_currency_symbol' => '€',
+			'paypal_enabled'      => false,
+			'paypal_test_mode'    => true,
+			'paypal_sandbox_client_id' => '',
+			'paypal_sandbox_secret'    => '',
+			'paypal_live_client_id'    => '',
+			'paypal_live_secret'       => '',
+			'paypal_success_url'  => '',
+			'paypal_cancel_url'   => '',
 		);
 	}
 

@@ -341,7 +341,7 @@ class PCKZ_Ledos_Preview {
 				'label'       => 'LED-Beleuchtung',
 				'choices'     => array(
 					array( 'value' => 'no', 'label' => 'Nein' ),
-					array( 'value' => 'yes', 'label' => 'Ja (+300 ₴)' ),
+					array( 'value' => 'yes', 'label' => 'Ja (mit LED-Aufpreis)' ),
 				),
 				'default'     => 'no',
 			),

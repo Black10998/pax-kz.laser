@@ -8,8 +8,10 @@
 defined( 'ABSPATH' ) || exit;
 
 $config           = PCKZ_Post_Type::get_product_config( $product_id );
-$price            = $config['price'] ?? '';
-$currency         = $config['currency'] ?? 'UAH';
+$pricing          = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::get_frontend_pricing( $product_id ) : array();
+$price            = ! empty( $pricing['formatted_base'] ) ? $pricing['formatted_base'] : ( $config['price'] ?? '' );
+$currency         = ! empty( $pricing['currency_code'] ) ? $pricing['currency_code'] : ( $config['currency'] ?? 'EUR' );
+$paypal_enabled   = class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::paypal_enabled();
 $customer_options = $config['customer_options'] ?? array();
 $benefits         = $config['benefits'] ?? array();
 $fonts            = PCKZ_Settings::get_fonts();
@@ -29,7 +31,7 @@ $use_cloudlift    = ! empty( $config['use_cloudlift_layout'] );
 	<div class="pckz-product__inner page-width">
 		<div class="pckz-product__grid">
 			<div class="pckz-product__media-column">
-				<p class="pckz-product__preview-heading">Vorschau</p>
+				<p class="pckz-product__preview-heading">Live-Vorschau Ihres Rahmens</p>
 				<div class="pckz-gallery" data-gallery>
 					<div class="pckz-gallery__stage-wrap">
 						<div class="pckz-gallery__stage" data-stage>
@@ -83,10 +85,12 @@ $use_cloudlift    = ! empty( $config['use_cloudlift_layout'] );
 				<div class="pckz-product__info">
 					<h1 class="pckz-product__title"><?php echo esc_html( get_the_title( $product_id ) ); ?></h1>
 
-					<?php if ( $price ) : ?>
-						<div class="pckz-product__price">
+					<?php if ( ! empty( $pricing['show'] ) && $price ) : ?>
+						<div class="pckz-product__price" data-product-price>
 							<span class="pckz-product__price-amount"><?php echo esc_html( $price ); ?></span>
-							<span class="pckz-product__price-currency"><?php echo esc_html( $currency ); ?></span>
+							<?php if ( empty( $pricing['formatted_base'] ) ) : ?>
+								<span class="pckz-product__price-currency"><?php echo esc_html( $currency ); ?></span>
+							<?php endif; ?>
 						</div>
 					<?php endif; ?>
 
@@ -102,14 +106,16 @@ $use_cloudlift    = ! empty( $config['use_cloudlift_layout'] );
 							<?php include PCKZCE_PLUGIN_DIR . 'public/templates/partials/options-form.php'; ?>
 						</div>
 
+						<?php include PCKZCE_PLUGIN_DIR . 'public/templates/partials/checkout-fields.php'; ?>
+
 						<?php if ( $woo_linked ) : ?>
 							<div class="pckz-product__buy">
 								<div class="pckz-quantity" data-quantity>
 									<label class="pckz-quantity__label" for="pckz-qty-<?php echo esc_attr( (string) $product_id ); ?>">
-										Menge
+										Anzahl
 									</label>
 									<div class="pckz-quantity__control">
-										<button type="button" class="pckz-quantity__btn" data-qty="minus" aria-label="Menge verringern">−</button>
+										<button type="button" class="pckz-quantity__btn" data-qty="minus" aria-label="Anzahl verringern">−</button>
 										<input
 											type="number"
 											class="pckz-quantity__input"
@@ -118,17 +124,25 @@ $use_cloudlift    = ! empty( $config['use_cloudlift_layout'] );
 											value="1"
 											data-field="quantity"
 										>
-										<button type="button" class="pckz-quantity__btn" data-qty="plus" aria-label="Menge erhöhen">+</button>
+										<button type="button" class="pckz-quantity__btn" data-qty="plus" aria-label="Anzahl erhöhen">+</button>
 									</div>
 								</div>
-								<button type="button" class="pckz-btn pckz-btn--cart" data-action="add-to-cart">
-									<span class="pckz-btn__text">In den Warenkorb</span>
-									<span class="pckz-btn__spinner" aria-hidden="true"></span>
-								</button>
+								<?php if ( $paypal_enabled ) : ?>
+									<button type="button" class="pckz-btn pckz-btn--paypal" data-action="paypal-checkout">
+										<span class="pckz-btn__text">Sicher bezahlen mit PayPal</span>
+										<span class="pckz-btn__spinner" aria-hidden="true"></span>
+									</button>
+									<p class="pckz-checkout__paypal-hint">Die Bestellung wird erst nach erfolgreicher Zahlung abgeschlossen.</p>
+								<?php else : ?>
+									<button type="button" class="pckz-btn pckz-btn--cart" data-action="add-to-cart">
+										<span class="pckz-btn__text">In den Warenkorb</span>
+										<span class="pckz-btn__spinner" aria-hidden="true"></span>
+									</button>
+								<?php endif; ?>
 							</div>
 						<?php else : ?>
 							<button type="button" class="pckz-btn pckz-btn--cart" data-action="submit-design">
-								<span class="pckz-btn__text">Personalisierung speichern</span>
+								<span class="pckz-btn__text">Entwurf speichern</span>
 								<span class="pckz-btn__spinner" aria-hidden="true"></span>
 							</button>
 						<?php endif; ?>
