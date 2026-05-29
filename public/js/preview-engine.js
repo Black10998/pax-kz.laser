@@ -255,6 +255,86 @@
 		}
 
 		/**
+		 * Bundled line types 21–38 only: boolean text/icon gap in canvas space (matches legacy line behavior).
+		 *
+		 * @param {string} lineKey e.g. type_21
+		 * @returns {Promise<void>}
+		 */
+		isBundledLineType(lineKey) {
+			return /^type_(2[1-9]|3[0-8])$/.test(String(lineKey || ''));
+		}
+
+		async applyBundledLineTextKnockout(lineKey) {
+			if (!this.isBundledLineType(lineKey) || !this.objects.line || !this.canvas) {
+				return;
+			}
+			const text = String((this.lastState && this.lastState.custom_text) || '').trim();
+			if (!text) {
+				return;
+			}
+			const knockout = global.PCKZCESvgKnockout;
+			if (!knockout || !knockout.knockoutLines || !global.ClipperLib) {
+				return;
+			}
+			const lineObj = this.objects.line;
+			const lineFrag = await this.fabricObjectToSvgFragment(lineObj);
+			const maskSvg = await this.buildMaskSvgFromCanvasObjects();
+			if (!lineFrag || !maskSvg) {
+				return;
+			}
+			const knocked = knockout.knockoutLines(lineFrag, maskSvg, 3);
+			if (!knocked) {
+				return;
+			}
+			const wrap =
+				'<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg">' +
+				knocked +
+				'</svg>';
+			const replaced = await new Promise((resolve) => {
+				if (!fabric.loadSVGFromString) {
+					resolve(null);
+					return;
+				}
+				fabric.loadSVGFromString(wrap, (objects, options) => {
+					if (!objects || !objects.length) {
+						resolve(null);
+						return;
+					}
+					const group = fabric.util.groupSVGElements(objects, options);
+					group.set({
+						left: lineObj.left,
+						top: lineObj.top,
+						originX: lineObj.originX || 'center',
+						originY: lineObj.originY || 'center',
+						scaleX: lineObj.scaleX || 1,
+						scaleY: lineObj.scaleY || 1,
+						angle: lineObj.angle || 0,
+						flipX: lineObj.flipX,
+						flipY: lineObj.flipY,
+						skewX: lineObj.skewX,
+						skewY: lineObj.skewY,
+						selectable: false,
+						evented: false,
+						objectCaching: true,
+					});
+					if (typeof group.setCoords === 'function') {
+						group.setCoords();
+					}
+					resolve(group);
+				});
+			});
+			if (!replaced) {
+				return;
+			}
+			replaced.pckzRole = 'line-overlay';
+			replaced.pckzBundledKnocked = true;
+			this.recolorSvgObject(replaced, '#ffffff');
+			this.canvas.remove(lineObj);
+			this.canvas.add(replaced);
+			this.objects.line = replaced;
+		}
+
+		/**
 		 * @param {object} state
 		 */
 		async render(state) {
@@ -386,6 +466,13 @@
 				.forEach((o) => this.canvas.bringToFront(o));
 			if (this.objects.text) {
 				this.canvas.bringToFront(this.objects.text);
+			}
+
+			if (lineKey && this.isBundledLineType(lineKey)) {
+				await this.applyBundledLineTextKnockout(lineKey);
+				if (this.objects.text) {
+					this.canvas.bringToFront(this.objects.text);
+				}
 			}
 
 			if (this.canvas && global.PCKZCECanvas) { global.PCKZCECanvas.safeRender(this.canvas); } else if (this.canvas && this.canvas.renderAll) { this.canvas.renderAll(); }

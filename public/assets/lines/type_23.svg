@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="950" height="35" viewBox="0 0 950 35" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M336.0966 25.2394 L439.8111 25.4032" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M510.1888 25.5143 L613.9034 25.6781" fill="none" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M9.5 22.8213 L198.5388 22.8213 L198.5388 27.8213 L9.5 27.8213 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
+  <path d="M760.0833 22.8213 L940.5 22.8213 L940.5 27.8213 L760.0833 27.8213 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
+  <path d="M9.5 23.0962 L198.5388 23.0962 L198.5388 28.0962 L9.5 28.0962 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
+  <path d="M760.0833 23.0962 L940.5 23.0962 L940.5 28.0962 L760.0833 28.0962 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
   <path d="M452.796 29.5881 C440.5314 21.2399 447.1113 12.9215 452.7503 20.3338 C458.3161 12.9392 464.9783 21.2785 452.796 29.5881 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
   <path d="M475.0393 33.4091 C451.6249 17.4716 464.1865 1.5909 474.952 15.7417 C485.5777 1.6247 498.2965 17.5453 475.0393 33.4091 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
   <path d="M497.2451 29.6583 C484.9804 21.3101 491.5603 12.9916 497.1994 20.404 C502.7652 13.0093 509.4275 21.3487 497.2451 29.6583 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
