@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>PCKZ mobile layout order fixture</title>
+	<link rel="stylesheet" href="../../public/css/creator.css">
+	<style>
+		[data-layout-marker] {
+			outline: 2px dashed #ccc;
+		}
+	</style>
+</head>
+<body>
+	<div class="pckz-product pckz-product--paypal-only" id="pckz-creator-fixture">
+		<div class="pckz-product__inner page-width">
+			<form class="pckz-product__form" novalidate>
+				<div class="pckz-product__grid">
+					<div class="pckz-product__media-column" data-layout-marker="preview">
+						<p class="pckz-product__preview-heading">Preview</p>
+						<div class="pckz-gallery" style="min-height:120px;background:#f3f3f3"></div>
+					</div>
+					<div class="pckz-product__config-column" data-layout-marker="options">
+						<div class="pckz-product__info">
+							<h1 class="pckz-product__title">Product</h1>
+							<div class="pckz-options" data-options>
+								<div class="pckz-field" data-option-id="model"><label>Model</label><select><option>A</option></select></div>
+								<div class="pckz-field" data-option-id="color"><label>Colors</label><input type="text" value="color"></div>
+								<div class="pckz-field" data-option-id="icon"><label>Icons</label><input type="text" value="icon"></div>
+								<div class="pckz-field" data-option-id="font"><label>Fonts</label><input type="text" value="font"></div>
+								<div class="pckz-field" data-option-id="line"><label>Line models</label><input type="text" value="line"></div>
+							</div>
+						</div>
+					</div>
+					<div class="pckz-checkout-panel" data-layout-marker="checkout">
+						<div class="pckz-checkout__header"><h2>Checkout</h2></div>
+						<div class="pckz-checkout__customer">
+							<input type="email" name="pckz_checkout_email" placeholder="email" data-checkout-email>
+						</div>
+						<div class="pckz-checkout__payment">
+							<button type="button" class="pckz-btn pckz-btn--paypal">PayPal</button>
+						</div>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</body>
+</html>

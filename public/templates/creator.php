@@ -33,10 +33,9 @@ $use_cloudlift     = ! empty( $config['use_cloudlift_layout'] );
 			<input type="hidden" name="pckz_options[preview_mode]" value="day" data-preview-mode-input>
 
 			<div class="pckz-product__grid">
-				<div class="pckz-product__checkout-column">
-					<div class="pckz-product__media-column">
-						<p class="pckz-product__preview-heading">Live-Vorschau Ihres Rahmens</p>
-						<div class="pckz-gallery" data-gallery>
+				<div class="pckz-product__media-column">
+					<p class="pckz-product__preview-heading">Live-Vorschau Ihres Rahmens</p>
+					<div class="pckz-gallery" data-gallery>
 							<div class="pckz-gallery__stage-wrap">
 								<div class="pckz-gallery__stage" data-stage>
 									<?php if ( $img_day ) : ?>
@@ -83,17 +82,6 @@ $use_cloudlift     = ! empty( $config['use_cloudlift_layout'] );
 								: esc_html__( 'Text und Symbole erscheinen live im unteren Streifen des Rahmens.', 'pckz-canonical-engine' );
 							?>
 						</p>
-					</div>
-
-					<?php if ( class_exists( 'PCKZ_Commerce' ) ) : ?>
-						<div class="pckz-checkout-panel">
-							<?php
-							$checkout_product_title = get_the_title( $product_id );
-							include PCKZCE_PLUGIN_DIR . 'public/templates/partials/checkout-fields.php';
-							include PCKZCE_PLUGIN_DIR . 'public/templates/partials/checkout-actions.php';
-							?>
-						</div>
-					<?php endif; ?>
 				</div>
 
 				<div class="pckz-product__config-column">
@@ -129,6 +117,16 @@ $use_cloudlift     = ! empty( $config['use_cloudlift_layout'] );
 						<?php endif; ?>
 					</div>
 				</div>
+
+				<?php if ( class_exists( 'PCKZ_Commerce' ) ) : ?>
+					<div class="pckz-checkout-panel">
+						<?php
+						$checkout_product_title = get_the_title( $product_id );
+						include PCKZCE_PLUGIN_DIR . 'public/templates/partials/checkout-fields.php';
+						include PCKZCE_PLUGIN_DIR . 'public/templates/partials/checkout-actions.php';
+						?>
+					</div>
+				<?php endif; ?>
 			</div>
 		</form>
 	</div>

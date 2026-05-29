@@ -3,7 +3,7 @@
  * Plugin Name:       PCKZ Canonical Engine
  * Plugin URI:        https://github.com/Black10998/pckz-canonical-creator
  * Description:       Canonical preview-to-LightBurn export engine with server-side SVG/LBRN2 generation and mm-accurate parity validation.
- * Version:           2.17.2
+ * Version:           2.17.3
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            PCKZ Canonical Engine
@@ -17,8 +17,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PCKZCE_VERSION', '2.17.2' );
-define( 'PCKZCE_BUILD', '2.17.2.20260529-mobile-section-order' );
+define( 'PCKZCE_VERSION', '2.17.3' );
+define( 'PCKZCE_BUILD', '2.17.3.20260529-mobile-dom-order' );
 define( 'PCKZCE_PLUGIN_FILE', __FILE__ );
 define( 'PCKZCE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PCKZCE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
