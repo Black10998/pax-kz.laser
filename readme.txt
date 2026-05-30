@@ -55,6 +55,10 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.20.6 =
+
+* PayPal checkout unblock: export-font preload now treats the same-origin `pckzce_font_file` proxy URL as export-safe, so `exportReady` no longer fails prematurely and PayPal button enables after valid form + export validation.
+
 = 2.20.5 =
 
 * Text export hardening: guaranteed OpenType outline generation now falls back to manual glyph path assembly when `font.getPath()` returns empty/unsupported commands for complex scripts; keeps customer text vector outlines visible in final SVG/LBRN2 exports.
