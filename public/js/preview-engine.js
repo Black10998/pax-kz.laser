@@ -385,6 +385,52 @@
 			return obj;
 		}
 
+		visualCenterY(obj, role) {
+			if (!obj) {
+				return null;
+			}
+			const visual = this.visualBoundsForPlacement(obj, role || obj.pckzRole || '');
+			if (visual) {
+				return (obj.top || 0) + visual.deltaY * (obj.scaleY || 1);
+			}
+			if (typeof obj.getBoundingRect === 'function') {
+				const b = obj.getBoundingRect(true, true);
+				if (b && isFinite(b.top) && isFinite(b.height)) {
+					return b.top + b.height / 2;
+				}
+			}
+			return obj.top || 0;
+		}
+
+		normalizeIconPairAlignment() {
+			const left = this.objects.iconLeft;
+			const right = this.objects.iconRight;
+			if (!left || !right) {
+				return;
+			}
+			const leftSymbol = String(left.pckzSymbol || '').trim();
+			const rightSymbol = String(right.pckzSymbol || '').trim();
+			if (leftSymbol && rightSymbol && leftSymbol === rightSymbol) {
+				const meanScale = ((left.scaleX || 1) + (right.scaleX || 1)) / 2;
+				left.set({ scaleX: meanScale, scaleY: meanScale });
+				right.set({ scaleX: meanScale, scaleY: meanScale });
+			}
+			const leftY = this.visualCenterY(left, 'icon-left');
+			const rightY = this.visualCenterY(right, 'icon-right');
+			if (!isFinite(leftY) || !isFinite(rightY)) {
+				return;
+			}
+			const baselineY = (leftY + rightY) / 2;
+			left.set({ top: (left.top || 0) + (baselineY - leftY) });
+			right.set({ top: (right.top || 0) + (baselineY - rightY) });
+			if (typeof left.setCoords === 'function') {
+				left.setCoords();
+			}
+			if (typeof right.setCoords === 'function') {
+				right.setCoords();
+			}
+		}
+
 		removeRole(role) {
 			const obj = this.objects[role];
 			if (obj) {
@@ -482,6 +528,7 @@
 					}
 				}
 			}
+			this.normalizeIconPairAlignment();
 
 			// Text.
 			if (!this.objects.text) {
