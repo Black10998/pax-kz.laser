@@ -131,7 +131,7 @@ $payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz
 									echo esc_html(
 										sprintf(
 											/* translators: %s: public order number */
-											__( 'Ihre Bestellnummer: %s', 'pckz-canonical-engine' ),
+											__( 'Ihre Tracking-ID: %s', 'pckz-canonical-engine' ),
 											PCKZ_Commerce::format_order_number( absint( $_GET['pckz_order'] ) )
 										)
 									);

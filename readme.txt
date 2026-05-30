@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.20.7
+Stable tag: 2.20.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.20.8 =
+
+* Customer tracking redesign: professional order-tracking layout with clear summary cards, status message, progress timeline, and shipping section when carrier/tracking data is available.
+* Tracking IDs: customer-facing order IDs now use a non-sequential public format (`PAX-XXXX-XXXX`) while legacy `PCKZ-000123` IDs remain valid for lookup.
+* Customer communication: confirmation and status-update emails now include the public tracking ID, direct tracking page URL, and clearer status guidance.
+* Theme-safe tracking styles: improved readability and contrast across light/dark themes and custom site styling.
 
 = 2.20.7 =
 

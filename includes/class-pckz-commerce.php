@@ -685,17 +685,29 @@ class PCKZ_Commerce {
 	}
 
 	/**
-	 * Public order number shown to customers (e.g. PCKZ-000042).
+	 * Public tracking ID for customers (non-sequential).
 	 *
-	 * @param int $order_id Internal ID.
+	 * @param int $order_id Internal order row ID.
 	 * @return string
 	 */
 	public static function format_order_number( $order_id ) {
+		$order_id = max( 1, absint( $order_id ) );
+		$encoded  = self::tracking_base32_encode_u32( self::tracking_permute_u32( $order_id ) );
+		return sprintf( 'PAX-%s-%s', substr( $encoded, 0, 4 ), substr( $encoded, 4, 4 ) );
+	}
+
+	/**
+	 * Legacy sequential customer number (kept for backward compatibility).
+	 *
+	 * @param int $order_id Internal order row ID.
+	 * @return string
+	 */
+	public static function format_legacy_order_number( $order_id ) {
 		return 'PCKZ-' . str_pad( (string) max( 1, absint( $order_id ) ), 6, '0', STR_PAD_LEFT );
 	}
 
 	/**
-	 * Parse order number from customer input.
+	 * Parse order number from customer input (new + legacy formats).
 	 *
 	 * @param string $input Customer input.
 	 * @return int Zero if invalid.
@@ -705,10 +717,133 @@ class PCKZ_Commerce {
 		if ( preg_match( '/^PCKZ-(\d+)$/', $input, $m ) ) {
 			return absint( $m[1] );
 		}
+		if ( preg_match( '/^PAX[-\s]?([A-Z0-9]{4})[-\s]?([A-Z0-9]{4})$/', $input, $m ) ) {
+			$payload = $m[1] . $m[2];
+			$value   = self::tracking_base32_decode_u32( $payload );
+			if ( null !== $value ) {
+				$id = self::tracking_unpermute_u32( $value );
+				if ( $id > 0 && self::format_order_number( $id ) === sprintf( 'PAX-%s-%s', substr( $payload, 0, 4 ), substr( $payload, 4, 4 ) ) ) {
+					return absint( $id );
+				}
+			}
+		}
 		if ( ctype_digit( $input ) ) {
 			return absint( $input );
 		}
 		return 0;
+	}
+
+	/**
+	 * Derive deterministic 32-bit key for tracking ID obfuscation.
+	 *
+	 * @return int
+	 */
+	private static function tracking_key_u32() {
+		static $key = null;
+		if ( null !== $key ) {
+			return $key;
+		}
+		$salt = function_exists( 'wp_salt' ) ? (string) wp_salt( 'auth' ) : ( defined( 'AUTH_SALT' ) ? (string) AUTH_SALT : 'pckz-tracking' );
+		$hash = hash( 'sha256', 'pckz-public-tracking|' . $salt );
+		$key  = (int) hexdec( substr( $hash, 0, 8 ) );
+		if ( $key <= 0 ) {
+			$key = 265443576;
+		}
+		return $key;
+	}
+
+	/**
+	 * 16-bit Feistel round function.
+	 *
+	 * @param int $right Current right half.
+	 * @param int $key   Round key.
+	 * @param int $round Round index.
+	 * @return int
+	 */
+	private static function tracking_round_f( $right, $key, $round ) {
+		$mix = ( ( $right ^ ( ( $key >> ( $round * 3 ) ) & 0xFFFF ) ) + ( ( $key >> ( $round * 5 ) ) & 0xFFFF ) + ( $round * 977 ) ) & 0xFFFF;
+		return (int) ( ( $mix * 1103 + 12345 ) & 0xFFFF );
+	}
+
+	/**
+	 * Deterministic reversible permutation of 32-bit order IDs.
+	 *
+	 * @param int $value Order ID.
+	 * @return int
+	 */
+	private static function tracking_permute_u32( $value ) {
+		$value = max( 1, absint( $value ) ) & 0xFFFFFFFF;
+		$left  = ( $value >> 16 ) & 0xFFFF;
+		$right = $value & 0xFFFF;
+		$key   = self::tracking_key_u32();
+		for ( $round = 0; $round < 4; $round++ ) {
+			$next_left  = $right;
+			$next_right = ( $left ^ self::tracking_round_f( $right, $key, $round ) ) & 0xFFFF;
+			$left       = $next_left;
+			$right      = $next_right;
+		}
+		return (int) ( ( ( $left & 0xFFFF ) << 16 ) | ( $right & 0xFFFF ) );
+	}
+
+	/**
+	 * Reverse permutation for public tracking payload.
+	 *
+	 * @param int $value Obfuscated payload.
+	 * @return int
+	 */
+	private static function tracking_unpermute_u32( $value ) {
+		$value = (int) $value & 0xFFFFFFFF;
+		$left  = ( $value >> 16 ) & 0xFFFF;
+		$right = $value & 0xFFFF;
+		$key   = self::tracking_key_u32();
+		for ( $round = 3; $round >= 0; $round-- ) {
+			$prev_right = $left;
+			$prev_left  = ( $right ^ self::tracking_round_f( $prev_right, $key, $round ) ) & 0xFFFF;
+			$left       = $prev_left;
+			$right      = $prev_right;
+		}
+		return (int) ( ( ( $left & 0xFFFF ) << 16 ) | ( $right & 0xFFFF ) );
+	}
+
+	/**
+	 * Encode unsigned 32-bit integer to fixed 8-char base32 token.
+	 *
+	 * @param int $value Payload.
+	 * @return string
+	 */
+	private static function tracking_base32_encode_u32( $value ) {
+		$alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+		$value    = (int) $value & 0xFFFFFFFF;
+		$out      = '';
+		for ( $i = 0; $i < 8; $i++ ) {
+			$out    = $alphabet[ $value & 31 ] . $out;
+			$value  = $value >> 5;
+		}
+		return $out;
+	}
+
+	/**
+	 * Decode fixed 8-char base32 token to unsigned 32-bit integer.
+	 *
+	 * @param string $payload Encoded payload.
+	 * @return int|null
+	 */
+	private static function tracking_base32_decode_u32( $payload ) {
+		$alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+		$payload  = strtoupper( trim( (string) $payload ) );
+		if ( 8 !== strlen( $payload ) ) {
+			return null;
+		}
+		$value = 0;
+		for ( $i = 0; $i < 8; $i++ ) {
+			$ch = $payload[ $i ];
+			$pos = strpos( $alphabet, $ch );
+			if ( false === $pos ) {
+				return null;
+			}
+			$value = ( ( $value << 5 ) | $pos ) & 0xFFFFFFFF;
+		}
+		return (int) $value;
 	}
 
 	/**
@@ -741,16 +876,107 @@ class PCKZ_Commerce {
 	public static function customer_status_message( $status ) {
 		$status = self::normalize_status_code( $status );
 		$messages = array(
-			'paid'         => __( 'Ihre Zahlung ist bei uns eingegangen und Ihr Auftrag wurde erfolgreich registriert.', 'pckz-canonical-engine' ),
-			'in_progress'  => __( 'Ihr Auftrag wird aktuell geprüft und für die Produktion vorbereitet.', 'pckz-canonical-engine' ),
-			'production'   => __( 'Ihre Bestellung befindet sich in der Produktion.', 'pckz-canonical-engine' ),
-			'ready_to_ship'=> __( 'Ihre Bestellung ist versandbereit und wird als Nächstes verschickt.', 'pckz-canonical-engine' ),
-			'shipped'      => __( 'Ihre Bestellung wurde versendet und ist auf dem Weg zu Ihnen.', 'pckz-canonical-engine' ),
-			'completed'    => __( 'Ihre Bestellung wurde erfolgreich abgeschlossen. Vielen Dank für Ihr Vertrauen.', 'pckz-canonical-engine' ),
-			'cancelled'    => __( 'Ihre Bestellung wurde storniert. Bei Fragen kontaktieren Sie bitte unseren Support.', 'pckz-canonical-engine' ),
-			'pending'      => __( 'Wir warten aktuell auf den Zahlungseingang.', 'pckz-canonical-engine' ),
+			'paid'          => __( 'Vielen Dank. Ihre Zahlung wurde bestätigt und Ihre Bestellung ist bei uns eingegangen.', 'pckz-canonical-engine' ),
+			'in_progress'   => __( 'Ihr Auftrag wird aktuell geprüft und für die Produktion vorbereitet.', 'pckz-canonical-engine' ),
+			'production'    => __( 'Ihre Bestellung befindet sich momentan in der Produktion.', 'pckz-canonical-engine' ),
+			'ready_to_ship' => __( 'Ihre Bestellung ist fertig produziert und bereit für den Versand.', 'pckz-canonical-engine' ),
+			'shipped'       => __( 'Ihre Bestellung wurde versendet und ist auf dem Weg zu Ihnen.', 'pckz-canonical-engine' ),
+			'completed'     => __( 'Ihre Bestellung wurde erfolgreich abgeschlossen. Vielen Dank für Ihr Vertrauen.', 'pckz-canonical-engine' ),
+			'cancelled'     => __( 'Ihre Bestellung wurde storniert. Bei Fragen hilft Ihnen unser Support gerne weiter.', 'pckz-canonical-engine' ),
+			'pending'       => __( 'Wir warten aktuell auf den Zahlungseingang.', 'pckz-canonical-engine' ),
 		);
 		return $messages[ $status ] ?? __( 'Der Bestellstatus wurde aktualisiert.', 'pckz-canonical-engine' );
+	}
+
+	/**
+	 * Collect shipping information for customer tracking page (when available).
+	 *
+	 * @param array $order Commerce order row.
+	 * @return array
+	 */
+	public static function customer_shipping_summary( $order ) {
+		$summary = array(
+			'carrier'         => '',
+			'tracking_number' => '',
+			'tracking_url'    => '',
+			'shipping_date'   => '',
+			'has_data'        => false,
+		);
+		if ( ! is_array( $order ) || empty( $order['wc_order_id'] ) || ! function_exists( 'wc_get_order' ) ) {
+			return $summary;
+		}
+		$wc_order = wc_get_order( absint( $order['wc_order_id'] ) );
+		if ( ! $wc_order || ! is_object( $wc_order ) ) {
+			return $summary;
+		}
+
+		$carriers = array();
+		if ( method_exists( $wc_order, 'get_items' ) ) {
+			$shipping_items = $wc_order->get_items( 'shipping' );
+			if ( is_array( $shipping_items ) ) {
+				foreach ( $shipping_items as $item ) {
+					if ( is_object( $item ) && method_exists( $item, 'get_name' ) ) {
+						$name = trim( (string) $item->get_name() );
+						if ( '' !== $name ) {
+							$carriers[] = $name;
+						}
+					}
+				}
+			}
+		}
+		$summary['carrier'] = implode( ', ', array_unique( $carriers ) );
+
+		$tracking_number_keys = array( '_tracking_number', 'tracking_number', '_shipment_tracking_number', '_ywot_tracking_code' );
+		$tracking_url_keys    = array( '_tracking_url', 'tracking_url', '_ywot_tracking_url', '_aftership_tracking_url' );
+		$provider_keys        = array( '_tracking_provider', 'tracking_provider', '_ywot_tracking_provider' );
+		foreach ( $tracking_number_keys as $meta_key ) {
+			$value = trim( (string) $wc_order->get_meta( $meta_key, true ) );
+			if ( '' !== $value ) {
+				$summary['tracking_number'] = $value;
+				break;
+			}
+		}
+		foreach ( $tracking_url_keys as $meta_key ) {
+			$value = esc_url_raw( (string) $wc_order->get_meta( $meta_key, true ) );
+			if ( '' !== $value ) {
+				$summary['tracking_url'] = $value;
+				break;
+			}
+		}
+		if ( '' === $summary['carrier'] ) {
+			foreach ( $provider_keys as $meta_key ) {
+				$value = trim( (string) $wc_order->get_meta( $meta_key, true ) );
+				if ( '' !== $value ) {
+					$summary['carrier'] = $value;
+					break;
+				}
+			}
+		}
+
+		$shipment_items = $wc_order->get_meta( '_wc_shipment_tracking_items', true );
+		if ( is_array( $shipment_items ) && ! empty( $shipment_items[0] ) ) {
+			$item = $shipment_items[0];
+			if ( is_array( $item ) ) {
+				if ( '' === $summary['tracking_number'] && ! empty( $item['tracking_number'] ) ) {
+					$summary['tracking_number'] = sanitize_text_field( $item['tracking_number'] );
+				}
+				if ( '' === $summary['tracking_url'] && ! empty( $item['custom_tracking_link'] ) ) {
+					$summary['tracking_url'] = esc_url_raw( $item['custom_tracking_link'] );
+				}
+				if ( '' === $summary['carrier'] && ! empty( $item['tracking_provider'] ) ) {
+					$summary['carrier'] = sanitize_text_field( $item['tracking_provider'] );
+				}
+			}
+		}
+
+		if ( method_exists( $wc_order, 'get_date_completed' ) ) {
+			$date = $wc_order->get_date_completed();
+			if ( $date && is_object( $date ) && method_exists( $date, 'date_i18n' ) ) {
+				$summary['shipping_date'] = $date->date_i18n( 'd.m.Y H:i' );
+			}
+		}
+		$summary['has_data'] = ( '' !== $summary['carrier'] || '' !== $summary['tracking_number'] || '' !== $summary['tracking_url'] || '' !== $summary['shipping_date'] );
+		return $summary;
 	}
 
 	/**
@@ -761,35 +987,34 @@ class PCKZ_Commerce {
 	 */
 	public static function customer_tracking_timeline( $status ) {
 		$status = self::normalize_status_code( $status );
-		$steps  = self::customer_tracking_statuses();
+		$steps  = array(
+			'paid'          => __( 'Zahlung erhalten', 'pckz-canonical-engine' ),
+			'in_progress'   => __( 'In Bearbeitung', 'pckz-canonical-engine' ),
+			'production'    => __( 'Produktion', 'pckz-canonical-engine' ),
+			'ready_to_ship' => __( 'Versandbereit', 'pckz-canonical-engine' ),
+			'shipped'       => __( 'Versendet', 'pckz-canonical-engine' ),
+			'completed'     => __( 'Abgeschlossen', 'pckz-canonical-engine' ),
+		);
 		$keys   = array_keys( $steps );
 		$current_index = array_search( $status, $keys, true );
 		$out = array();
 		foreach ( $steps as $code => $label ) {
 			$step_index = array_search( $code, $keys, true );
-			$state = 'upcoming';
+			$state = 'inactive';
 			if ( false !== $current_index && false !== $step_index ) {
 				if ( $step_index < $current_index ) {
-					$state = 'done';
+					$state = 'complete';
 				} elseif ( $step_index === $current_index ) {
 					$state = 'current';
 				}
+			} elseif ( 'cancelled' === $status ) {
+				$state = 'inactive';
 			}
 			$out[] = array(
 				'code'  => $code,
 				'label' => $label,
 				'state' => $state,
 			);
-		}
-		if ( 'cancelled' === $status ) {
-			foreach ( $out as &$entry ) {
-				if ( 'cancelled' === $entry['code'] ) {
-					$entry['state'] = 'current';
-				} else {
-					$entry['state'] = 'upcoming';
-				}
-			}
-			unset( $entry );
 		}
 		return $out;
 	}
@@ -856,6 +1081,60 @@ class PCKZ_Commerce {
 			return $configured;
 		}
 		return $configured ? $configured : home_url( '/' );
+	}
+
+	/**
+	 * URL of the public tracking page shortcode.
+	 *
+	 * @return string
+	 */
+	public static function find_tracking_page_url() {
+		if ( ! function_exists( 'get_posts' ) ) {
+			return '';
+		}
+		$pages = get_posts(
+			array(
+				'post_type'      => 'page',
+				'post_status'    => 'publish',
+				'posts_per_page' => 100,
+			)
+		);
+		foreach ( $pages as $page ) {
+			$content = (string) $page->post_content;
+			$has     = ( function_exists( 'has_shortcode' ) && has_shortcode( $content, 'pckz_order_tracking' ) )
+				|| ( function_exists( 'has_shortcode' ) && has_shortcode( $content, 'pckz_bestellung_verfolgen' ) );
+			if ( ! $has ) {
+				continue;
+			}
+			$url = function_exists( 'get_permalink' ) ? get_permalink( $page ) : '';
+			if ( $url ) {
+				return $url;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Build customer tracking URL including public tracking ID when available.
+	 *
+	 * @param int $order_id Internal order ID.
+	 * @return string
+	 */
+	public static function resolve_tracking_page_url( $order_id = 0 ) {
+		$url = self::find_tracking_page_url();
+		if ( ! $url ) {
+			$url = home_url( '/' );
+		}
+		$order_id = absint( $order_id );
+		if ( $order_id > 0 ) {
+			$url = add_query_arg(
+				array(
+					'order' => self::format_order_number( $order_id ),
+				),
+				$url
+			);
+		}
+		return $url;
 	}
 
 	/**
@@ -1352,10 +1631,19 @@ class PCKZ_Commerce {
 			__( 'Bestellbestätigung – %s', 'pckz-canonical-engine' ),
 			get_bloginfo( 'name' )
 		);
-		$body  = '<p>' . esc_html__( 'Vielen Dank für Ihre Bestellung. Ihre PayPal-Zahlung wurde bestätigt. Wir bereiten Ihre Personalisierung professionell vor.', 'pckz-canonical-engine' ) . '</p>';
+		$tracking_id  = self::format_order_number( (int) ( $commerce_order['id'] ?? 0 ) );
+		$tracking_url = self::resolve_tracking_page_url( (int) ( $commerce_order['id'] ?? 0 ) );
+		$confirmed_at = function_exists( 'wp_date' ) ? wp_date( 'd.m.Y H:i' ) : gmdate( 'd.m.Y H:i' );
+		$body  = '<p>' . esc_html__( 'Vielen Dank für Ihre Bestellung. Ihre PayPal-Zahlung wurde bestätigt und wir starten nun mit der Bearbeitung.', 'pckz-canonical-engine' ) . '</p>';
+		$body .= '<p><strong>' . esc_html__( 'Ihre Tracking-ID:', 'pckz-canonical-engine' ) . '</strong> ' . esc_html( $tracking_id ) . '</p>';
+		$body .= '<p><strong>' . esc_html__( 'Bestellung bestätigt am:', 'pckz-canonical-engine' ) . '</strong> ' . esc_html( $confirmed_at ) . '</p>';
 		if ( $wc_order_id ) {
-			$body .= '<p>' . esc_html__( 'Bestellnummer:', 'pckz-canonical-engine' ) . ' #' . esc_html( (string) $wc_order_id ) . '</p>';
+			$body .= '<p><strong>' . esc_html__( 'Interne Referenz:', 'pckz-canonical-engine' ) . '</strong> #' . esc_html( (string) $wc_order_id ) . '</p>';
 		}
+		if ( $tracking_url ) {
+			$body .= '<p><a href="' . esc_url( $tracking_url ) . '" style="display:inline-block;padding:10px 14px;background:#111827;color:#ffffff;border-radius:6px;text-decoration:none;">' . esc_html__( 'Bestellung jetzt verfolgen', 'pckz-canonical-engine' ) . '</a></p>';
+		}
+		$body .= '<p>' . esc_html__( 'Über die Tracking-Seite sehen Sie jederzeit den aktuellen Produktions- und Versandstatus Ihrer Bestellung.', 'pckz-canonical-engine' ) . '</p>';
 		if ( ! empty( $details['first_name'] ) ) {
 			$countries = self::checkout_countries();
 			$street    = trim( ( $details['street'] ?? '' ) . ' ' . ( $details['house_number'] ?? '' ) );
@@ -1426,6 +1714,7 @@ class PCKZ_Commerce {
 		}
 		$order_number = self::format_order_number( (int) ( $order['id'] ?? 0 ) );
 		$status_label = self::customer_status_label( $new_status );
+		$tracking_url = self::resolve_tracking_page_url( (int) ( $order['id'] ?? 0 ) );
 		$subject = sprintf(
 			/* translators: 1: short status title, 2: shop name */
 			__( '%1$s – %2$s', 'pckz-canonical-engine' ),
@@ -1433,11 +1722,14 @@ class PCKZ_Commerce {
 			get_bloginfo( 'name' )
 		);
 		$body  = '<p>' . esc_html( $templates[ $new_status ]['lead'] ) . '</p>';
-		$body .= '<p><strong>' . esc_html__( 'Bestellnummer:', 'pckz-canonical-engine' ) . '</strong> ' . esc_html( $order_number ) . '</p>';
+		$body .= '<p><strong>' . esc_html__( 'Tracking-ID:', 'pckz-canonical-engine' ) . '</strong> ' . esc_html( $order_number ) . '</p>';
 		$body .= '<p><strong>' . esc_html__( 'Aktueller Status:', 'pckz-canonical-engine' ) . '</strong> ';
 		$body .= '<span style="display:inline-block;padding:6px 10px;border-radius:999px;background:#111827;color:#ffffff;font-weight:600;">' . esc_html( $status_label ) . '</span></p>';
 		$body .= '<p>' . esc_html( self::customer_status_message( $new_status ) ) . '</p>';
-		$body .= '<p>' . esc_html__( 'Sie können den Bestellstatus jederzeit mit Ihrer Bestellnummer auf der Tracking-Seite prüfen.', 'pckz-canonical-engine' ) . '</p>';
+		if ( $tracking_url ) {
+			$body .= '<p><a href="' . esc_url( $tracking_url ) . '" style="display:inline-block;padding:10px 14px;background:#111827;color:#ffffff;border-radius:6px;text-decoration:none;">' . esc_html__( 'Status jetzt prüfen', 'pckz-canonical-engine' ) . '</a></p>';
+		}
+		$body .= '<p>' . esc_html__( 'Sie können den Bestellstatus jederzeit über die Tracking-Seite mit Ihrer Tracking-ID abrufen.', 'pckz-canonical-engine' ) . '</p>';
 		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
 		wp_mail( $to, $subject, $body, $headers );
 	}
