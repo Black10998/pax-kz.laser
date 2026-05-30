@@ -55,6 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.20.5 =
+
+* Text export hardening: guaranteed OpenType outline generation now falls back to manual glyph path assembly when `font.getPath()` returns empty/unsupported commands for complex scripts; keeps customer text vector outlines visible in final SVG/LBRN2 exports.
+* Added persisted-file proof smoke (`tests/export-files-text-presence-smoke.php`) to verify the actual saved SVG/LBRN2 files contain `pckz-text-engrave` path geometry.
+
 = 2.20.4 =
 
 * Export hardening: embed customer text outline paths into `production_vector_svg` (redundant channel) and recover `text_plate_paths` from SVG when POST payload loses text fields; keeps customer text visible in final SVG + LBRN2 exports.

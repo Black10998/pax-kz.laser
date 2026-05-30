@@ -28,6 +28,7 @@
 			this.bgBounds = { left: 0, top: 0, width: 1, height: 1 };
 			this.plateCalibration = null;
 			this._openTypeFonts = {};
+			this._openTypeFontUrls = {};
 			this.objects = {
 				line: null,
 				iconBgLeft: null,
@@ -1506,6 +1507,248 @@
 			return cfg['russo one'] || byId['russo-one'] || '';
 		}
 
+		isExportSafeFontUrl(url) {
+			const u = String(url || '').trim();
+			if (!u) {
+				return false;
+			}
+			if (/\.woff2(\?|$)/i.test(u)) {
+				return false;
+			}
+			return /\.(ttf|otf|woff)(\?|$)/i.test(u);
+		}
+
+		async fetchGoogleFontBinaryUrl(fontFamily) {
+			const fam = String(fontFamily || '').trim();
+			if (!fam) {
+				return '';
+			}
+			const cssUrl =
+				'https://fonts.googleapis.com/css2?family=' +
+				encodeURIComponent(fam).replace(/%20/g, '+') +
+				':wght@400;700&display=swap';
+			let css = '';
+			try {
+				const res = await fetch(cssUrl, { mode: 'cors', credentials: 'omit' });
+				if (!res.ok) {
+					return '';
+				}
+				css = String(await res.text());
+			} catch (err) {
+				return '';
+			}
+			const candidates = [];
+			const re = /url\(([^)]+)\)\s*format\((['"]?)([^'")]+)\2\)/gi;
+			let m;
+			while ((m = re.exec(css))) {
+				const raw = String(m[1] || '').trim().replace(/^['"]|['"]$/g, '');
+				const fmt = String(m[3] || '').toLowerCase();
+				if (!raw) {
+					continue;
+				}
+				candidates.push({ url: raw, format: fmt });
+			}
+			for (let i = 0; i < candidates.length; i++) {
+				const row = candidates[i];
+				if (row.format === 'woff2') {
+					continue;
+				}
+				if (this.isExportSafeFontUrl(row.url)) {
+					return row.url;
+				}
+			}
+			for (let i = 0; i < candidates.length; i++) {
+				if (this.isExportSafeFontUrl(candidates[i].url)) {
+					return candidates[i].url;
+				}
+			}
+			return '';
+		}
+
+		async resolveExportFontUrl(fontFamily) {
+			const key = String(fontFamily || 'Russo One')
+				.trim()
+				.toLowerCase()
+				.replace(/['"]/g, '');
+			if (Object.prototype.hasOwnProperty.call(this._openTypeFontUrls, key)) {
+				return this._openTypeFontUrls[key];
+			}
+			let url = this.fontUrlForFamily(fontFamily);
+			if (!this.isExportSafeFontUrl(url)) {
+				url = '';
+			}
+			if (!url) {
+				url = await this.fetchGoogleFontBinaryUrl(fontFamily);
+			}
+			this._openTypeFontUrls[key] = url || '';
+			return this._openTypeFontUrls[key];
+		}
+
+		openTypePathHasDrawableContours(path) {
+			if (!path || !Array.isArray(path.commands) || !path.commands.length) {
+				return false;
+			}
+			let drawOps = 0;
+			let minX = Infinity;
+			let minY = Infinity;
+			let maxX = -Infinity;
+			let maxY = -Infinity;
+			const pushPt = function (x, y) {
+				if (!isFinite(x) || !isFinite(y)) {
+					return;
+				}
+				minX = Math.min(minX, x);
+				minY = Math.min(minY, y);
+				maxX = Math.max(maxX, x);
+				maxY = Math.max(maxY, y);
+			};
+			for (let i = 0; i < path.commands.length; i++) {
+				const c = path.commands[i];
+				if ('M' === c.type || 'L' === c.type) {
+					pushPt(c.x, c.y);
+				} else if ('C' === c.type) {
+					pushPt(c.x1, c.y1);
+					pushPt(c.x2, c.y2);
+					pushPt(c.x, c.y);
+				} else if ('Q' === c.type) {
+					pushPt(c.x1, c.y1);
+					pushPt(c.x, c.y);
+				}
+				if ('L' === c.type || 'C' === c.type || 'Q' === c.type || 'Z' === c.type) {
+					drawOps++;
+				}
+			}
+			if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+				return false;
+			}
+			return drawOps > 0 && Math.max(maxX - minX, maxY - minY) > 0.001;
+		}
+
+		fontMissingGlyphCount(font, text) {
+			if (!font || !font.charToGlyph) {
+				return Number.MAX_SAFE_INTEGER;
+			}
+			let missing = 0;
+			const chars = Array.from(String(text || ''));
+			for (let i = 0; i < chars.length; i++) {
+				const ch = chars[i];
+				if (!ch.trim()) {
+					continue;
+				}
+				const g = font.charToGlyph(ch);
+				const hasUnicode =
+					g &&
+					((typeof g.unicode === 'number' && isFinite(g.unicode)) ||
+						(Array.isArray(g.unicodes) && g.unicodes.length > 0));
+				if (!hasUnicode) {
+					missing++;
+				}
+			}
+			return missing;
+		}
+
+		isRtlText(text) {
+			return /[\u0590-\u05FF\u0600-\u08FF]/.test(String(text || ''));
+		}
+
+		buildOpenTypePathManual(font, text, fontSize) {
+			const PathCtor =
+				(global.opentype && global.opentype.Path) ||
+				(typeof opentype !== 'undefined' && opentype.Path) ||
+				null;
+			if (!PathCtor || !font || !font.charToGlyph) {
+				return null;
+			}
+			const out = new PathCtor();
+			const chars = Array.from(String(text || ''));
+			if (this.isRtlText(text)) {
+				chars.reverse();
+			}
+			const unitsPerEm = Math.max(1, parseFloat(font.unitsPerEm) || 1000);
+			const scale = fontSize / unitsPerEm;
+			let cursorX = 0;
+			let prevGlyph = null;
+			for (let i = 0; i < chars.length; i++) {
+				const ch = chars[i];
+				const g = font.charToGlyph(ch);
+				if (!g) {
+					cursorX += fontSize * 0.5;
+					continue;
+				}
+				if (prevGlyph && font.getKerningValue) {
+					cursorX += (font.getKerningValue(prevGlyph, g) || 0) * scale;
+				}
+				try {
+					const gp = g.getPath(cursorX, 0, fontSize);
+					if (gp && Array.isArray(gp.commands) && gp.commands.length) {
+						for (let c = 0; c < gp.commands.length; c++) {
+							out.commands.push(gp.commands[c]);
+						}
+					}
+				} catch (err) {
+					// ignore single glyph errors and continue fallback shaping
+				}
+				const adv = isFinite(g.advanceWidth) ? g.advanceWidth : unitsPerEm * 0.5;
+				cursorX += adv * scale;
+				prevGlyph = g;
+			}
+			return out;
+		}
+
+		buildOpenTypePathSafe(font, text, fontSize) {
+			try {
+				const path = font.getPath(text, 0, 0, fontSize);
+				if (this.openTypePathHasDrawableContours(path)) {
+					return path;
+				}
+			} catch (err) {
+				// fall through to manual glyph assembly
+			}
+			const manual = this.buildOpenTypePathManual(font, text, fontSize);
+			if (this.openTypePathHasDrawableContours(manual)) {
+				return manual;
+			}
+			return null;
+		}
+
+		textExportFallbackFamilies(text) {
+			const value = String(text || '');
+			if (/[\u0600-\u08FF]/.test(value)) {
+				return ['Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri'];
+			}
+			if (/[\u0590-\u05FF]/.test(value)) {
+				return ['Noto Sans Hebrew'];
+			}
+			if (/[^\u0000-\u024F]/.test(value)) {
+				return ['Noto Sans'];
+			}
+			return ['Noto Sans'];
+		}
+
+		textExportFontCandidates(primaryFamily, text) {
+			const out = [];
+			const push = function (fam) {
+				const s = String(fam || '').trim();
+				if (!s) {
+					return;
+				}
+				const key = s.toLowerCase();
+				for (let i = 0; i < out.length; i++) {
+					if (out[i].toLowerCase() === key) {
+						return;
+					}
+				}
+				out.push(s);
+			};
+			push(primaryFamily || 'Russo One');
+			const fallbacks = this.textExportFallbackFamilies(text);
+			for (let i = 0; i < fallbacks.length; i++) {
+				push(fallbacks[i]);
+			}
+			push('Russo One');
+			return out;
+		}
+
 		async loadOpenTypeFont(fontFamily) {
 			const key = String(fontFamily || 'Russo One')
 				.trim()
@@ -1516,7 +1759,7 @@
 			if (!global.opentype) {
 				throw new Error('OpenType.js is not loaded.');
 			}
-			const url = this.fontUrlForFamily(fontFamily);
+			const url = await this.resolveExportFontUrl(fontFamily);
 			if (!url) {
 				throw new Error('Font URL missing for ' + fontFamily);
 			}
@@ -1525,13 +1768,8 @@
 				throw new Error('Font fetch failed: ' + url);
 			}
 			const font = global.opentype.parse(await res.arrayBuffer());
-			const probe = font.getPath('Laser AB 12', 0, 0, 48);
-			if (
-				!probe ||
-				!probe.commands ||
-				!probe.commands.length ||
-				!isFinite(probe.getBoundingBox().x2 - probe.getBoundingBox().x1)
-			) {
+			const probe = this.buildOpenTypePathSafe(font, 'Laser AB 12', 48);
+			if (!this.openTypePathHasDrawableContours(probe)) {
 				throw new Error(
 					'Font file has no exportable Latin glyphs for ' + fontFamily + ' (' + url + ')'
 				);
@@ -1585,10 +1823,39 @@
 			if (!box) {
 				return '';
 			}
-			const fontFamily = textObj.font_family || textObj.fontFamily || 'Russo One';
-			const font = await this.loadOpenTypeFont(fontFamily);
 			const fontMm = this.layoutTextFontSizeMm(textObj, mmW, mmH);
-			const path = font.getPath(text, 0, 0, fontMm);
+			const fontFamily = textObj.font_family || textObj.fontFamily || 'Russo One';
+			const candidates = this.textExportFontCandidates(fontFamily, text);
+			let chosenPath = null;
+			let chosenMissing = Number.MAX_SAFE_INTEGER;
+			let backupPath = null;
+			for (let i = 0; i < candidates.length; i++) {
+				let font = null;
+				try {
+					font = await this.loadOpenTypeFont(candidates[i]);
+				} catch (err) {
+					continue;
+				}
+				const path = this.buildOpenTypePathSafe(font, text, fontMm);
+				if (!this.openTypePathHasDrawableContours(path)) {
+					continue;
+				}
+				const missing = this.fontMissingGlyphCount(font, text);
+				if (!backupPath) {
+					backupPath = path;
+				}
+				if (missing < chosenMissing) {
+					chosenMissing = missing;
+					chosenPath = path;
+					if (missing === 0) {
+						break;
+					}
+				}
+			}
+			const path = chosenPath || backupPath;
+			if (!path) {
+				return '';
+			}
 			const bbox = path.getBoundingBox();
 			const pathCx = (bbox.x1 + bbox.x2) / 2;
 			const pathCy = (bbox.y1 + bbox.y2) / 2;
@@ -1908,9 +2175,23 @@ fitTextPathMatrixToFabricBounds(textObj, otPath, baseMatrix) {
 			if (!text || !textObj.calcTransformMatrix) {
 				return '';
 			}
-			const font = await this.loadOpenTypeFont(textObj.fontFamily || 'Russo One');
 			const fontSize = Math.max(3, textObj.fontSize || 8);
-			const otPath = font.getPath(text, 0, 0, fontSize);
+			const families = this.textExportFontCandidates(textObj.fontFamily || 'Russo One', text);
+			let otPath = null;
+			for (let i = 0; i < families.length; i++) {
+				try {
+					const font = await this.loadOpenTypeFont(families[i]);
+					otPath = this.buildOpenTypePathSafe(font, text, fontSize);
+					if (this.openTypePathHasDrawableContours(otPath)) {
+						break;
+					}
+				} catch (err) {
+					otPath = null;
+				}
+			}
+			if (!this.openTypePathHasDrawableContours(otPath)) {
+				return '';
+			}
 			const bbox = otPath.getBoundingBox();
 			const fill = this.colorToHex(textObj.fill || '') || '#ffffff';
 			const local = this.getTextOpenTypeLocalMatrix(textObj, bbox);
