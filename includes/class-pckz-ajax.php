@@ -388,6 +388,7 @@ class PCKZ_Ajax {
 				}
 				if ( $canonical_scene_json && '' !== trim( (string) ( $selections['custom_text'] ?? '' ) ) ) {
 					$lbrn2_probe = PCKZ_Export_Diagnostics::probe_lbrn2_generation( $package );
+					$svg_probe   = PCKZ_Export_Diagnostics::probe_svg_generation( $package );
 					if ( empty( $lbrn2_probe['lbrn2_text_shape_count'] ) ) {
 						$font_family = (string) ( $selections['font_family'] ?? '' );
 						$font_url    = self::export_font_url_for_family( $font_family );
@@ -397,7 +398,20 @@ class PCKZ_Ajax {
 							422,
 							array(
 								'code'         => 'lbrn2_text_missing',
-								'export_debug' => array_merge( $summary, $lbrn2_probe ),
+								'export_debug' => array_merge( $summary, $lbrn2_probe, $svg_probe ),
+							)
+						);
+					}
+					if ( empty( $svg_probe['svg_text_path_count'] ) && empty( $svg_probe['svg_text_group_count'] ) ) {
+						$font_family = (string) ( $selections['font_family'] ?? '' );
+						$font_url    = self::export_font_url_for_family( $font_family );
+						$summary     = PCKZ_Export_Diagnostics::summarize_payload( $text_plate_paths, $production_vector_svg, $font_family, $font_url );
+						$this->send_export_error(
+							__( 'Production SVG export is missing customer text vector paths.', 'pckz-canonical-engine' ) . ' ' . PCKZ_Export_Diagnostics::format_debug_suffix( $summary, array_merge( $lbrn2_probe, $svg_probe ) ),
+							422,
+							array(
+								'code'         => 'svg_text_missing',
+								'export_debug' => array_merge( $summary, $lbrn2_probe, $svg_probe ),
 							)
 						);
 					}
@@ -677,12 +691,13 @@ class PCKZ_Ajax {
 		}
 
 		$lbrn2_probe = PCKZ_Export_Diagnostics::probe_lbrn2_generation( $package );
+		$svg_probe   = PCKZ_Export_Diagnostics::probe_svg_generation( $package );
 		if ( empty( $lbrn2_probe['lbrn2_generated'] ) ) {
 			wp_send_json_error(
 				array(
-					'message'      => __( 'LightBurn LBRN2 document could not be built from export scene.', 'pckz-canonical-engine' ) . ' ' . PCKZ_Export_Diagnostics::format_debug_suffix( $summary, array_merge( $probe, $lbrn2_probe ) ),
+					'message'      => __( 'LightBurn LBRN2 document could not be built from export scene.', 'pckz-canonical-engine' ) . ' ' . PCKZ_Export_Diagnostics::format_debug_suffix( $summary, array_merge( $probe, $lbrn2_probe, $svg_probe ) ),
 					'code'         => 'lbrn2_build_failed',
-					'export_debug' => array_merge( $summary, $probe, $lbrn2_probe ),
+					'export_debug' => array_merge( $summary, $probe, $lbrn2_probe, $svg_probe ),
 				),
 				422
 			);
@@ -691,7 +706,7 @@ class PCKZ_Ajax {
 		wp_send_json_success(
 			array(
 				'ok'           => true,
-				'export_debug' => array_merge( $summary, $probe, $lbrn2_probe ),
+				'export_debug' => array_merge( $summary, $probe, $lbrn2_probe, $svg_probe ),
 			)
 		);
 	}

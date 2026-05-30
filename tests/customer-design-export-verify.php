@@ -198,6 +198,17 @@ if ( ! preg_match( '/<LightBurnProject/i', $lbrn2 ) ) {
 	++$fail;
 }
 
+$lbrn2_text = preg_match_all( '/<!-- (pckz-)?text-engrave/', (string) $lbrn2 );
+if ( $lbrn2_text < 1 ) {
+	fwrite( STDERR, "FAIL LBRN2 missing customer text-engrave shapes\n" );
+	++$fail;
+}
+
+if ( false === stripos( $prod_svg, 'pckz-text-engrave' ) ) {
+	fwrite( STDERR, "FAIL production SVG missing customer text-engrave paths\n" );
+	++$fail;
+}
+
 $parity = $package['parity'] ?? array();
 if ( ( $parity['status'] ?? '' ) === 'FAIL' ) {
 	fwrite( STDERR, "FAIL parity validation\n" );

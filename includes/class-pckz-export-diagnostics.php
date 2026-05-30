@@ -134,6 +134,48 @@ class PCKZ_Export_Diagnostics {
 	}
 
 	/**
+	 * Probe production SVG generation and customer text path presence.
+	 *
+	 * @param array $package Production package from export pipeline.
+	 * @return array
+	 */
+	public static function probe_svg_generation( $package ) {
+		$package = is_array( $package ) ? $package : array();
+		$svg     = '';
+		$error   = '';
+		$built   = false;
+
+		if ( class_exists( 'PCKZ_Production_Svg' ) ) {
+			$result = PCKZ_Production_Svg::build_from_package( $package );
+			if ( is_wp_error( $result ) ) {
+				$error = $result->get_error_message();
+			} else {
+				$svg   = (string) $result;
+				$built = '' !== trim( $svg );
+			}
+		}
+
+		$url         = (string) ( $package['production_svg_url'] ?? '' );
+		$text_groups = ( '' !== $svg ) ? preg_match_all( '/id="pckz-text-engrave/i', $svg ) : 0;
+		$text_paths  = ( '' !== $svg ) ? preg_match_all( '/<path\b[^>]*\bid="pckz-text-engrave[^"]*"/i', $svg ) : 0;
+		if ( $text_paths < 1 && '' !== $svg ) {
+			$text_paths = preg_match_all( '/<g\b[^>]*\bid="pckz-text-engrave"[^>]*>.*?<path\b/is', $svg );
+		}
+
+		return array(
+			'svg_generated'        => $built,
+			'svg_exists'             => $built && false !== stripos( $svg, '<svg' ),
+			'svg_length'             => strlen( $svg ),
+			'svg_text_group_count'   => (int) $text_groups,
+			'svg_text_path_count'    => (int) $text_paths,
+			'svg_attached_to_request'=> '' !== $url,
+			'svg_url'                => $url,
+			'svg_build_error'        => $error,
+			'svg_persist_error'      => (string) ( $package['production_svg_error'] ?? '' ),
+		);
+	}
+
+	/**
 	 * Probe merge/parse of text_plate_paths without full export.
 	 *
 	 * @param string $fragment Fragment.

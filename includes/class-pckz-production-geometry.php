@@ -1049,6 +1049,28 @@ class PCKZ_Production_Geometry {
 	}
 
 	/**
+	 * Convert bottom-left mm vertices to SVG path d (lightburn-mm-bottom-left viewBox).
+	 *
+	 * @param array $verts  Vertices mm Y-up from bottom-left origin.
+	 * @param bool  $closed Closed path.
+	 * @return string
+	 */
+	public static function mm_verts_to_lightburn_svg_path_d( $verts, $closed ) {
+		if ( count( $verts ) < 2 ) {
+			return '';
+		}
+		$parts = array();
+		foreach ( $verts as $i => $v ) {
+			$cmd     = 0 === $i ? 'M' : 'L';
+			$parts[] = $cmd . ' ' . self::fmt( $v['x'] ) . ' ' . self::fmt( $v['y'] );
+		}
+		if ( $closed ) {
+			$parts[] = 'Z';
+		}
+		return implode( ' ', $parts );
+	}
+
+	/**
 	 * Normalize layout object role aliases.
 	 *
 	 * @param array $obj Object.

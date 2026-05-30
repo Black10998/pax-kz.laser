@@ -125,7 +125,7 @@ class PCKZ_Production_Scene {
 				$scene = $fallback;
 			}
 		}
-		self::merge_text_plate_paths_from_layout( $scene, $ctx );
+		self::merge_text_plate_paths_from_layout( $scene, $ctx, $package );
 		self::ensure_text_layers( $scene, $ctx );
 		self::consolidate_scene_text_layers( $scene );
 
@@ -511,6 +511,18 @@ class PCKZ_Production_Scene {
 			$package['production']['text_plate_paths'] ?? '',
 			$package['production']['layout']['text_plate_paths'] ?? '',
 		);
+		$canvas_json = (string) ( $package['canvas_json'] ?? '' );
+		if ( '' === $canvas_json && ! empty( $package['layout']['canvas_json'] ) ) {
+			$canvas_json = (string) $package['layout']['canvas_json'];
+		}
+		if ( '' !== $canvas_json ) {
+			$data = json_decode( $canvas_json, true );
+			if ( is_array( $data ) && ! empty( $data['pckzMeta'] ) && is_array( $data['pckzMeta'] ) ) {
+				$meta = $data['pckzMeta'];
+				$sources[] = $meta['text_plate_paths'] ?? '';
+				$sources[] = $meta['layout']['text_plate_paths'] ?? '';
+			}
+		}
 		foreach ( $sources as $candidate ) {
 			$fragment = self::normalize_text_plate_paths_fragment( $candidate );
 			if ( '' !== $fragment ) {
@@ -549,14 +561,8 @@ class PCKZ_Production_Scene {
 		if ( empty( $scene['layers'] ) ) {
 			$scene['layers'] = array();
 		}
-		$text_backup = array();
-		foreach ( (array) ( $scene['layers'] ?? array() ) as $layer ) {
-			if ( self::layer_is_authoritative_text_engrave_path( $layer ) ) {
-				$text_backup[] = $layer;
-			}
-		}
-		$w = (float) $ctx['canvas_w'];
-		$h = (float) $ctx['canvas_h'];
+		$w         = (float) $ctx['canvas_w'];
+		$h         = (float) $ctx['canvas_h'];
 		$coord_sys = self::text_fragment_coordinate_system( $fragment );
 		$meta      = sprintf(
 			'<metadata id="pckz-export-meta"><pckz:export xmlns:pckz="https://pckz-canonical-engine.local/export" format="text-plate-paths" coordinate-system="%s"/></metadata>',
@@ -569,7 +575,6 @@ class PCKZ_Production_Scene {
 			$meta,
 			$fragment
 		);
-		// Prefer dedicated fragment parser (handles entity encoding, group transforms, subpaths).
 		$parsed = self::parse_text_plate_paths_fragment( $fragment, $w, $h, $ctx['layout'], $coord_sys );
 		$parsed_vert_layers = 0;
 		foreach ( (array) ( $parsed['layers'] ?? array() ) as $layer ) {
@@ -579,14 +584,8 @@ class PCKZ_Production_Scene {
 		}
 		if ( $parsed_vert_layers < 1 ) {
 			$parsed = self::parse_master_svg( $wrapped, $w, $h, $ctx['layout'] );
-			$parsed_vert_layers = 0;
-			foreach ( (array) ( $parsed['layers'] ?? array() ) as $layer ) {
-				if ( 'path' === ( $layer['type'] ?? '' ) && ! empty( $layer['verts'] ) ) {
-					++$parsed_vert_layers;
-				}
-			}
 		}
-		$text_meta = null;
+		$text_meta  = null;
 		$text_metas = array();
 		foreach ( PCKZ_Production_Geometry::sort_objects( $ctx['objects'] ) as $obj ) {
 			$obj = PCKZ_Production_Geometry::normalize_layout_object( $obj );
@@ -600,14 +599,41 @@ class PCKZ_Production_Scene {
 			if ( ! $box ) {
 				continue;
 			}
-			$meta = self::layer_export_meta( $obj, $box );
-			$id   = (string) ( $meta['canonical_object_id'] ?? '' );
+			$obj_meta = self::layer_export_meta( $obj, $box );
+			$id       = (string) ( $obj_meta['canonical_object_id'] ?? '' );
 			if ( $id ) {
-				$text_metas[ $id ] = $meta;
+				$text_metas[ $id ] = $obj_meta;
 			}
 			if ( ! $text_meta ) {
-				$text_meta = $meta;
+				$text_meta = $obj_meta;
 			}
+		}
+		$candidate_layers = array();
+		foreach ( $parsed['layers'] ?? array() as $layer ) {
+			if ( 'path' !== ( $layer['type'] ?? '' ) || empty( $layer['verts'] ) ) {
+				continue;
+			}
+			$layer['role'] = 'text-engrave';
+			$lid           = (string) ( $layer['layer_id'] ?? '' );
+			if ( '' === $lid || in_array( $lid, array( 'pckz-text', 'pckz-main-text' ), true ) ) {
+				$layer['layer_id'] = 'pckz-text-engrave';
+			}
+			$attach_meta = $text_meta;
+			$canonical   = (string) ( $layer['canonical_object_id'] ?? '' );
+			if ( $canonical && ! empty( $text_metas[ $canonical ] ) ) {
+				$attach_meta = $text_metas[ $canonical ];
+			} elseif ( ! empty( $text_metas ) ) {
+				$attach_meta = reset( $text_metas );
+			}
+			foreach ( self::expand_text_path_layers( $layer, $attach_meta ) as $text_layer ) {
+				$candidate_layers[] = $text_layer;
+			}
+		}
+		if ( empty( $candidate_layers ) ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'PCKZ: text_plate_paths parse yielded no vector layers; existing scene text preserved.' );
+			}
+			return;
 		}
 		$scene['layers'] = array_values( array_filter(
 			$scene['layers'],
@@ -623,57 +649,187 @@ class PCKZ_Production_Scene {
 				if ( in_array( $lid, array( 'pckz-text-engrave' ), true ) || 0 === strpos( $lid, 'pckz-text-engrave-' ) ) {
 					return false;
 				}
-				// Drop Fabric/preview text path stubs so OpenType plate paths replace them.
 				if ( in_array( $role, array( 'pckz-text', 'text', 'main-text' ), true ) ) {
 					return false;
 				}
 				return ! in_array( $lid, array( 'pckz-text', 'pckz-main-text' ), true );
 			}
 		) );
-		$merged = 0;
-		foreach ( $parsed['layers'] ?? array() as $layer ) {
-			if ( 'path' !== ( $layer['type'] ?? '' ) || empty( $layer['verts'] ) ) {
+		foreach ( $candidate_layers as $text_layer ) {
+			$scene['layers'][] = $text_layer;
+		}
+	}
+
+	/**
+	 * Whether the scene contains authoritative vector text engrave paths.
+	 *
+	 * @param array $scene Scene.
+	 * @return bool
+	 */
+	public static function scene_has_text_engrave_paths( $scene ) {
+		foreach ( (array) ( $scene['layers'] ?? array() ) as $layer ) {
+			if ( self::layer_is_authoritative_text_engrave_path( $layer ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Count text-engrave path layers with usable vertices.
+	 *
+	 * @param array $scene Scene.
+	 * @return int
+	 */
+	public static function count_text_engrave_path_layers( $scene ) {
+		$count = 0;
+		foreach ( (array) ( $scene['layers'] ?? array() ) as $layer ) {
+			if ( self::layer_is_authoritative_text_engrave_path( $layer ) ) {
+				++$count;
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Whether export context requires vector customer text.
+	 *
+	 * @param array $ctx Normalized package context.
+	 * @return bool
+	 */
+	public static function export_requires_vector_text( $ctx ) {
+		foreach ( (array) ( $ctx['objects'] ?? array() ) as $obj ) {
+			$obj = PCKZ_Production_Geometry::normalize_layout_object( $obj );
+			if ( in_array( $obj['role'] ?? '', array( 'text', 'main-text' ), true )
+				&& '' !== trim( (string) ( $obj['text'] ?? '' ) ) ) {
+				return true;
+			}
+		}
+		$selections = (array) ( $ctx['selections'] ?? array() );
+		return '' !== trim( (string) ( $selections['custom_text'] ?? '' ) );
+	}
+
+	/**
+	 * Prepare export scene for LBRN2 + production SVG (merge text_plate_paths, validate text).
+	 *
+	 * @param array $package Production package.
+	 * @return array|WP_Error
+	 */
+	public static function prepare_export_scene( $package ) {
+		$package = is_array( $package ) ? $package : array();
+
+		if ( ! empty( $package['production_scene'] ) && is_array( $package['production_scene'] ) ) {
+			$scene = json_decode( wp_json_encode( $package['production_scene'] ), true );
+			if ( ! is_array( $scene ) ) {
+				$scene = array( 'layers' => array() );
+			}
+			if ( ! isset( $scene['layers'] ) || ! is_array( $scene['layers'] ) ) {
+				$scene['layers'] = array();
+			}
+		} else {
+			$scene = self::from_package( $package );
+			if ( is_wp_error( $scene ) ) {
+				return $scene;
+			}
+		}
+
+		$fragment = self::resolve_text_plate_paths_from_package( $package );
+		if ( '' !== $fragment ) {
+			$strict = ! empty( $package['canonical_scene'] ) || ! empty( $package['layout']['canonical_scene'] );
+			$ctx    = PCKZ_Production_Geometry::normalize_package( $package, $strict );
+			if ( '' === trim( (string) ( $ctx['layout']['text_plate_paths'] ?? '' ) ) ) {
+				$ctx['layout']['text_plate_paths'] = $fragment;
+			}
+			self::merge_text_plate_paths_from_layout( $scene, $ctx, $package );
+			self::consolidate_scene_text_layers( $scene );
+		}
+
+		$strict = ! empty( $package['canonical_scene'] ) || ! empty( $package['layout']['canonical_scene'] );
+		$ctx    = PCKZ_Production_Geometry::normalize_package( $package, $strict );
+		if ( self::export_requires_vector_text( $ctx ) && ! self::scene_has_text_engrave_paths( $scene ) ) {
+			$font_family = '';
+			foreach ( $ctx['objects'] as $obj ) {
+				$obj = PCKZ_Production_Geometry::normalize_layout_object( $obj );
+				if ( in_array( $obj['role'] ?? '', array( 'text', 'main-text' ), true ) ) {
+					$font_family = (string) ( $obj['font_family'] ?? $obj['fontFamily'] ?? '' );
+					break;
+				}
+			}
+			$font_url = '';
+			if ( class_exists( 'PCKZ_Font_Library' ) && '' !== $font_family ) {
+				$files    = PCKZ_Font_Library::font_files_for_js();
+				$font_url = (string) ( $files[ strtolower( trim( $font_family ) ) ] ?? '' );
+			}
+			$summary = class_exists( 'PCKZ_Export_Diagnostics' )
+				? PCKZ_Export_Diagnostics::summarize_payload(
+					$fragment,
+					(string) ( $package['production_vector_svg'] ?? $ctx['layout']['production_vector_svg'] ?? '' ),
+					$font_family,
+					$font_url
+				)
+				: array();
+			$probe = class_exists( 'PCKZ_Export_Diagnostics' )
+				? PCKZ_Export_Diagnostics::probe_text_fragment_parse(
+					$fragment,
+					(float) $ctx['canvas_w'],
+					(float) $ctx['canvas_h'],
+					$ctx['layout']
+				)
+				: array();
+			$debug = class_exists( 'PCKZ_Export_Diagnostics' )
+				? PCKZ_Export_Diagnostics::format_debug_suffix( $summary, $probe )
+				: '';
+			return new WP_Error(
+				'lbrn2_text_missing',
+				__( 'LightBurn export is missing customer text vector paths.', 'pckz-canonical-engine' ) . ( $debug ? ' ' . $debug : '' ),
+				array(
+					'http_status'  => 422,
+					'export_debug' => array_merge( $summary, $probe ),
+				)
+			);
+		}
+
+		return $scene;
+	}
+
+	/**
+	 * Render text-engrave scene layers as SVG paths (lightburn-mm-bottom-left viewBox coords).
+	 *
+	 * @param array $scene Production scene.
+	 * @return string SVG fragment (empty when no text paths).
+	 */
+	public static function text_engrave_layers_to_svg_fragment( $scene ) {
+		if ( empty( $scene['layers'] ) || ! is_array( $scene['layers'] ) ) {
+			return '';
+		}
+		$parts = array();
+		$idx   = 0;
+		foreach ( $scene['layers'] as $layer ) {
+			if ( ! self::layer_is_authoritative_text_engrave_path( $layer ) ) {
 				continue;
 			}
-			$layer['role'] = 'text-engrave';
-			$lid = (string) ( $layer['layer_id'] ?? '' );
-			if ( '' === $lid || in_array( $lid, array( 'pckz-text', 'pckz-main-text' ), true ) ) {
-				$layer['layer_id'] = 'pckz-text-engrave';
-			}
-			$meta = $text_meta;
-			$canonical = (string) ( $layer['canonical_object_id'] ?? '' );
-			if ( $canonical && ! empty( $text_metas[ $canonical ] ) ) {
-				$meta = $text_metas[ $canonical ];
-			} elseif ( ! empty( $text_metas ) ) {
-				$meta = reset( $text_metas );
-			}
-			foreach ( self::expand_text_path_layers( $layer, $meta ) as $text_layer ) {
-				$scene['layers'][] = $text_layer;
-				++$merged;
-			}
-		}
-		if ( $merged < 1 ) {
-			$fallback = self::parse_text_plate_paths_fragment( $fragment, $w, $h, $ctx['layout'], $coord_sys );
-			foreach ( $fallback['layers'] ?? array() as $layer ) {
-				if ( 'path' !== ( $layer['type'] ?? '' ) || empty( $layer['verts'] ) ) {
+			foreach ( self::path_loops_from_scene( array( 'layers' => array( $layer ) ) ) as $loop ) {
+				$d = PCKZ_Production_Geometry::mm_verts_to_lightburn_svg_path_d(
+					$loop['verts'] ?? array(),
+					! empty( $loop['closed'] )
+				);
+				if ( '' === $d ) {
 					continue;
 				}
-				$layer['role']     = 'text-engrave';
-				$layer['layer_id'] = 'pckz-text-engrave';
-				foreach ( self::expand_text_path_layers( $layer, $text_meta ) as $text_layer ) {
-					$scene['layers'][] = $text_layer;
-					++$merged;
-				}
+				$fill = PCKZ_Production_Geometry::resolve_hex( $layer['fill'] ?? '#ffffff' );
+				$lid  = (string) ( $loop['layer_id'] ?? $layer['layer_id'] ?? 'pckz-text-engrave' );
+				$parts[] = sprintf(
+					'<path id="%s" d="%s" fill="%s" stroke="none" fill-rule="evenodd"/>',
+					esc_attr( $lid . '-sp' . ( ++$idx ) ),
+					esc_attr( $d ),
+					esc_attr( $fill )
+				);
 			}
 		}
-		if ( $merged < 1 && ! empty( $text_backup ) ) {
-			foreach ( $text_backup as $layer ) {
-				$scene['layers'][] = $layer;
-			}
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( 'PCKZ: text_plate_paths merge failed; restored ' . count( $text_backup ) . ' text-engrave layer(s) from scene backup.' );
-			}
+		if ( empty( $parts ) ) {
+			return '';
 		}
+		return '<g id="pckz-text-engrave" fill="#ffffff" stroke="none">' . implode( "\n", $parts ) . '</g>';
 	}
 
 	/**

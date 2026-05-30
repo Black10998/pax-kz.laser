@@ -28,7 +28,14 @@ class PCKZ_Production_Svg {
 				__( 'No WYSIWYG vector snapshot. Re-save the design after the preview has fully loaded.', 'pckz-canonical-engine' )
 			);
 		}
-		return self::wrap_master_svg( $master, $package );
+
+		$scene = PCKZ_Production_Scene::prepare_export_scene( $package );
+		if ( is_wp_error( $scene ) ) {
+			return $scene;
+		}
+
+		$text_fragment = PCKZ_Production_Scene::text_engrave_layers_to_svg_fragment( $scene );
+		return self::wrap_master_svg( $master, $package, $text_fragment );
 	}
 
 	/**
@@ -38,7 +45,7 @@ class PCKZ_Production_Svg {
 	 * @param array  $package Package.
 	 * @return string
 	 */
-	public static function wrap_master_svg( $master, $package = array() ) {
+	public static function wrap_master_svg( $master, $package = array(), $text_fragment = '' ) {
 		$layout = $package['layout'] ?? $package['lightburn_ready'] ?? array();
 		$canvas = $layout['canvas_mm'] ?? ( class_exists( 'PCKZ_Plate_Calibration' )
 			? PCKZ_Plate_Calibration::default_canvas_mm_array()
@@ -67,6 +74,10 @@ class PCKZ_Production_Svg {
 			$out = preg_replace( '/<svg\b/i', '<svg xmlns="http://www.w3.org/2000/svg"', $out, 1 );
 		}
 		$out = preg_replace( '/(<svg[^>]*>)/i', '$1' . $meta_block . $guides, $out, 1 );
+		$text_fragment = trim( (string) $text_fragment );
+		if ( '' !== $text_fragment ) {
+			$out = preg_replace( '/<\/svg>\s*$/i', $text_fragment . "\n</svg>", $out, 1 );
+		}
 		return $out;
 	}
 

@@ -333,14 +333,7 @@ class PCKZ_Production {
 			}
 		}
 
-		if ( class_exists( 'PCKZ_Production_Svg' ) ) {
-			$svg_url = PCKZ_Production_Svg::save_from_package( $package, $design_id );
-			if ( ! is_wp_error( $svg_url ) ) {
-				$package['production_svg_url'] = $svg_url;
-			}
-		}
-
-		if ( class_exists( 'PCKZ_Production_Lbrn2' ) ) {
+		if ( class_exists( 'PCKZ_Production_Scene' ) ) {
 			$fragment = PCKZ_Production_Scene::resolve_text_plate_paths_from_package( $package );
 			if ( '' !== $fragment ) {
 				$package['text_plate_paths'] = $fragment;
@@ -349,6 +342,18 @@ class PCKZ_Production {
 				}
 				$package['layout']['text_plate_paths'] = $fragment;
 			}
+		}
+
+		if ( class_exists( 'PCKZ_Production_Svg' ) ) {
+			$svg_url = PCKZ_Production_Svg::save_from_package( $package, $design_id );
+			if ( ! is_wp_error( $svg_url ) ) {
+				$package['production_svg_url'] = $svg_url;
+			} elseif ( empty( $package['production_svg_error'] ) ) {
+				$package['production_svg_error'] = $svg_url->get_error_message();
+			}
+		}
+
+		if ( class_exists( 'PCKZ_Production_Lbrn2' ) ) {
 			$lbrn2 = PCKZ_Production_Lbrn2::save_from_package( $package, $design_id );
 			if ( is_wp_error( $lbrn2 ) ) {
 				$package['production_lbrn2_error'] = $lbrn2->get_error_message();

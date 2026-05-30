@@ -55,6 +55,10 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.20.3 =
+
+* Export: production SVG and LBRN2 now share `prepare_export_scene()` so customer text vector paths from `text_plate_paths` appear in both files; non-destructive merge preserves existing text when re-parse fails; save rejects exports missing text when custom text is set.
+
 = 2.20.2 =
 
 * LBRN2 text: non-destructive `text_plate_paths` merge (restore scene text when re-parse fails); resolve fragment from all package/meta keys; detect Fabric matrix vs baked svg-top-left coordinates; validate customer text shapes in LBRN2 before save.
