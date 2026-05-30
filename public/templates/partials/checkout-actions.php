@@ -37,7 +37,10 @@ $paypal_only = isset( $paypal_only ) ? $paypal_only : ( class_exists( 'PCKZ_Comm
 					<button type="button" class="pckz-quantity__btn" data-qty="plus" aria-label="Anzahl erhöhen">+</button>
 				</div>
 			</div>
-			<button type="button" class="pckz-btn pckz-btn--paypal pckz-btn--checkout-primary" data-action="paypal-checkout">
+			<p class="pckz-checkout__export-hint" data-export-ready-hint>
+				<?php esc_html_e( 'Zahlung wird freigegeben, sobald die Vorschau und Exportdaten bereit sind.', 'pckz-canonical-engine' ); ?>
+			</p>
+			<button type="button" class="pckz-btn pckz-btn--paypal pckz-btn--checkout-primary" data-action="paypal-checkout" disabled aria-disabled="true">
 				<span class="pckz-btn__paypal-mark" aria-hidden="true">PayPal</span>
 				<span class="pckz-btn__text">Jetzt mit PayPal bezahlen</span>
 				<span class="pckz-btn__spinner" aria-hidden="true"></span>

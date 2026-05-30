@@ -863,6 +863,59 @@
 			return s.replace(/\.?0+$/, '');
 		}
 
+		escapeSvgAttr(value) {
+			return String(value || '')
+				.replace(/&/g, '&amp;')
+				.replace(/"/g, '&quot;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;');
+		}
+
+		/**
+		 * True when preview has mm bounds and at least one non-text engrave object on canvas.
+		 * @returns {boolean}
+		 */
+		hasFabricEngraveObjects() {
+			const objects = this.collectEngraveFabricObjects();
+			return !!(objects && objects.length);
+		}
+
+		/**
+		 * Wait until async preview render and fonts have settled.
+		 * @param {object} state Selections state.
+		 * @returns {Promise<void>}
+		 */
+		async waitForProductionReady(state) {
+			if (typeof this.render === 'function') {
+				await this.render(state || this.lastState || {});
+			}
+			const frame = global.PCKZCECanvas;
+			if (frame && frame.waitForPreviewFrame) {
+				await frame.waitForPreviewFrame();
+			}
+			if (frame && frame.waitForFontsReady) {
+				await frame.waitForFontsReady();
+			} else if (document.fonts && document.fonts.ready) {
+				await document.fonts.ready;
+			}
+			if (frame && frame.safeRender && this.canvas) {
+				await frame.safeRender(this.canvas);
+			}
+		}
+
+		/**
+		 * Preload OpenType font used for export paths.
+		 * @param {string} fontFamily
+		 * @returns {Promise<void>}
+		 */
+		async preloadExportFont(fontFamily) {
+			const fam = String(fontFamily || 'Russo One').trim();
+			if (!fam || !global.opentype) {
+				return;
+			}
+			await this.loadOpenTypeFont(fam);
+		}
+
 		stripSvgWrapper(markup) {
 			if (!markup) {
 				return '';
@@ -1543,11 +1596,12 @@
 			if (!d) {
 				return '';
 			}
+			const safeD = this.escapeSvgAttr(d);
 			return (
 				'<g id="' + (layerId || 'pckz-text-engrave') + '" fill="' +
 				fill +
 				'" stroke="none"><path d="' +
-				d +
+				safeD +
 				'" fill="' +
 				fill +
 				'" stroke="none"/></g>'
@@ -2021,26 +2075,26 @@ fitTextPathMatrixToFabricBounds(textObj, otPath, baseMatrix) {
 			if (!this.canvas || !mmW || !mmH) {
 				return '';
 			}
+			if (!this.bgBounds || !(this.bgBounds.width > 0)) {
+				return '';
+			}
+			await this.waitForProductionReady(this.lastState);
 			const sc = await this.buildExportSceneStaticCanvas();
-			if (!sc) {
-				return '';
-			}
 			let inner = '';
-			try {
-				sc.getObjects().forEach((obj) => this.ensureObjectCoordsDeep(obj));
-				sc.renderAll();
-				const rawSvg = sc.toSVG({
-					suppressPreamble: true,
-					viewBox: { x: 0, y: 0, width: sc.width, height: sc.height },
-				});
-				inner = this.extractSvgInnerMarkup(rawSvg);
-			} catch (err) {
-				inner = '';
-			} finally {
-				sc.dispose();
-			}
-			if (!inner) {
-				return '';
+			if (sc) {
+				try {
+					sc.getObjects().forEach((obj) => this.ensureObjectCoordsDeep(obj));
+					sc.renderAll();
+					const rawSvg = sc.toSVG({
+						suppressPreamble: true,
+						viewBox: { x: 0, y: 0, width: sc.width, height: sc.height },
+					});
+					inner = this.extractSvgInnerMarkup(rawSvg);
+				} catch (err) {
+					inner = '';
+				} finally {
+					sc.dispose();
+				}
 			}
 			const xf = this.canvasToLightBurnMmTransform(mmW, mmH);
 			const bb = this.bgBounds;
@@ -2061,6 +2115,9 @@ fitTextPathMatrixToFabricBounds(textObj, otPath, baseMatrix) {
 				'" mm-height="' +
 				this.fmtMm(mmH) +
 				'"/></metadata>';
+			if (!inner) {
+				inner = '<g id="pckz-lines"></g>';
+			}
 			return (
 				'<?xml version="1.0" encoding="UTF-8"?>\n' +
 				'<svg xmlns="http://www.w3.org/2000/svg" width="' +

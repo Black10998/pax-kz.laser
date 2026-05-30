@@ -1433,6 +1433,20 @@ select.pckz-field__control {
 	border-color: #003087;
 }
 
+.pckz-btn--paypal:disabled,
+.pckz-btn--paypal.is-disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+.pckz-checkout__export-hint {
+	margin: 0 0 12px;
+	font-size: 13px;
+	color: var(--pckz-muted, #666);
+	line-height: 1.4;
+}
+
 .pckz-btn--checkout-primary {
 	min-height: 52px;
 	font-size: 16px;

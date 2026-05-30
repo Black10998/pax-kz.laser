@@ -192,7 +192,7 @@ class PCKZ_Assets {
 					? PCKZ_Font_Library::font_files_by_id_for_js()
 					: array(),
 				'pluginVersion'  => PCKZCE_VERSION,
-				'fontExportRev'  => 3,
+				'fontExportRev'  => 4,
 				'assets'       => array(
 					'day'    => esc_url_raw( $config['background_day'] ?: $config['background_image'] ),
 					'night'  => esc_url_raw( $config['background_night'] ?: $config['background_day'] ),
@@ -217,6 +217,11 @@ class PCKZ_Assets {
 					'designSaved'           => 'Ihre Angaben wurden übermittelt.',
 					'saving'                => 'Bestellung wird vorbereitet…',
 					'loading'               => 'Vorschau wird geladen…',
+					'exportNotReady'        => 'Vorschau wird noch geladen. Bitte warten Sie, bis die Vorschau vollständig angezeigt ist.',
+					'fabricExportMissing'   => 'Fabric-Produktions-SVG fehlt. Bitte speichern, nachdem die Vorschau vollständig geladen ist.',
+					'vectorTextMissing'     => 'Vektortext-Pfade fehlen. Bitte warten Sie, bis die Vorschau vollständig geladen ist.',
+					'vectorTextInvalid'     => 'Vektortext-Pfade konnten nicht erzeugt werden. Bitte Schrift oder Seite neu laden.',
+					'exportReadyHint'       => 'Zahlung wird freigegeben, sobald die Vorschau und Exportdaten bereit sind.',
 					'uploadError'           => 'Upload fehlgeschlagen. Bitte Dateityp oder Größe prüfen.',
 					'requireDesign'         => 'Bitte geben Sie einen Text für den Rahmen ein.',
 					'requireEmail'          => 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',

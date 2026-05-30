@@ -69,6 +69,8 @@
 			this.layoutCache = null;
 			this.thumbsSplide = null;
 			this._splideSyncing = false;
+			this.exportReady = false;
+			this._exportReadyTimer = null;
 			this.init();
 		}
 
@@ -82,6 +84,7 @@
 			this.bindThumbs();
 			this.bindActions();
 			this.initCanvas();
+			this.setCheckoutButtonsEnabled(false);
 			window.addEventListener('resize', () => this.resizeStage());
 		}
 
@@ -181,6 +184,7 @@
 						this.stage.classList.add('is-canvas-ready');
 					}
 					PCKZCE_GLOBAL.PCKZCECanvas && PCKZCE_GLOBAL.PCKZCECanvas.safeRender(this.canvas);
+					this.scheduleExportReadyCheck();
 				});
 			};
 
@@ -1098,7 +1102,9 @@
 				if (iconChanged) {
 					this.previewEngine._imageCache = {};
 				}
-				this.previewEngine.render(this.buildCloudliftState());
+				this.previewEngine.render(this.buildCloudliftState()).then(() => {
+					this.scheduleExportReadyCheck();
+				});
 				return;
 			}
 
@@ -1135,6 +1141,88 @@
 			}
 
 			PCKZCE_GLOBAL.PCKZCECanvas && PCKZCE_GLOBAL.PCKZCECanvas.safeRender(this.canvas);
+			this.scheduleExportReadyCheck();
+		}
+
+		scheduleExportReadyCheck() {
+			clearTimeout(this._exportReadyTimer);
+			this.exportReady = false;
+			this.setCheckoutButtonsEnabled(false);
+			this._exportReadyTimer = setTimeout(() => {
+				this.refreshExportReadyState();
+			}, 400);
+		}
+
+		setCheckoutButtonsEnabled(enabled) {
+			const buttons = this.root.querySelectorAll(
+				'[data-action="paypal-checkout"], [data-action="add-to-cart"], [data-action="submit-design"]'
+			);
+			buttons.forEach((btn) => {
+				btn.disabled = !enabled;
+				btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+				btn.classList.toggle('is-disabled', !enabled);
+			});
+			const hint = this.root.querySelector('[data-export-ready-hint]');
+			if (hint) {
+				hint.classList.toggle('pckz-hidden', !!enabled);
+			}
+		}
+
+		async refreshExportReadyState() {
+			if (!this.bgLoaded || !this.previewEngine) {
+				this.exportReady = false;
+				this.setCheckoutButtonsEnabled(false);
+				return;
+			}
+			const text = (this.selections.custom_text || '').trim();
+			if (!text) {
+				this.exportReady = false;
+				this.setCheckoutButtonsEnabled(false);
+				return;
+			}
+			try {
+				await this.waitForAssetsReady();
+				if (!this.previewEngine.hasFabricEngraveObjects()) {
+					this.exportReady = false;
+					this.setCheckoutButtonsEnabled(false);
+					return;
+				}
+				const fontFamily = this.selections.font_family || 'Russo One';
+				await this.previewEngine.preloadExportFont(fontFamily);
+				const origin = CFG.origin || STD.coordinate_origin || 'bottom-left';
+				const layout = this.previewEngine.getProductionLayout
+					? this.previewEngine.getProductionLayout(this.mmW, this.mmH, origin, {
+							std: STD,
+							selections: this.selections,
+						})
+					: this.getLayoutData();
+				const paths = await this.previewEngine.buildTextPlatePathsForLbrn(
+					layout,
+					this.mmW,
+					this.mmH
+				);
+				const svg = await this.previewEngine.buildFabricProductionSvg(this.mmW, this.mmH);
+				const ok =
+					!!(svg && svg.trim() && svg.indexOf('pckz-export-meta') !== -1) &&
+					!!(paths && paths.trim() && paths.indexOf('<path') !== -1);
+				this.exportReady = ok;
+				this.setCheckoutButtonsEnabled(ok);
+			} catch (err) {
+				this.exportReady = false;
+				this.setCheckoutButtonsEnabled(false);
+			}
+		}
+
+		async ensureExportPayloadReady() {
+			if (!this.exportReady) {
+				await this.refreshExportReadyState();
+			}
+			if (!this.exportReady) {
+				throw new Error(
+					I18N.exportNotReady ||
+						'Vorschau wird noch geladen. Bitte warten Sie, bis die Vorschau vollständig angezeigt ist, und versuchen Sie es erneut.'
+				);
+			}
 		}
 
 		uploadFile(file, optionId, field) {
@@ -1302,6 +1390,14 @@
 				this.toast(I18N.loading, true);
 				return false;
 			}
+			if (!this.exportReady) {
+				this.toast(
+					I18N.exportNotReady ||
+						'Vorschau wird noch geladen. Bitte warten Sie, bis die Vorschau vollständig angezeigt ist.',
+					true
+				);
+				return false;
+			}
 			if (COMMERCE.requireEmail !== false && !this.validateCommerce()) {
 				return false;
 			}
@@ -1330,11 +1426,18 @@
 			if (!this.canvas) {
 				throw new Error('Preview canvas is not initialized.');
 			}
+			if (!this.bgLoaded) {
+				throw new Error(I18N.loading || 'Preview is still loading.');
+			}
 			if (this.useCloudlift && this.previewEngine) {
-				await this.previewEngine.render(this.buildCloudliftState ? this.buildCloudliftState() : this.selections);
 				if (this.bgImage) {
 					this.previewEngine.setBackgroundBounds(this.bgImage);
 				}
+				await this.previewEngine.waitForProductionReady(
+					this.buildCloudliftState ? this.buildCloudliftState() : this.selections
+				);
+				const fontFamily = this.selections.font_family || 'Russo One';
+				await this.previewEngine.preloadExportFont(fontFamily);
 			}
 			await this.requestCanvasRender();
 			const frame = PCKZCE_GLOBAL.PCKZCECanvas;
@@ -1358,6 +1461,7 @@
 
 		async saveDesign() {
 			await this.waitForAssetsReady();
+			await this.ensureExportPayloadReady();
 			const origin = CFG.origin || STD.coordinate_origin || 'bottom-left';
 			let layout = this.getLayoutData();
 			let canonicalScene = null;
@@ -1423,6 +1527,32 @@
 					);
 				}
 			}
+
+			const needsText = !!(this.selections.custom_text || '').trim();
+			if (!productionVectorSvg || !String(productionVectorSvg).trim()) {
+				throw new Error(
+					I18N.fabricExportMissing ||
+						'Fabric production SVG missing. Re-save after preview fully loads.'
+				);
+			}
+			if (needsText && (!textPlatePaths || !String(textPlatePaths).trim())) {
+				throw new Error(
+					I18N.vectorTextMissing ||
+						'Vector text paths are missing. Wait for the preview to finish loading.'
+				);
+			}
+			if (
+				needsText &&
+				(!textPlatePaths ||
+					textPlatePaths.indexOf('<path') === -1 ||
+					textPlatePaths.indexOf('d="') === -1)
+			) {
+				throw new Error(
+					I18N.vectorTextInvalid ||
+						'Vector text paths failed to build. Try another font or reload the page.'
+				);
+			}
+
 			layout.production_vector_svg = productionVectorSvg;
 			layout.text_plate_paths = textPlatePaths;
 			layout.canonical_scene = canonicalScene;
@@ -1531,6 +1661,10 @@
 				return;
 			}
 			if (!this.validateCommerce()) {
+				return;
+			}
+			if (!this.exportReady) {
+				this.toast(I18N.exportNotReady || I18N.loading, true);
 				return;
 			}
 			this.collectCheckoutFields();

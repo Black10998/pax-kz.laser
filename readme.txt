@@ -55,6 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.18.0 =
+* Export readiness: block PayPal/checkout until preview, Fabric production SVG, and text_plate_paths are ready.
+* Fix merge order: text_plate_paths merge before empty-layer validation; always merge browser OpenType paths.
+* Fallback parse for text_plate_paths fragments; escape SVG path attributes; await preview render before Fabric export.
+
 = 2.17.9 =
 * Fix vector_text_invalid on script fonts (e.g. Great Vibes): merge browser text_plate_paths even when Fabric SVG has a pckz-text path stub.
 * Align text-engrave detection with LBRN2 validation; drop preview text path stubs before OpenType merge.

@@ -42,15 +42,24 @@ class PCKZ_Production_Scene {
 		$scene = self::parse_master_svg( $browser_svg, $w, $h, $layout );
 		$svg   = $browser_svg;
 
-		if ( ! $scene || empty( $scene['layers'] ) ) {
+		if ( ! $scene ) {
 			return new WP_Error(
 				'empty_export',
 				__( 'No engraving paths found in canonical scene export.', 'pckz-canonical-engine' )
 			);
 		}
 
+		// Merge OpenType text paths before layer count checks (Fabric SVG may omit <text> paths).
 		self::merge_text_plate_paths_from_layout( $scene, $ctx, $package );
 		self::consolidate_scene_text_layers( $scene );
+
+		if ( empty( $scene['layers'] ) ) {
+			return new WP_Error(
+				'empty_export',
+				__( 'No engraving paths found in canonical scene export.', 'pckz-canonical-engine' )
+			);
+		}
+
 		$text_err = self::require_vector_text_layers( $scene, $ctx, $package );
 		if ( is_wp_error( $text_err ) ) {
 			return $text_err;
@@ -323,6 +332,54 @@ class PCKZ_Production_Scene {
 			|| 0 === strpos( $lid, 'pckz-text-engrave-' );
 	}
 
+	/**
+	 * Parse text_plate_paths SVG fragment when full document load yields no paths.
+	 *
+	 * @param string $fragment Inner SVG markup from browser.
+	 * @param float  $w        Canvas width mm.
+	 * @param float  $h        Canvas height mm.
+	 * @param array  $layout   Layout metadata.
+	 * @return array Scene slice with layers.
+	 */
+	public static function parse_text_plate_paths_fragment( $fragment, $w, $h, $layout = array() ) {
+		$layers = array();
+		$coord  = self::COORD_SVG_TOP_LEFT;
+		$matrix = array( 1, 0, 0, 1, 0, 0 );
+		if ( ! preg_match_all( '/<path\b[^>]*\bd=(["\'])(.*?)\1/uis', (string) $fragment, $paths, PREG_SET_ORDER ) ) {
+			return array(
+				'version'   => 1,
+				'canvas_w'  => $w,
+				'canvas_h'  => $h,
+				'origin'    => 'bottom-left',
+				'layers'    => $layers,
+			);
+		}
+		$gid = 'pckz-text-engrave';
+		if ( preg_match( '/<g\b[^>]*\bid=(["\'])([^"\']+)\1/uis', (string) $fragment, $gm ) ) {
+			$gid = (string) $gm[2];
+		}
+		$state = array(
+			'role'     => 'text-engrave',
+			'layer_id' => $gid,
+			'fill'     => '#ffffff',
+		);
+		foreach ( $paths as $path_match ) {
+			$d = html_entity_decode( (string) ( $path_match[2] ?? '' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+			if ( '' === trim( $d ) ) {
+				continue;
+			}
+			self::add_path_layer( $d, $matrix, $h, $state, $layers, $coord );
+		}
+		unset( $layout );
+		return array(
+			'version'   => 1,
+			'canvas_w'  => $w,
+			'canvas_h'  => $h,
+			'origin'    => 'bottom-left',
+			'layers'    => $layers,
+		);
+	}
+
 
 	public static function merge_text_plate_paths_from_layout( &$scene, $ctx, $package = array() ) {
 		$fragment = trim( (string) ( $ctx['layout']['text_plate_paths'] ?? '' ) );
@@ -330,10 +387,6 @@ class PCKZ_Production_Scene {
 			$fragment = trim( (string) $package['text_plate_paths'] );
 		}
 		if ( '' === $fragment ) {
-			return;
-		}
-		// Browser OpenType paths override Fabric preview stubs (e.g. id=pckz-text with wrong role).
-		if ( self::scene_has_vector_text_engrave( $scene ) ) {
 			return;
 		}
 		if ( empty( $scene['layers'] ) ) {
@@ -350,6 +403,9 @@ class PCKZ_Production_Scene {
 			$fragment
 		);
 		$parsed = self::parse_master_svg( $wrapped, $w, $h, $ctx['layout'] );
+		if ( empty( $parsed['layers'] ) ) {
+			$parsed = self::parse_text_plate_paths_fragment( $fragment, $w, $h, $ctx['layout'] );
+		}
 		$text_meta = null;
 		$text_metas = array();
 		foreach ( PCKZ_Production_Geometry::sort_objects( $ctx['objects'] ) as $obj ) {
