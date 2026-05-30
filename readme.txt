@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.20.13
+Stable tag: 2.20.14
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,12 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.20.14 =
+
+* Icon preview sizing/alignment hardening for reported oversized symbols: added post-placement real-bounds correction for left/right icons so actual rendered bounds are fit and centered in the icon reference box.
+* Prevents metadata/viewBox mismatches from leaving oversized or asymmetrically positioned icons in preview; keeps left/right placement symmetrical per reference anchors.
+* Export parity preserved by using the corrected live Fabric object transforms for production layout/export serialization.
 
 = 2.20.13 =
 

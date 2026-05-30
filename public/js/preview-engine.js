@@ -285,10 +285,7 @@
 			return m ? 'icon_' + m[1] : raw;
 		}
 
-		iconCoverageProfile(role, symbol) {
-			if (role !== 'icon-left' && role !== 'icon-right') {
-				return null;
-			}
+		isOutlierIconSymbol(symbol) {
 			const outliers = {
 				icon_1040248: 1,
 				icon_1087610: 1,
@@ -314,7 +311,14 @@
 				icon_722073: 1,
 			};
 			const key = this.normalizeIconSymbolKey(symbol);
-			if (!key || !outliers[key]) {
+			return !!(key && outliers[key]);
+		}
+
+		iconCoverageProfile(role, symbol) {
+			if (role !== 'icon-left' && role !== 'icon-right') {
+				return null;
+			}
+			if (!this.isOutlierIconSymbol(symbol)) {
 				return null;
 			}
 			return {
@@ -355,6 +359,77 @@
 				width: nextW,
 				height: nextH,
 			};
+		}
+
+		isVisualPlacementBoundsConsistent(obj, visual, rawBounds) {
+			if (!obj || !visual || !rawBounds) {
+				return false;
+			}
+			const scaleX = obj.scaleX || 1;
+			const scaleY = obj.scaleY || 1;
+			const expectedW = Math.max(0.001, visual.width * scaleX);
+			const expectedH = Math.max(0.001, visual.height * scaleY);
+			const actualW = Math.max(0.001, rawBounds.width || 0);
+			const actualH = Math.max(0.001, rawBounds.height || 0);
+			const ratioW = actualW / expectedW;
+			const ratioH = actualH / expectedH;
+			if (!isFinite(ratioW) || !isFinite(ratioH)) {
+				return false;
+			}
+			// Some imported SVGs include root transforms Fabric resolves differently
+			// than raw viewBox metadata. In that case, visual bounds are unreliable.
+			return ratioW >= 0.625 && ratioW <= 1.6 && ratioH >= 0.625 && ratioH <= 1.6;
+		}
+
+		resolvedPlacementVisual(obj, role, rawBounds) {
+			const visual = this.visualBoundsForPlacement(obj, role || obj.pckzRole || '');
+			if (!visual) {
+				return null;
+			}
+			if (!rawBounds) {
+				return visual;
+			}
+			return this.isVisualPlacementBoundsConsistent(obj, visual, rawBounds) ? visual : null;
+		}
+
+		postNormalizeIconPlacement(obj, box, role) {
+			if (!obj || !box || (role !== 'icon-left' && role !== 'icon-right')) {
+				return;
+			}
+			if (!this.isOutlierIconSymbol(obj.pckzSymbol || '')) {
+				return;
+			}
+			if (typeof obj.getBoundingRect !== 'function') {
+				return;
+			}
+			let b = obj.getBoundingRect(true, true);
+			if (!b || !(b.width > 0) || !(b.height > 0)) {
+				return;
+			}
+			// Enforce visual fit using the real rendered bounds, not metadata only.
+			const shrink = Math.min(1, box.width / b.width, box.height / b.height);
+			if (isFinite(shrink) && shrink > 0 && Math.abs(1 - shrink) > 0.005) {
+				obj.set({
+					scaleX: (obj.scaleX || 1) * shrink,
+					scaleY: (obj.scaleY || 1) * shrink,
+				});
+				if (typeof obj.setCoords === 'function') {
+					obj.setCoords();
+				}
+				b = obj.getBoundingRect(true, true);
+			}
+			if (!b || !(b.width > 0) || !(b.height > 0)) {
+				return;
+			}
+			const cx = b.left + b.width / 2;
+			const cy = b.top + b.height / 2;
+			obj.set({
+				left: (obj.left || 0) + (box.cx - cx),
+				top: (obj.top || 0) + (box.cy - cy),
+			});
+			if (typeof obj.setCoords === 'function') {
+				obj.setCoords();
+			}
 		}
 
 		/**
@@ -460,8 +535,8 @@
 
 		placeInRef(obj, ref, role) {
 			const box = this.refToCanvas(ref);
-			const visual = this.visualBoundsForPlacement(obj, role || obj.pckzRole || '');
 			const bounds = typeof obj.getBoundingRect === 'function' ? obj.getBoundingRect(true, true) : null;
+			const visual = this.resolvedPlacementVisual(obj, role || obj.pckzRole || '', bounds);
 			const w = visual ? visual.width : bounds ? bounds.width : obj.width * (obj.scaleX || 1);
 			const h = visual ? visual.height : bounds ? bounds.height : obj.height * (obj.scaleY || 1);
 			const scale = Math.min(box.width / Math.max(w, 1), box.height / Math.max(h, 1));
@@ -475,6 +550,7 @@
 				selectable: false,
 				evented: false,
 			});
+			this.postNormalizeIconPlacement(obj, box, role || obj.pckzRole || '');
 			return obj;
 		}
 
@@ -482,7 +558,8 @@
 			if (!obj) {
 				return null;
 			}
-			const visual = this.visualBoundsForPlacement(obj, role || obj.pckzRole || '');
+			const bounds = typeof obj.getBoundingRect === 'function' ? obj.getBoundingRect(true, true) : null;
+			const visual = this.resolvedPlacementVisual(obj, role || obj.pckzRole || '', bounds);
 			if (visual) {
 				return (obj.top || 0) + visual.deltaY * (obj.scaleY || 1);
 			}
@@ -1015,6 +1092,10 @@
 				if (!fabricObj || !fabricObj.pckzSvgViewport || !fabricObj.pckzSvgDrawBounds) {
 					return {};
 				}
+				const rawBounds =
+					typeof fabricObj.getBoundingRect === 'function'
+						? fabricObj.getBoundingRect(true, true)
+						: null;
 				const view = fabricObj.pckzSvgViewport;
 				const profile = this.iconCoverageProfile(
 					role || '',
@@ -1027,6 +1108,21 @@
 					role || '',
 					(fabricObj && fabricObj.pckzSymbol) || ''
 				);
+				const visualProbe = {
+					width: Math.max(0.001, parseFloat(draw.width) || 0),
+					height: Math.max(0.001, parseFloat(draw.height) || 0),
+					deltaX:
+						parseFloat(draw.x || 0) +
+						Math.max(0.001, parseFloat(draw.width) || 0) / 2 -
+						(parseFloat(view.x || 0) + Math.max(0.001, parseFloat(view.width) || 0) / 2),
+					deltaY:
+						parseFloat(draw.y || 0) +
+						Math.max(0.001, parseFloat(draw.height) || 0) / 2 -
+						(parseFloat(view.y || 0) + Math.max(0.001, parseFloat(view.height) || 0) / 2),
+				};
+				if (rawBounds && !this.isVisualPlacementBoundsConsistent(fabricObj, visualProbe, rawBounds)) {
+					return {};
+				}
 				return {
 					svg_viewbox: {
 						x: parseFloat(view.x) || 0,
