@@ -341,33 +341,134 @@ class PCKZ_Production_Scene {
 	 * @param array  $layout   Layout metadata.
 	 * @return array Scene slice with layers.
 	 */
-	public static function parse_text_plate_paths_fragment( $fragment, $w, $h, $layout = array() ) {
-		$layers = array();
-		$coord  = self::COORD_SVG_TOP_LEFT;
-		$matrix = array( 1, 0, 0, 1, 0, 0 );
-		if ( ! preg_match_all( '/<path\b[^>]*\bd=(["\'])(.*?)\1/uis', (string) $fragment, $paths, PREG_SET_ORDER ) ) {
-			return array(
-				'version'   => 1,
-				'canvas_w'  => $w,
-				'canvas_h'  => $h,
-				'origin'    => 'bottom-left',
-				'layers'    => $layers,
-			);
+	/**
+	 * Normalize browser text_plate_paths before regex/DOM parse (entities, slashes, UTF-8).
+	 *
+	 * @param string $fragment Raw fragment.
+	 * @return string
+	 */
+	public static function normalize_text_plate_paths_fragment( $fragment ) {
+		$fragment = trim( (string) $fragment );
+		if ( '' === $fragment || 'b64' === $fragment ) {
+			return '';
+		}
+		if ( function_exists( 'wp_unslash' ) ) {
+			$fragment = wp_unslash( $fragment );
+		}
+		$fragment = stripslashes( $fragment );
+		$fragment = html_entity_decode( $fragment, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		if ( function_exists( 'mb_convert_encoding' ) ) {
+			$fragment = mb_convert_encoding( $fragment, 'UTF-8', 'UTF-8' );
+		}
+		$fragment = preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $fragment );
+		return trim( $fragment );
+	}
+
+	/**
+	 * Extract path d + ancestor transforms from a text_plate_paths fragment.
+	 *
+	 * @param string $fragment Normalized fragment.
+	 * @return array<int,array{d:string,matrix:array,layer_id:string,fill:string}>
+	 */
+	public static function extract_path_entries_from_text_fragment( $fragment ) {
+		$fragment = self::normalize_text_plate_paths_fragment( $fragment );
+		if ( '' === $fragment ) {
+			return array();
+		}
+
+		$entries = array();
+		$wrapped = '<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg">' . $fragment . '</svg>';
+		$dom     = new DOMDocument();
+		$prev    = libxml_use_internal_errors( true );
+		if ( $dom->loadXML( $wrapped ) ) {
+			foreach ( $dom->getElementsByTagName( 'path' ) as $path_el ) {
+				if ( ! $path_el instanceof DOMElement ) {
+					continue;
+				}
+				$d = trim( (string) $path_el->getAttribute( 'd' ) );
+				if ( '' === $d ) {
+					continue;
+				}
+				$matrix = array( 1, 0, 0, 1, 0, 0 );
+				$node   = $path_el->parentNode;
+				while ( $node instanceof DOMElement ) {
+					if ( $node->hasAttribute( 'transform' ) ) {
+						$matrix = self::multiply_matrix(
+							self::parse_transform_attr( $node->getAttribute( 'transform' ) ),
+							$matrix
+						);
+					}
+					if ( 'svg' === strtolower( $node->nodeName ) ) {
+						break;
+					}
+					$node = $node->parentNode;
+				}
+				$layer_id = 'pckz-text-engrave';
+				$gid      = $path_el->getAttribute( 'id' );
+				if ( $gid ) {
+					$layer_id = $gid;
+				} elseif ( $path_el->parentNode instanceof DOMElement && $path_el->parentNode->hasAttribute( 'id' ) ) {
+					$layer_id = (string) $path_el->parentNode->getAttribute( 'id' );
+				}
+				$fill = '#ffffff';
+				if ( $path_el->hasAttribute( 'fill' ) ) {
+					$fill = PCKZ_Production_Geometry::resolve_hex( $path_el->getAttribute( 'fill' ) );
+				} elseif ( $path_el->parentNode instanceof DOMElement && $path_el->parentNode->hasAttribute( 'fill' ) ) {
+					$fill = PCKZ_Production_Geometry::resolve_hex( $path_el->parentNode->getAttribute( 'fill' ) );
+				}
+				$entries[] = array(
+					'd'        => $d,
+					'matrix'   => $matrix,
+					'layer_id' => $layer_id,
+					'fill'     => $fill,
+				);
+			}
+		}
+		libxml_clear_errors();
+		libxml_use_internal_errors( $prev );
+
+		if ( ! empty( $entries ) ) {
+			return $entries;
+		}
+
+		// Regex fallback (no /u — invalid UTF-8 breaks PCRE unicode mode).
+		if ( ! preg_match_all( '/<path\b[^>]*\bd=(["\'])(.*?)\1/is', $fragment, $paths, PREG_SET_ORDER ) ) {
+			return array();
 		}
 		$gid = 'pckz-text-engrave';
-		if ( preg_match( '/<g\b[^>]*\bid=(["\'])([^"\']+)\1/uis', (string) $fragment, $gm ) ) {
+		if ( preg_match( '/<g\b[^>]*\bid=(["\'])([^"\']+)\1/is', $fragment, $gm ) ) {
 			$gid = (string) $gm[2];
 		}
-		$state = array(
-			'role'     => 'text-engrave',
-			'layer_id' => $gid,
-			'fill'     => '#ffffff',
-		);
 		foreach ( $paths as $path_match ) {
 			$d = html_entity_decode( (string) ( $path_match[2] ?? '' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 			if ( '' === trim( $d ) ) {
 				continue;
 			}
+			$entries[] = array(
+				'd'        => $d,
+				'matrix'   => array( 1, 0, 0, 1, 0, 0 ),
+				'layer_id' => $gid,
+				'fill'     => '#ffffff',
+			);
+		}
+		return $entries;
+	}
+
+	public static function parse_text_plate_paths_fragment( $fragment, $w, $h, $layout = array() ) {
+		$layers = array();
+		$coord  = self::COORD_SVG_TOP_LEFT;
+		$entries = self::extract_path_entries_from_text_fragment( $fragment );
+		foreach ( $entries as $entry ) {
+			$d = (string) ( $entry['d'] ?? '' );
+			if ( '' === trim( $d ) ) {
+				continue;
+			}
+			$state = array(
+				'role'     => 'text-engrave',
+				'layer_id' => (string) ( $entry['layer_id'] ?? 'pckz-text-engrave' ),
+				'fill'     => (string) ( $entry['fill'] ?? '#ffffff' ),
+			);
+			$matrix = (array) ( $entry['matrix'] ?? array( 1, 0, 0, 1, 0, 0 ) );
 			self::add_path_layer( $d, $matrix, $h, $state, $layers, $coord );
 		}
 		unset( $layout );
@@ -386,6 +487,7 @@ class PCKZ_Production_Scene {
 		if ( '' === $fragment && ! empty( $package['text_plate_paths'] ) ) {
 			$fragment = trim( (string) $package['text_plate_paths'] );
 		}
+		$fragment = self::normalize_text_plate_paths_fragment( $fragment );
 		if ( '' === $fragment ) {
 			return;
 		}

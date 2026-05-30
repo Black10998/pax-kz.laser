@@ -55,6 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.18.3 =
+* Fix LBRN2 text path parse: normalize text_plate_paths (UTF-8, entities, slashes); DOM path extraction; apply group transforms; drop broken PCRE /u mode.
+* parse_svg_path_to_verts: comma-separated coordinates and collapsed whitespace.
+* Export debug: path_entries, raw_path_verts, path_d_max.
+
 = 2.18.2 =
 * Fix production export path: prefer base64 text_plate_paths (avoids WAF/truncation of large script-font paths).
 * PayPal blocked until server export_validate passes; PayPal order requires saved LBRN2 file.

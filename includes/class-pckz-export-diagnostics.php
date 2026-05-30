@@ -24,11 +24,15 @@ class PCKZ_Export_Diagnostics {
 		if ( '' !== $b64 ) {
 			$decoded = base64_decode( $b64, true );
 			if ( is_string( $decoded ) && '' !== trim( $decoded ) ) {
-				return $decoded;
+				return class_exists( 'PCKZ_Production_Scene' )
+					? PCKZ_Production_Scene::normalize_text_plate_paths_fragment( $decoded )
+					: $decoded;
 			}
 		}
 		$plain = is_string( $plain ) ? trim( $plain ) : '';
-		return $plain;
+		return class_exists( 'PCKZ_Production_Scene' )
+			? PCKZ_Production_Scene::normalize_text_plate_paths_fragment( $plain )
+			: $plain;
 	}
 
 	/**
@@ -61,10 +65,18 @@ class PCKZ_Export_Diagnostics {
 	 * @return array
 	 */
 	public static function summarize_payload( $fragment, $production_vector_svg, $font_family = '', $font_url = '' ) {
-		$fragment = trim( (string) $fragment );
+		$fragment = class_exists( 'PCKZ_Production_Scene' )
+			? PCKZ_Production_Scene::normalize_text_plate_paths_fragment( $fragment )
+			: trim( (string) $fragment );
 		$svg      = trim( (string) $production_vector_svg );
 		$path_ds  = array();
-		if ( '' !== $fragment && preg_match_all( '/\bd=(["\'])(.*?)\1/s', $fragment, $m, PREG_SET_ORDER ) ) {
+		if ( class_exists( 'PCKZ_Production_Scene' ) ) {
+			foreach ( PCKZ_Production_Scene::extract_path_entries_from_text_fragment( $fragment ) as $entry ) {
+				if ( ! empty( $entry['d'] ) ) {
+					$path_ds[] = (string) $entry['d'];
+				}
+			}
+		} elseif ( '' !== $fragment && preg_match_all( '/\bd=(["\'])(.*?)\1/s', $fragment, $m, PREG_SET_ORDER ) ) {
 			foreach ( $m as $row ) {
 				$path_ds[] = html_entity_decode( (string) ( $row[2] ?? '' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 			}
@@ -93,13 +105,32 @@ class PCKZ_Export_Diagnostics {
 	 * @return array
 	 */
 	public static function probe_text_fragment_parse( $fragment, $w, $h, $layout = array() ) {
-		$fragment = trim( (string) $fragment );
+		$raw_len  = strlen( (string) $fragment );
+		$fragment = class_exists( 'PCKZ_Production_Scene' )
+			? PCKZ_Production_Scene::normalize_text_plate_paths_fragment( $fragment )
+			: trim( (string) $fragment );
 		if ( '' === $fragment ) {
 			return array(
 				'parsed_layer_count' => 0,
 				'parsed_vert_count'  => 0,
 				'parser'             => 'empty',
+				'raw_fragment_len'   => $raw_len,
 			);
+		}
+
+		$path_entries = class_exists( 'PCKZ_Production_Scene' )
+			? PCKZ_Production_Scene::extract_path_entries_from_text_fragment( $fragment )
+			: array();
+		$raw_path_verts = 0;
+		$path_d_max     = 0;
+		foreach ( $path_entries as $entry ) {
+			$d = (string) ( $entry['d'] ?? '' );
+			if ( '' === $d ) {
+				continue;
+			}
+			$path_d_max = max( $path_d_max, strlen( $d ) );
+			$raw        = PCKZ_Production_Geometry::parse_svg_path_to_verts( $d );
+			$raw_path_verts += count( $raw['verts'] ?? array() );
 		}
 		$meta    = '<metadata id="pckz-export-meta"><pckz:export format="text-plate-paths" coordinate-system="svg-top-left-mm"/></metadata>';
 		$wrapped = sprintf(
@@ -142,6 +173,12 @@ class PCKZ_Export_Diagnostics {
 			'parsed_vert_count'    => $verts,
 			'parser'               => $parser,
 			'lbrn2_parse_ok'       => $verts >= 2,
+			'raw_fragment_len'     => $raw_len,
+			'normalized_len'       => strlen( $fragment ),
+			'path_entry_count'     => count( $path_entries ),
+			'path_d_max_len'       => $path_d_max,
+			'raw_path_vert_count'  => $raw_path_verts,
+			'fragment_head'        => substr( $fragment, 0, 80 ),
 		);
 	}
 
@@ -164,6 +201,15 @@ class PCKZ_Export_Diagnostics {
 			$parts[] = 'lbrn2_parse=' . ( ! empty( $probe['lbrn2_parse_ok'] ) ? 'ok' : 'fail' );
 			$parts[] = 'parser=' . ( $probe['parser'] ?? '' );
 			$parts[] = 'verts=' . (int) ( $probe['parsed_vert_count'] ?? 0 );
+			if ( isset( $probe['path_entry_count'] ) ) {
+				$parts[] = 'path_entries=' . (int) $probe['path_entry_count'];
+			}
+			if ( isset( $probe['raw_path_vert_count'] ) ) {
+				$parts[] = 'raw_path_verts=' . (int) $probe['raw_path_vert_count'];
+			}
+			if ( isset( $probe['path_d_max_len'] ) && (int) $probe['path_d_max_len'] > 0 ) {
+				$parts[] = 'path_d_max=' . (int) $probe['path_d_max_len'];
+			}
 			if ( isset( $probe['dom_ok'] ) && ! $probe['dom_ok'] ) {
 				$parts[] = 'xml=invalid';
 			}

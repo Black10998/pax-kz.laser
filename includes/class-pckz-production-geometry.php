@@ -412,6 +412,9 @@ class PCKZ_Production_Geometry {
 	public static function parse_svg_path_to_verts( $d, $ox = 0, $oy = 0, $scale_x = 1, $scale_y = 1, $canvas_h = 0 ) {
 		unset( $canvas_h );
 		$d     = trim( (string) $d );
+		$d     = html_entity_decode( $d, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$d     = preg_replace( '/,\s*/', ' ', $d );
+		$d     = preg_replace( '/\s+/', ' ', $d );
 		$verts = array();
 		$prims = array();
 		$cx    = 0.0;

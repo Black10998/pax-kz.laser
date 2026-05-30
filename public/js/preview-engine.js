@@ -859,8 +859,12 @@
 		 * @returns {Promise<object>}
 		 */
 		fmtMm(n) {
+			if (!isFinite(n)) {
+				return '0';
+			}
 			const s = (Math.round(n * 10000) / 10000).toFixed(4);
-			return s.replace(/\.?0+$/, '');
+			const t = s.replace(/\.?0+$/, '');
+			return '' === t ? '0' : t;
 		}
 
 		escapeSvgAttr(value) {
