@@ -19,14 +19,56 @@ class PCKZ_Production_Lbrn2 {
 	 * @return string|WP_Error
 	 */
 	public static function build_from_package( $package ) {
-		if ( ! empty( $package['production_scene'] ) && is_array( $package['production_scene'] ) ) {
-			return self::build_lbrn2_from_scene( $package['production_scene'] );
-		}
-		$scene = PCKZ_Production_Scene::from_package( $package );
+		$scene = self::prepare_scene_for_lbrn2_export( $package );
 		if ( is_wp_error( $scene ) ) {
 			return $scene;
 		}
 		return self::build_lbrn2_from_scene( $scene );
+	}
+
+	/**
+	 * Resolve production scene for LBRN2 and always merge browser text_plate_paths.
+	 *
+	 * Cached production_scene snapshots may omit text-engrave paths (icons/lines only).
+	 * LBRN2 must re-apply text_plate_paths from the package/layout before writing shapes.
+	 *
+	 * @param array $package Production package.
+	 * @return array|WP_Error
+	 */
+	private static function prepare_scene_for_lbrn2_export( $package ) {
+		$package = is_array( $package ) ? $package : array();
+
+		if ( ! empty( $package['production_scene'] ) && is_array( $package['production_scene'] ) ) {
+			$scene = $package['production_scene'];
+			if ( ! isset( $scene['layers'] ) || ! is_array( $scene['layers'] ) ) {
+				$scene['layers'] = array();
+			}
+		} else {
+			$scene = PCKZ_Production_Scene::from_package( $package );
+			if ( is_wp_error( $scene ) ) {
+				return $scene;
+			}
+		}
+
+		$fragment = trim( (string) ( $package['text_plate_paths'] ?? '' ) );
+		if ( '' === $fragment && ! empty( $package['layout']['text_plate_paths'] ) ) {
+			$fragment = trim( (string) $package['layout']['text_plate_paths'] );
+		}
+		if ( '' === $fragment && ! empty( $package['meta']['text_plate_paths'] ) ) {
+			$fragment = trim( (string) $package['meta']['text_plate_paths'] );
+		}
+		if ( '' === $fragment && ! empty( $package['meta']['layout']['text_plate_paths'] ) ) {
+			$fragment = trim( (string) $package['meta']['layout']['text_plate_paths'] );
+		}
+
+		if ( '' !== $fragment ) {
+			$strict = ! empty( $package['canonical_scene'] ) || ! empty( $package['layout']['canonical_scene'] );
+			$ctx    = PCKZ_Production_Geometry::normalize_package( $package, $strict );
+			PCKZ_Production_Scene::merge_text_plate_paths_from_layout( $scene, $ctx, $package );
+			PCKZ_Production_Scene::consolidate_scene_text_layers( $scene );
+		}
+
+		return $scene;
 	}
 
 	/**

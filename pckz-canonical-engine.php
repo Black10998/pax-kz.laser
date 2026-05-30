@@ -3,7 +3,7 @@
  * Plugin Name:       PCKZ Canonical Engine
  * Plugin URI:        https://paxdesign.at
  * Description:       Canonical preview-to-LightBurn export engine with server-side SVG/LBRN2 generation and mm-accurate parity validation.
- * Version:           2.20.0
+ * Version:           2.20.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            PAXDesign
@@ -18,8 +18,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PCKZCE_VERSION', '2.20.0' );
-define( 'PCKZCE_BUILD', '2.20.0.20260530-order-tracking-lbrn2-text' );
+define( 'PCKZCE_VERSION', '2.20.1' );
+define( 'PCKZCE_BUILD', '2.20.1.20260530-lbrn2-text-plate-merge-fix' );
 define( 'PCKZCE_PLUGIN_FILE', __FILE__ );
 define( 'PCKZCE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PCKZCE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

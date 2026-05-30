@@ -55,6 +55,10 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.20.1 =
+
+* LBRN2: always merge `text_plate_paths` into the production scene before writing `.lbrn2` (fixes missing customer text when a cached `production_scene` snapshot had icons/lines only).
+
 = 2.20.0 =
 
 * LightBurn text: split OpenType paths per SVG subpath at parse/merge time; fix text-engrave layer roles in SVG walk.
