@@ -109,6 +109,12 @@
 				obj.clone((cloned) => {
 					if (cloned) {
 						cloned.set({ selectable: false, evented: false });
+						if (obj.pckzSvgViewport) {
+							cloned.pckzSvgViewport = { ...obj.pckzSvgViewport };
+						}
+						if (obj.pckzSvgDrawBounds) {
+							cloned.pckzSvgDrawBounds = { ...obj.pckzSvgDrawBounds };
+						}
 					}
 					resolve(cloned || obj);
 				});
@@ -130,6 +136,132 @@
 			if (obj.stroke && !skip.has(String(obj.stroke).toLowerCase())) {
 				obj.set('stroke', hex);
 			}
+		}
+
+		computeSvgObjectsBounds(objects) {
+			if (!Array.isArray(objects) || !objects.length) {
+				return null;
+			}
+			let minX = Infinity;
+			let minY = Infinity;
+			let maxX = -Infinity;
+			let maxY = -Infinity;
+			objects.forEach((item) => {
+				if (!item || typeof item.getBoundingRect !== 'function') {
+					return;
+				}
+				if (typeof item.setCoords === 'function') {
+					item.setCoords();
+				}
+				const b = item.getBoundingRect(true, true);
+				if (!b || !isFinite(b.left) || !isFinite(b.top)) {
+					return;
+				}
+				minX = Math.min(minX, b.left);
+				minY = Math.min(minY, b.top);
+				maxX = Math.max(maxX, b.left + b.width);
+				maxY = Math.max(maxY, b.top + b.height);
+			});
+			if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+				return null;
+			}
+			return {
+				x: minX,
+				y: minY,
+				width: Math.max(0.001, maxX - minX),
+				height: Math.max(0.001, maxY - minY),
+			};
+		}
+
+		resolveSvgViewport(options, drawBounds) {
+			const numeric = (value) => {
+				const n = parseFloat(value);
+				return isFinite(n) ? n : 0;
+			};
+			let x = 0;
+			let y = 0;
+			let w = 0;
+			let h = 0;
+			const viewBox = options && options.viewBox ? options.viewBox : null;
+			if (Array.isArray(viewBox) && viewBox.length >= 4) {
+				x = numeric(viewBox[0]);
+				y = numeric(viewBox[1]);
+				w = numeric(viewBox[2]);
+				h = numeric(viewBox[3]);
+			} else if (typeof viewBox === 'string') {
+				const parts = viewBox.trim().split(/[\s,]+/);
+				if (parts.length >= 4) {
+					x = numeric(parts[0]);
+					y = numeric(parts[1]);
+					w = numeric(parts[2]);
+					h = numeric(parts[3]);
+				}
+			} else if (viewBox && typeof viewBox === 'object') {
+				x = numeric(viewBox.x);
+				y = numeric(viewBox.y);
+				w = numeric(viewBox.width);
+				h = numeric(viewBox.height);
+			}
+			if (!(w > 0) || !(h > 0)) {
+				w = numeric(options && (options.width || options.viewBoxWidth || options.vw));
+				h = numeric(options && (options.height || options.viewBoxHeight || options.vh));
+			}
+			if (!(w > 0) || !(h > 0)) {
+				w = drawBounds ? drawBounds.width : 100;
+				h = drawBounds ? drawBounds.height : 100;
+			}
+			if (drawBounds) {
+				const right = drawBounds.x + drawBounds.width;
+				const bottom = drawBounds.y + drawBounds.height;
+				const needW = right - x;
+				const needH = bottom - y;
+				if (needW > w) {
+					w = needW;
+				}
+				if (needH > h) {
+					h = needH;
+				}
+			}
+			return {
+				x: x,
+				y: y,
+				width: Math.max(0.001, w),
+				height: Math.max(0.001, h),
+			};
+		}
+
+		visualBoundsForPlacement(obj, role) {
+			if (
+				!obj ||
+				(role !== 'icon-left' &&
+					role !== 'icon-right' &&
+					role !== 'icon-bg-left' &&
+					role !== 'icon-bg-right')
+			) {
+				return null;
+			}
+			const viewport = obj.pckzSvgViewport;
+			const draw = obj.pckzSvgDrawBounds;
+			if (!viewport || !draw) {
+				return null;
+			}
+			const viewW = parseFloat(viewport.width);
+			const viewH = parseFloat(viewport.height);
+			const drawW = parseFloat(draw.width);
+			const drawH = parseFloat(draw.height);
+			if (!(viewW > 0) || !(viewH > 0) || !(drawW > 0) || !(drawH > 0)) {
+				return null;
+			}
+			const viewCx = parseFloat(viewport.x || 0) + viewW / 2;
+			const viewCy = parseFloat(viewport.y || 0) + viewH / 2;
+			const drawCx = parseFloat(draw.x || 0) + drawW / 2;
+			const drawCy = parseFloat(draw.y || 0) + drawH / 2;
+			return {
+				width: drawW,
+				height: drawH,
+				deltaX: drawCx - viewCx,
+				deltaY: drawCy - viewCy,
+			};
 		}
 
 		/**
@@ -167,6 +299,11 @@
 							return;
 						}
 						let group = fabric.util.groupSVGElements(objects, options);
+						const drawBounds = this.computeSvgObjectsBounds(objects);
+						if (drawBounds) {
+							group.pckzSvgDrawBounds = drawBounds;
+							group.pckzSvgViewport = this.resolveSvgViewport(options || {}, drawBounds);
+						}
 						if (tintable && hex) {
 							this.recolorSvgObject(group, hex);
 						}
@@ -228,15 +365,16 @@
 			return this.loadRasterAsset(url, color);
 		}
 
-		placeInRef(obj, ref) {
+		placeInRef(obj, ref, role) {
 			const box = this.refToCanvas(ref);
+			const visual = this.visualBoundsForPlacement(obj, role || obj.pckzRole || '');
 			const bounds = typeof obj.getBoundingRect === 'function' ? obj.getBoundingRect(true, true) : null;
-			const w = bounds ? bounds.width : obj.width * (obj.scaleX || 1);
-			const h = bounds ? bounds.height : obj.height * (obj.scaleY || 1);
+			const w = visual ? visual.width : bounds ? bounds.width : obj.width * (obj.scaleX || 1);
+			const h = visual ? visual.height : bounds ? bounds.height : obj.height * (obj.scaleY || 1);
 			const scale = Math.min(box.width / Math.max(w, 1), box.height / Math.max(h, 1));
 			obj.set({
-				left: box.cx,
-				top: box.cy,
+				left: box.cx - (visual ? visual.deltaX * scale : 0),
+				top: box.cy - (visual ? visual.deltaY * scale : 0),
 				originX: 'center',
 				originY: 'center',
 				scaleX: scale,
@@ -277,7 +415,7 @@
 				const lineImg = await this.loadSvgAsset(this.lineTypes[lineKey], null, false);
 				if (lineImg) {
 					lineImg.pckzRole = 'line-overlay';
-					this.placeInRef(lineImg, linesRef);
+					this.placeInRef(lineImg, linesRef, 'line-overlay');
 					this.objects.line = lineImg;
 					this.canvas.add(lineImg);
 				}
@@ -290,7 +428,7 @@
 				const bg = await this.loadSvgAsset(bgLeft.url, null, false);
 				if (bg) {
 					bg.pckzRole = 'icon-bg-left';
-					this.placeInRef(bg, bgLeft);
+					this.placeInRef(bg, bgLeft, 'icon-bg-left');
 					this.objects.iconBgLeft = bg;
 					this.canvas.add(bg);
 				}
@@ -299,7 +437,7 @@
 				const bg = await this.loadSvgAsset(bgRight.url, null, false);
 				if (bg) {
 					bg.pckzRole = 'icon-bg-right';
-					this.placeInRef(bg, bgRight);
+					this.placeInRef(bg, bgRight, 'icon-bg-right');
 					this.objects.iconBgRight = bg;
 					this.canvas.add(bg);
 				}
@@ -320,7 +458,7 @@
 					if (icon) {
 						icon.pckzSymbol = state.symbol_links;
 						icon.pckzRole = 'icon-left';
-						this.placeInRef(icon, leftRef);
+						this.placeInRef(icon, leftRef, 'icon-left');
 						this.objects.iconLeft = icon;
 						this.canvas.add(icon);
 					}
@@ -338,7 +476,7 @@
 					if (icon) {
 						icon.pckzSymbol = state.symbol_rechts;
 						icon.pckzRole = 'icon-right';
-						this.placeInRef(icon, rightRef);
+						this.placeInRef(icon, rightRef, 'icon-right');
 						this.objects.iconRight = icon;
 						this.canvas.add(icon);
 					}
@@ -733,6 +871,28 @@
 				objects: [],
 			};
 
+			const svgNormalizationMeta = (fabricObj) => {
+				if (!fabricObj || !fabricObj.pckzSvgViewport || !fabricObj.pckzSvgDrawBounds) {
+					return {};
+				}
+				const view = fabricObj.pckzSvgViewport;
+				const draw = fabricObj.pckzSvgDrawBounds;
+				return {
+					svg_viewbox: {
+						x: parseFloat(view.x) || 0,
+						y: parseFloat(view.y) || 0,
+						width: Math.max(0.001, parseFloat(view.width) || 0),
+						height: Math.max(0.001, parseFloat(view.height) || 0),
+					},
+					svg_draw_bounds: {
+						x: parseFloat(draw.x) || 0,
+						y: parseFloat(draw.y) || 0,
+						width: Math.max(0.001, parseFloat(draw.width) || 0),
+						height: Math.max(0.001, parseFloat(draw.height) || 0),
+					},
+				};
+			};
+
 			const addObject = (fabricObj, role, extra) => {
 				if (!fabricObj) {
 					return;
@@ -784,6 +944,7 @@
 					symbol: this.objects.iconLeft.pckzSymbol || selections.symbol_links || '',
 					fill: selections.icon_color_left || '',
 					alignment: 'center',
+					...svgNormalizationMeta(this.objects.iconLeft),
 				});
 			}
 
@@ -792,6 +953,7 @@
 					symbol: this.objects.iconRight.pckzSymbol || selections.symbol_rechts || '',
 					fill: selections.icon_color_right || '',
 					alignment: 'center',
+					...svgNormalizationMeta(this.objects.iconRight),
 				});
 			}
 
@@ -809,6 +971,7 @@
 					svg_url: bgRef.url || '',
 					fill: selections.icon_color_left || '',
 					alignment: 'center',
+					...svgNormalizationMeta(this.objects.iconBgLeft),
 				});
 			}
 
@@ -818,6 +981,7 @@
 					svg_url: bgRef.url || '',
 					fill: selections.icon_color_right || '',
 					alignment: 'center',
+					...svgNormalizationMeta(this.objects.iconBgRight),
 				});
 			}
 
@@ -1172,6 +1336,52 @@
 			};
 		}
 
+		svgDrawBoundsForObject(obj, vb) {
+			if (
+				obj &&
+				obj.svg_draw_bounds &&
+				isFinite(parseFloat(obj.svg_draw_bounds.width)) &&
+				isFinite(parseFloat(obj.svg_draw_bounds.height))
+			) {
+				const b = obj.svg_draw_bounds;
+				return {
+					x: parseFloat(b.x) || 0,
+					y: parseFloat(b.y) || 0,
+					w: Math.max(0.001, parseFloat(b.width) || 0),
+					h: Math.max(0.001, parseFloat(b.height) || 0),
+				};
+			}
+			return {
+				x: 0,
+				y: 0,
+				w: Math.max(0.001, vb.w),
+				h: Math.max(0.001, vb.h),
+			};
+		}
+
+		buildSvgPlacementMatrix(obj, placement, mmH) {
+			const vb = this.svgViewboxSize(obj.svg_source || '');
+			const draw = this.svgDrawBoundsForObject(obj, vb);
+			const scale = Math.min(placement.width / draw.w, placement.height / draw.h);
+			const targetW = draw.w * scale;
+			const targetH = draw.h * scale;
+			const targetX = placement.x + (placement.width - targetW) / 2;
+			const targetBottom = placement.y + (placement.height - targetH) / 2;
+			const targetTop = this.mmYToSvgTop(targetBottom, targetH, mmH);
+			return {
+				matrix: [
+					scale,
+					0,
+					0,
+					scale,
+					targetX - draw.x * scale,
+					targetTop - draw.y * scale,
+				],
+				vb: vb,
+				draw: draw,
+			};
+		}
+
 		/**
 		 * @param {number} yMm Bottom-left Y mm.
 		 * @param {number} heightMm
@@ -1277,12 +1487,8 @@
 				width: box.width != null ? box.width : box.width_mm,
 				height: box.height != null ? box.height : box.height_mm,
 			};
-			const vb = this.svgViewboxSize(obj.svg_source || '');
-			const fit = this.fitTransformForBox(vb.w, vb.h, placement);
-			const sx = fit.content_w / vb.w;
-			const sy = fit.content_h / vb.h;
-			const ySvg = this.mmYToSvgTop(fit.offset_y, fit.content_h, mmH);
-			const matrix = [sx, 0, 0, sy, fit.offset_x, ySvg];
+			const placementData = this.buildSvgPlacementMatrix(obj, placement, mmH);
+			const matrix = placementData.matrix;
 			const baked = this.bakeFragmentToBottomLeftPaths(
 				innerSvg,
 				matrix,
@@ -1338,12 +1544,8 @@
 						width: box.width_mm,
 						height: box.height_mm,
 					};
-					const vb = this.svgViewboxSize(body);
-					const fit = this.fitTransformForBox(vb.w, vb.h, placement);
-					const sx = fit.content_w / vb.w;
-					const sy = fit.content_h / vb.h;
-					const ySvg = this.mmYToSvgTop(fit.offset_y, fit.content_h, mmH);
-					const matrix = [sx, 0, 0, sy, fit.offset_x, ySvg];
+					const placementData = this.buildSvgPlacementMatrix(obj, placement, mmH);
+					const matrix = placementData.matrix;
 					const mmPolys = knockout.applyMatrixToPolys(knockout.fragmentToPolygons(inner), matrix);
 					if (mmPolys.length) {
 						for (let j = 0; j < mmPolys.length; j++) {

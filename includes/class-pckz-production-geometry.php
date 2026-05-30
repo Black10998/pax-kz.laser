@@ -603,23 +603,44 @@ class PCKZ_Production_Geometry {
 	 * @param array  $box  Target box x,y,width,height (mm).
 	 * @return array{verts:array,prims:array,closed:bool}
 	 */
-	public static function map_path_to_box_mm( $d, $vb_w, $vb_h, $box, $uniform_scale = true ) {
+	public static function map_path_to_box_mm( $d, $vb_w, $vb_h, $box, $uniform_scale = true, $draw_bounds = null ) {
 		$vb_w = max( 0.001, (float) $vb_w );
 		$vb_h = max( 0.001, (float) $vb_h );
 		$raw  = self::parse_svg_path_to_verts( $d, 0, 0, 1, 1, 0 );
 		$mm   = array();
 
 		if ( $uniform_scale ) {
-			$scale      = min( $box['width'] / $vb_w, $box['height'] / $vb_h );
-			$content_w  = $vb_w * $scale;
-			$content_h  = $vb_h * $scale;
-			$offset_x   = $box['x'] + ( $box['width'] - $content_w ) / 2;
-			$offset_y   = $box['y'] + ( $box['height'] - $content_h ) / 2;
-			foreach ( $raw['verts'] as $v ) {
-				$mm[] = array(
-					'x' => $offset_x + ( $v['x'] / $vb_w ) * $content_w,
-					'y' => $offset_y + ( 1 - ( $v['y'] / $vb_h ) ) * $content_h,
-				);
+			$draw = self::sanitize_svg_draw_bounds( $draw_bounds, $vb_w, $vb_h );
+			if ( $draw ) {
+				$draw_w    = max( 0.001, (float) $draw['width'] );
+				$draw_h    = max( 0.001, (float) $draw['height'] );
+				$scale     = min( $box['width'] / $draw_w, $box['height'] / $draw_h );
+				$content_w = $draw_w * $scale;
+				$content_h = $draw_h * $scale;
+				$target_x  = $box['x'] + ( $box['width'] - $content_w ) / 2;
+				$target_y  = $box['y'] + ( $box['height'] - $content_h ) / 2;
+				$draw_x    = (float) $draw['x'];
+				$draw_y    = (float) $draw['y'];
+				foreach ( $raw['verts'] as $v ) {
+					$nx = ( $v['x'] - $draw_x ) / $draw_w;
+					$ny = ( $v['y'] - $draw_y ) / $draw_h;
+					$mm[] = array(
+						'x' => $target_x + $nx * $content_w,
+						'y' => $target_y + ( 1 - $ny ) * $content_h,
+					);
+				}
+			} else {
+				$scale      = min( $box['width'] / $vb_w, $box['height'] / $vb_h );
+				$content_w  = $vb_w * $scale;
+				$content_h  = $vb_h * $scale;
+				$offset_x   = $box['x'] + ( $box['width'] - $content_w ) / 2;
+				$offset_y   = $box['y'] + ( $box['height'] - $content_h ) / 2;
+				foreach ( $raw['verts'] as $v ) {
+					$mm[] = array(
+						'x' => $offset_x + ( $v['x'] / $vb_w ) * $content_w,
+						'y' => $offset_y + ( 1 - ( $v['y'] / $vb_h ) ) * $content_h,
+					);
+				}
 			}
 		} else {
 			foreach ( $raw['verts'] as $v ) {
@@ -634,6 +655,102 @@ class PCKZ_Production_Geometry {
 			'verts'  => $mm,
 			'prims'  => $raw['prims'],
 			'closed' => ! empty( $raw['closed'] ),
+		);
+	}
+
+	/**
+	 * Validate + normalize optional drawable bounds in SVG coordinates.
+	 *
+	 * @param array|null $bounds Candidate bounds.
+	 * @param float      $vb_w   SVG viewBox width.
+	 * @param float      $vb_h   SVG viewBox height.
+	 * @return array<string,float>|null
+	 */
+	public static function sanitize_svg_draw_bounds( $bounds, $vb_w, $vb_h ) {
+		if ( ! is_array( $bounds ) ) {
+			return null;
+		}
+		$vb_w  = max( 0.001, (float) $vb_w );
+		$vb_h  = max( 0.001, (float) $vb_h );
+		$x     = isset( $bounds['x'] ) ? (float) $bounds['x'] : 0.0;
+		$y     = isset( $bounds['y'] ) ? (float) $bounds['y'] : 0.0;
+		$width = isset( $bounds['width'] ) ? (float) $bounds['width'] : 0.0;
+		$height = isset( $bounds['height'] ) ? (float) $bounds['height'] : 0.0;
+		if ( $width <= 0 || $height <= 0 ) {
+			return null;
+		}
+		$max_w = max( $width, $vb_w );
+		$max_h = max( $height, $vb_h );
+		$x     = max( -$max_w, min( $x, $max_w ) );
+		$y     = max( -$max_h, min( $y, $max_h ) );
+		return array(
+			'x'      => $x,
+			'y'      => $y,
+			'width'  => max( 0.001, $width ),
+			'height' => max( 0.001, $height ),
+		);
+	}
+
+	/**
+	 * Optional drawable bounds shipped from browser layout metadata.
+	 *
+	 * @param array $obj  Layout object.
+	 * @param float $vb_w ViewBox width.
+	 * @param float $vb_h ViewBox height.
+	 * @return array<string,float>|null
+	 */
+	public static function svg_draw_bounds_for_object( $obj, $vb_w, $vb_h ) {
+		if ( ! is_array( $obj ) || empty( $obj['svg_draw_bounds'] ) || ! is_array( $obj['svg_draw_bounds'] ) ) {
+			return null;
+		}
+		return self::sanitize_svg_draw_bounds( $obj['svg_draw_bounds'], $vb_w, $vb_h );
+	}
+
+	/**
+	 * Infer drawable bounds from parsed SVG path definitions.
+	 *
+	 * @param array $defs Path defs from extract_paths_from_svg().
+	 * @param float $vb_w ViewBox width.
+	 * @param float $vb_h ViewBox height.
+	 * @return array<string,float>|null
+	 */
+	public static function infer_svg_draw_bounds_from_defs( $defs, $vb_w, $vb_h ) {
+		if ( empty( $defs ) || ! is_array( $defs ) ) {
+			return null;
+		}
+		$min_x = INF;
+		$min_y = INF;
+		$max_x = -INF;
+		$max_y = -INF;
+		foreach ( $defs as $def ) {
+			foreach ( self::split_path_subpaths( (string) ( $def['d'] ?? '' ) ) as $sub ) {
+				$raw = self::parse_svg_path_to_verts( $sub, 0, 0, 1, 1, 0 );
+				if ( empty( $raw['verts'] ) || ! is_array( $raw['verts'] ) ) {
+					continue;
+				}
+				foreach ( $raw['verts'] as $v ) {
+					if ( ! isset( $v['x'], $v['y'] ) ) {
+						continue;
+					}
+					$min_x = min( $min_x, (float) $v['x'] );
+					$min_y = min( $min_y, (float) $v['y'] );
+					$max_x = max( $max_x, (float) $v['x'] );
+					$max_y = max( $max_y, (float) $v['y'] );
+				}
+			}
+		}
+		if ( ! is_finite( $min_x ) || ! is_finite( $min_y ) || ! is_finite( $max_x ) || ! is_finite( $max_y ) ) {
+			return null;
+		}
+		return self::sanitize_svg_draw_bounds(
+			array(
+				'x'      => $min_x,
+				'y'      => $min_y,
+				'width'  => max( 0.001, $max_x - $min_x ),
+				'height' => max( 0.001, $max_y - $min_y ),
+			),
+			$vb_w,
+			$vb_h
 		);
 	}
 
@@ -1004,9 +1121,19 @@ class PCKZ_Production_Geometry {
 		}
 
 		$defs = self::extract_paths_from_svg( $body );
+		if ( empty( $defs ) ) {
+			return $loops;
+		}
+		$vb_w = (float) $defs[0]['vb_w'];
+		$vb_h = (float) $defs[0]['vb_h'];
+		$role = sanitize_key( (string) ( $obj['role'] ?? '' ) );
+		$draw_bounds = self::svg_draw_bounds_for_object( $obj, $vb_w, $vb_h );
+		if ( ! $draw_bounds && in_array( $role, array( 'icon-left', 'icon-right', 'icon-bg-left', 'icon-bg-right' ), true ) ) {
+			$draw_bounds = self::infer_svg_draw_bounds_from_defs( $defs, $vb_w, $vb_h );
+		}
 		foreach ( $defs as $def ) {
 			foreach ( self::split_path_subpaths( $def['d'] ) as $sub ) {
-				$mapped = self::map_path_to_box_mm( $sub, $def['vb_w'], $def['vb_h'], $box );
+				$mapped = self::map_path_to_box_mm( $sub, $def['vb_w'], $def['vb_h'], $box, true, $draw_bounds );
 				if ( count( $mapped['verts'] ) >= 2 ) {
 					$loops[] = $mapped;
 				}
