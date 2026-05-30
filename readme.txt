@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.10.0
+Stable tag: 2.20.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.20.7 =
+
+* Icon sizing normalization: SVG icon placement now uses drawable bounds metadata (not inconsistent outer canvas padding), so different icon files render with consistent visual scale in configurator preview and production export geometry.
+* Tracking UX: customer tracking page now shows status badges, professional stage messages, and a clear progress timeline (Zahlung erhalten → In Bearbeitung → Produktion → Versandbereit → Versendet → Abgeschlossen / Storniert).
+* Status colors + accessibility: introduced consistent status badge colors for customer and admin views with theme-aware contrast handling for light/dark environments.
+* Automatic status emails: when admins change workflow status, customers now receive automatic status update emails (payment, production, shipping, completion, cancellation milestones).
 
 = 2.20.6 =
 

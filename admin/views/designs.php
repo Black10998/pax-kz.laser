@@ -37,7 +37,7 @@ defined( 'ABSPATH' ) || exit;
 					<tr>
 						<td><?php echo esc_html( $design->id ); ?></td>
 						<td><?php echo esc_html( get_the_title( $design->product_id ) ?: $design->product_id ); ?></td>
-						<td><span class="pckz-order-status"><?php echo esc_html( $status_label ); ?></span></td>
+						<td><span class="pckz-order-status pckz-status-badge <?php echo esc_attr( PCKZ_Commerce::status_badge_css_class( $commerce_row['status'] ?? '' ) ); ?>"><?php echo esc_html( $status_label ); ?></span></td>
 						<td><?php echo esc_html( $design->user_id ? get_userdata( $design->user_id )->display_name ?? $design->user_id : __( 'Guest', 'pckz-canonical-engine' ) ); ?></td>
 						<td>
 							<?php if ( ! empty( $design->preview_url ) ) : ?>

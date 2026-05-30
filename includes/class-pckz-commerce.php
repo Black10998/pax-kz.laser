@@ -656,6 +656,35 @@ class PCKZ_Commerce {
 	}
 
 	/**
+	 * Normalize legacy/internal status aliases to canonical workflow codes.
+	 *
+	 * @param string $status Raw status value.
+	 * @return string
+	 */
+	public static function normalize_status_code( $status ) {
+		$status = sanitize_key( (string) $status );
+		$legacy = array(
+			'paypal_created' => 'pending',
+			'captured'       => 'paid',
+		);
+		return $legacy[ $status ] ?? $status;
+	}
+
+	/**
+	 * CSS status modifier class for badges.
+	 *
+	 * @param string $status Raw status.
+	 * @return string
+	 */
+	public static function status_badge_css_class( $status ) {
+		$status = self::normalize_status_code( $status );
+		if ( ! $status ) {
+			$status = 'pending';
+		}
+		return 'pckz-status-badge--' . sanitize_html_class( $status );
+	}
+
+	/**
 	 * Public order number shown to customers (e.g. PCKZ-000042).
 	 *
 	 * @param int $order_id Internal ID.
@@ -689,7 +718,7 @@ class PCKZ_Commerce {
 	 * @return string
 	 */
 	public static function customer_status_label( $status ) {
-		$status = sanitize_key( (string) $status );
+		$status = self::normalize_status_code( $status );
 		$labels = self::customer_tracking_statuses();
 		if ( isset( $labels[ $status ] ) ) {
 			return $labels[ $status ];
@@ -701,6 +730,68 @@ class PCKZ_Commerce {
 			return $labels['paid'];
 		}
 		return self::status_label( $status );
+	}
+
+	/**
+	 * Customer-facing status helper text for tracking page.
+	 *
+	 * @param string $status Stored status.
+	 * @return string
+	 */
+	public static function customer_status_message( $status ) {
+		$status = self::normalize_status_code( $status );
+		$messages = array(
+			'paid'         => __( 'Ihre Zahlung ist bei uns eingegangen und Ihr Auftrag wurde erfolgreich registriert.', 'pckz-canonical-engine' ),
+			'in_progress'  => __( 'Ihr Auftrag wird aktuell geprüft und für die Produktion vorbereitet.', 'pckz-canonical-engine' ),
+			'production'   => __( 'Ihre Bestellung befindet sich in der Produktion.', 'pckz-canonical-engine' ),
+			'ready_to_ship'=> __( 'Ihre Bestellung ist versandbereit und wird als Nächstes verschickt.', 'pckz-canonical-engine' ),
+			'shipped'      => __( 'Ihre Bestellung wurde versendet und ist auf dem Weg zu Ihnen.', 'pckz-canonical-engine' ),
+			'completed'    => __( 'Ihre Bestellung wurde erfolgreich abgeschlossen. Vielen Dank für Ihr Vertrauen.', 'pckz-canonical-engine' ),
+			'cancelled'    => __( 'Ihre Bestellung wurde storniert. Bei Fragen kontaktieren Sie bitte unseren Support.', 'pckz-canonical-engine' ),
+			'pending'      => __( 'Wir warten aktuell auf den Zahlungseingang.', 'pckz-canonical-engine' ),
+		);
+		return $messages[ $status ] ?? __( 'Der Bestellstatus wurde aktualisiert.', 'pckz-canonical-engine' );
+	}
+
+	/**
+	 * Tracking timeline model for customer page.
+	 *
+	 * @param string $status Current status.
+	 * @return array<int,array{code:string,label:string,state:string}>
+	 */
+	public static function customer_tracking_timeline( $status ) {
+		$status = self::normalize_status_code( $status );
+		$steps  = self::customer_tracking_statuses();
+		$keys   = array_keys( $steps );
+		$current_index = array_search( $status, $keys, true );
+		$out = array();
+		foreach ( $steps as $code => $label ) {
+			$step_index = array_search( $code, $keys, true );
+			$state = 'upcoming';
+			if ( false !== $current_index && false !== $step_index ) {
+				if ( $step_index < $current_index ) {
+					$state = 'done';
+				} elseif ( $step_index === $current_index ) {
+					$state = 'current';
+				}
+			}
+			$out[] = array(
+				'code'  => $code,
+				'label' => $label,
+				'state' => $state,
+			);
+		}
+		if ( 'cancelled' === $status ) {
+			foreach ( $out as &$entry ) {
+				if ( 'cancelled' === $entry['code'] ) {
+					$entry['state'] = 'current';
+				} else {
+					$entry['state'] = 'upcoming';
+				}
+			}
+			unset( $entry );
+		}
+		return $out;
 	}
 
 	/**
@@ -807,7 +898,7 @@ class PCKZ_Commerce {
 	 * @return string
 	 */
 	public static function status_label( $status ) {
-		$status = sanitize_key( (string) $status );
+		$status = self::normalize_status_code( $status );
 		$labels = self::workflow_statuses();
 		if ( isset( $labels[ $status ] ) ) {
 			return $labels[ $status ];
@@ -846,7 +937,14 @@ class PCKZ_Commerce {
 		if ( ! $row ) {
 			return new WP_Error( 'not_found', __( 'Bestellung nicht gefunden.', 'pckz-canonical-engine' ) );
 		}
-		self::update_order( $id, array( 'status' => $status ) );
+		$old_status = self::normalize_status_code( $row['status'] ?? '' );
+		$new_status = self::normalize_status_code( $status );
+		if ( $old_status === $new_status ) {
+			return true;
+		}
+		self::update_order( $id, array( 'status' => $new_status ) );
+		$row['status'] = $new_status;
+		self::send_customer_status_update_email( $row, $new_status, $old_status );
 		return true;
 	}
 
@@ -1271,6 +1369,75 @@ class PCKZ_Commerce {
 		if ( $wishes ) {
 			$body .= '<p><strong>' . esc_html__( 'Ihre Wünsche:', 'pckz-canonical-engine' ) . '</strong><br>' . esc_html( $wishes ) . '</p>';
 		}
+		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
+		wp_mail( $to, $subject, $body, $headers );
+	}
+
+	/**
+	 * Send status transition email to customer when admin changes workflow status.
+	 *
+	 * @param array  $order      Commerce row.
+	 * @param string $new_status New canonical status.
+	 * @param string $old_status Previous canonical status.
+	 */
+	public static function send_customer_status_update_email( $order, $new_status, $old_status = '' ) {
+		$new_status = self::normalize_status_code( $new_status );
+		$old_status = self::normalize_status_code( $old_status );
+		if ( ! $new_status || $new_status === $old_status ) {
+			return;
+		}
+		$templates = array(
+			'paid' => array(
+				'subject' => __( 'Zahlung erhalten', 'pckz-canonical-engine' ),
+				'lead'    => __( 'Vielen Dank! Ihre Zahlung ist erfolgreich bei uns eingegangen.', 'pckz-canonical-engine' ),
+			),
+			'in_progress' => array(
+				'subject' => __( 'Bestellung in Bearbeitung', 'pckz-canonical-engine' ),
+				'lead'    => __( 'Ihre Bestellung wird aktuell bearbeitet und für die Produktion vorbereitet.', 'pckz-canonical-engine' ),
+			),
+			'production' => array(
+				'subject' => __( 'Produktion gestartet', 'pckz-canonical-engine' ),
+				'lead'    => __( 'Gute Nachrichten: Ihre Bestellung befindet sich jetzt in der Produktion.', 'pckz-canonical-engine' ),
+			),
+			'ready_to_ship' => array(
+				'subject' => __( 'Bestellung versandbereit', 'pckz-canonical-engine' ),
+				'lead'    => __( 'Ihre Bestellung ist versandbereit und wird zeitnah an den Versand übergeben.', 'pckz-canonical-engine' ),
+			),
+			'shipped' => array(
+				'subject' => __( 'Bestellung versendet', 'pckz-canonical-engine' ),
+				'lead'    => __( 'Ihre Bestellung wurde versendet und ist auf dem Weg zu Ihnen.', 'pckz-canonical-engine' ),
+			),
+			'completed' => array(
+				'subject' => __( 'Bestellung abgeschlossen', 'pckz-canonical-engine' ),
+				'lead'    => __( 'Ihre Bestellung wurde erfolgreich abgeschlossen. Vielen Dank für Ihr Vertrauen.', 'pckz-canonical-engine' ),
+			),
+			'cancelled' => array(
+				'subject' => __( 'Bestellung storniert', 'pckz-canonical-engine' ),
+				'lead'    => __( 'Ihre Bestellung wurde storniert. Bei Fragen hilft Ihnen unser Support gerne weiter.', 'pckz-canonical-engine' ),
+			),
+		);
+		if ( empty( $templates[ $new_status ] ) ) {
+			return;
+		}
+		$details = self::decode_customer_details( $order['customer_details'] ?? '' );
+		$to      = sanitize_email( $details['email'] ?? ( $order['customer_email'] ?? '' ) );
+		if ( ! $to || ! is_email( $to ) ) {
+			return;
+		}
+		$order_number = self::format_order_number( (int) ( $order['id'] ?? 0 ) );
+		$status_label = self::customer_status_label( $new_status );
+		$subject = sprintf(
+			/* translators: 1: short status title, 2: shop name */
+			__( '%1$s – %2$s', 'pckz-canonical-engine' ),
+			$templates[ $new_status ]['subject'],
+			get_bloginfo( 'name' )
+		);
+		$body  = '<p>' . esc_html( $templates[ $new_status ]['lead'] ) . '</p>';
+		$body .= '<p><strong>' . esc_html__( 'Bestellnummer:', 'pckz-canonical-engine' ) . '</strong> ' . esc_html( $order_number ) . '</p>';
+		$body .= '<p><strong>' . esc_html__( 'Aktueller Status:', 'pckz-canonical-engine' ) . '</strong> ';
+		$body .= '<span style="display:inline-block;padding:6px 10px;border-radius:999px;background:#111827;color:#ffffff;font-weight:600;">' . esc_html( $status_label ) . '</span></p>';
+		$body .= '<p>' . esc_html( self::customer_status_message( $new_status ) ) . '</p>';
+		$body .= '<p>' . esc_html__( 'Sie können den Bestellstatus jederzeit mit Ihrer Bestellnummer auf der Tracking-Seite prüfen.', 'pckz-canonical-engine' ) . '</p>';
 		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
 		wp_mail( $to, $subject, $body, $headers );
 	}

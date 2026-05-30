@@ -52,7 +52,7 @@ $notes_updated    = isset( $_GET['pckz_notes_updated'] ) && '1' === (string) $_G
 			<section class="pckz-card pckz-detail-section">
 				<h3 class="pckz-detail-section__title"><?php esc_html_e( 'Bestellinformation', 'pckz-canonical-engine' ); ?></h3>
 				<dl class="pckz-detail-dl">
-					<div class="pckz-detail-dl__row"><dt><?php esc_html_e( 'Status', 'pckz-canonical-engine' ); ?></dt><dd><span class="pckz-order-status"><?php echo esc_html( PCKZ_Commerce::status_label( $order['status'] ?? '' ) ); ?></span></dd></div>
+					<div class="pckz-detail-dl__row"><dt><?php esc_html_e( 'Status', 'pckz-canonical-engine' ); ?></dt><dd><span class="pckz-order-status pckz-status-badge <?php echo esc_attr( PCKZ_Commerce::status_badge_css_class( $order['status'] ?? '' ) ); ?>"><?php echo esc_html( PCKZ_Commerce::status_label( $order['status'] ?? '' ) ); ?></span></dd></div>
 					<div class="pckz-detail-dl__row"><dt><?php esc_html_e( 'Date', 'pckz-canonical-engine' ); ?></dt><dd><?php echo esc_html( $order['created_at'] ?? '' ); ?></dd></div>
 					<div class="pckz-detail-dl__row"><dt><?php esc_html_e( 'Amount', 'pckz-canonical-engine' ); ?></dt><dd><?php echo esc_html( ( $order['amount'] ?? '' ) . ' ' . ( $order['currency'] ?? 'EUR' ) ); ?></dd></div>
 					<div class="pckz-detail-dl__row"><dt><?php esc_html_e( 'Email', 'pckz-canonical-engine' ); ?></dt><dd><?php echo esc_html( $order['customer_email'] ?? '' ); ?></dd></div>
@@ -135,7 +135,7 @@ $notes_updated    = isset( $_GET['pckz_notes_updated'] ) && '1' === (string) $_G
 					<?php foreach ( $orders as $row ) : ?>
 						<tr>
 							<td><a href="<?php echo esc_url( admin_url( 'admin.php?page=pckz-orders&order_id=' . (int) $row['id'] ) ); ?>"><?php echo esc_html( PCKZ_Commerce::format_order_number( (int) $row['id'] ) ); ?></a></td>
-							<td><span class="pckz-order-status"><?php echo esc_html( PCKZ_Commerce::status_label( $row['status'] ?? '' ) ); ?></span></td>
+							<td><span class="pckz-order-status pckz-status-badge <?php echo esc_attr( PCKZ_Commerce::status_badge_css_class( $row['status'] ?? '' ) ); ?>"><?php echo esc_html( PCKZ_Commerce::status_label( $row['status'] ?? '' ) ); ?></span></td>
 							<td>
 								<?php if ( ! empty( $row['design_id'] ) ) : ?>
 									<a href="<?php echo esc_url( admin_url( 'admin.php?page=pckz-designs&design_id=' . (int) $row['design_id'] ) ); ?>">#<?php echo esc_html( (string) $row['design_id'] ); ?></a>

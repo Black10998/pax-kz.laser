@@ -1,10 +1,22 @@
 .pckz-tracking {
-	max-width: 520px;
+	--pckz-track-surface: var(--pckz-tracking-surface, rgba(255, 255, 255, 0.92));
+	--pckz-track-text: var(--pckz-tracking-text, currentColor);
+	--pckz-track-muted: var(--pckz-tracking-muted, rgba(28, 28, 28, 0.76));
+	--pckz-track-border: var(--pckz-tracking-border, rgba(0, 0, 0, 0.14));
+	--pckz-track-row: var(--pckz-tracking-row-border, rgba(0, 0, 0, 0.08));
+	--pckz-track-success: #166534;
+	--pckz-track-warning: #c2410c;
+	--pckz-track-info: #1d4ed8;
+	--pckz-track-purple: #6d28d9;
+	--pckz-track-ship: #14532d;
+	--pckz-track-error: #b91c1c;
+	max-width: 560px;
 	margin: 24px auto;
 	padding: 24px;
-	border: 1px solid #e5e5e5;
-	border-radius: 8px;
-	background: #fff;
+	border: 1px solid var(--pckz-track-border);
+	border-radius: 10px;
+	background: var(--pckz-track-surface);
+	color: var(--pckz-track-text);
 	font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
 
@@ -15,7 +27,7 @@
 
 .pckz-tracking__lead {
 	margin: 0 0 20px;
-	color: #555;
+	color: var(--pckz-track-muted);
 	line-height: 1.5;
 }
 
@@ -29,9 +41,11 @@
 	width: 100%;
 	box-sizing: border-box;
 	padding: 10px 12px;
-	border: 1px solid #ccc;
+	border: 1px solid var(--pckz-track-border);
 	border-radius: 6px;
 	margin-bottom: 12px;
+	background: transparent;
+	color: inherit;
 }
 
 .pckz-tracking__submit {
@@ -39,7 +53,7 @@
 	padding: 10px 18px;
 	border: 0;
 	border-radius: 6px;
-	background: #111;
+	background: #111827;
 	color: #fff;
 	cursor: pointer;
 	font-size: 15px;
@@ -50,13 +64,13 @@
 }
 
 .pckz-tracking__message--error {
-	color: #8b0000;
+	color: var(--pckz-track-error);
 }
 
 .pckz-tracking__result {
 	margin-top: 24px;
 	padding-top: 20px;
-	border-top: 1px solid #eee;
+	border-top: 1px solid var(--pckz-track-row);
 }
 
 .pckz-tracking__result-title {
@@ -73,7 +87,7 @@
 	grid-template-columns: 140px 1fr;
 	gap: 8px 16px;
 	padding: 8px 0;
-	border-bottom: 1px solid #f2f2f2;
+	border-bottom: 1px solid var(--pckz-track-row);
 }
 
 .pckz-tracking__row:last-child {
@@ -87,4 +101,113 @@
 
 .pckz-tracking__row dd {
 	margin: 0;
+}
+
+.pckz-tracking__status-message {
+	margin: 14px 0 0;
+	padding: 12px 14px;
+	border-radius: 8px;
+	border: 1px solid var(--pckz-track-row);
+	background: rgba(0, 0, 0, 0.03);
+	line-height: 1.55;
+}
+
+.pckz-status-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 12px;
+	border-radius: 999px;
+	font-size: 0.86rem;
+	font-weight: 700;
+	line-height: 1.25;
+	border: 1px solid transparent;
+}
+
+.pckz-status-badge--pending {
+	background: rgba(113, 113, 122, 0.12);
+	color: #3f3f46;
+	border-color: rgba(113, 113, 122, 0.3);
+}
+
+.pckz-status-badge--paid {
+	background: rgba(22, 101, 52, 0.12);
+	color: var(--pckz-track-success);
+	border-color: rgba(22, 101, 52, 0.35);
+}
+
+.pckz-status-badge--in_progress {
+	background: rgba(194, 65, 12, 0.14);
+	color: var(--pckz-track-warning);
+	border-color: rgba(194, 65, 12, 0.35);
+}
+
+.pckz-status-badge--production {
+	background: rgba(29, 78, 216, 0.12);
+	color: var(--pckz-track-info);
+	border-color: rgba(29, 78, 216, 0.33);
+}
+
+.pckz-status-badge--ready_to_ship {
+	background: rgba(109, 40, 217, 0.14);
+	color: var(--pckz-track-purple);
+	border-color: rgba(109, 40, 217, 0.35);
+}
+
+.pckz-status-badge--shipped {
+	background: rgba(20, 83, 45, 0.14);
+	color: var(--pckz-track-ship);
+	border-color: rgba(20, 83, 45, 0.35);
+}
+
+.pckz-status-badge--completed {
+	background: rgba(22, 101, 52, 0.16);
+	color: var(--pckz-track-success);
+	border-color: rgba(22, 101, 52, 0.4);
+}
+
+.pckz-status-badge--cancelled,
+.pckz-status-badge--failed {
+	background: rgba(185, 28, 28, 0.14);
+	color: var(--pckz-track-error);
+	border-color: rgba(185, 28, 28, 0.36);
+}
+
+.pckz-tracking__timeline {
+	margin: 16px 0 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 8px;
+}
+
+.pckz-tracking__timeline-item {
+	opacity: 0.6;
+}
+
+.pckz-tracking__timeline-item.is-current {
+	opacity: 1;
+}
+
+.pckz-tracking__timeline-item.is-done .pckz-status-badge {
+	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+	.pckz-tracking {
+		--pckz-track-surface: rgba(17, 24, 39, 0.88);
+		--pckz-track-text: rgba(243, 244, 246, 0.98);
+		--pckz-track-muted: rgba(229, 231, 235, 0.78);
+		--pckz-track-border: rgba(229, 231, 235, 0.22);
+		--pckz-track-row: rgba(229, 231, 235, 0.12);
+	}
+
+	.pckz-tracking__status-message {
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	.pckz-status-badge--pending {
+		color: #d4d4d8;
+		background: rgba(161, 161, 170, 0.18);
+	}
 }

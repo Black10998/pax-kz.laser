@@ -35,6 +35,13 @@ defined( 'ABSPATH' ) || exit;
 	<?php endif; ?>
 
 	<?php if ( $order ) : ?>
+		<?php
+		$current_status = $order['status'] ?? '';
+		$status_label   = PCKZ_Commerce::customer_status_label( $current_status );
+		$status_message = PCKZ_Commerce::customer_status_message( $current_status );
+		$badge_class    = PCKZ_Commerce::status_badge_css_class( $current_status );
+		$timeline       = PCKZ_Commerce::customer_tracking_timeline( $current_status );
+		?>
 		<div class="pckz-tracking__result">
 			<h3 class="pckz-tracking__result-title"><?php esc_html_e( 'Bestellstatus', 'pckz-canonical-engine' ); ?></h3>
 			<dl class="pckz-tracking__dl">
@@ -44,13 +51,25 @@ defined( 'ABSPATH' ) || exit;
 				</div>
 				<div class="pckz-tracking__row">
 					<dt><?php esc_html_e( 'Status', 'pckz-canonical-engine' ); ?></dt>
-					<dd><strong><?php echo esc_html( PCKZ_Commerce::customer_status_label( $order['status'] ?? '' ) ); ?></strong></dd>
+					<dd><span class="pckz-status-badge <?php echo esc_attr( $badge_class ); ?>"><?php echo esc_html( $status_label ); ?></span></dd>
 				</div>
 				<div class="pckz-tracking__row">
 					<dt><?php esc_html_e( 'Datum', 'pckz-canonical-engine' ); ?></dt>
 					<dd><?php echo esc_html( $order['created_at'] ?? '' ); ?></dd>
 				</div>
 			</dl>
+			<p class="pckz-tracking__status-message"><?php echo esc_html( $status_message ); ?></p>
+			<?php if ( ! empty( $timeline ) ) : ?>
+				<ul class="pckz-tracking__timeline" aria-label="<?php esc_attr_e( 'Bestellfortschritt', 'pckz-canonical-engine' ); ?>">
+					<?php foreach ( $timeline as $step ) : ?>
+						<li class="pckz-tracking__timeline-item is-<?php echo esc_attr( $step['state'] ); ?>">
+							<span class="pckz-status-badge <?php echo esc_attr( PCKZ_Commerce::status_badge_css_class( $step['code'] ) ); ?>">
+								<?php echo esc_html( $step['label'] ); ?>
+							</span>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
 		</div>
 	<?php endif; ?>
 </div>

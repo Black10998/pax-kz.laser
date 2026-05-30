@@ -130,7 +130,7 @@ $status_updated = isset( $_GET['pckz_status_updated'] ) && '1' === (string) $_GE
 			<dl class="pckz-detail-dl">
 				<div class="pckz-detail-dl__row"><dt><?php esc_html_e( 'Order Number', 'pckz-canonical-engine' ); ?></dt><dd><?php echo esc_html( $order_number ); ?></dd></div>
 				<div class="pckz-detail-dl__row"><dt><?php esc_html_e( 'Date', 'pckz-canonical-engine' ); ?></dt><dd><?php echo esc_html( $order_date ?: '—' ); ?></dd></div>
-				<div class="pckz-detail-dl__row"><dt><?php esc_html_e( 'Payment Status', 'pckz-canonical-engine' ); ?></dt><dd><span class="pckz-order-status"><?php echo esc_html( $pay_status ); ?></span></dd></div>
+				<div class="pckz-detail-dl__row"><dt><?php esc_html_e( 'Payment Status', 'pckz-canonical-engine' ); ?></dt><dd><span class="pckz-order-status pckz-status-badge <?php echo esc_attr( PCKZ_Commerce::status_badge_css_class( $commerce['status'] ?? '' ) ); ?>"><?php echo esc_html( $pay_status ); ?></span></dd></div>
 			</dl>
 			<?php if ( $commerce ) : ?>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-order-status-form">
