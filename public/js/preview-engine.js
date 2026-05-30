@@ -245,22 +245,62 @@
 			if (!viewport || !draw) {
 				return null;
 			}
+			const effectiveDraw = this.effectiveSvgDrawBoundsForRole(draw, viewport, role || '');
 			const viewW = parseFloat(viewport.width);
 			const viewH = parseFloat(viewport.height);
-			const drawW = parseFloat(draw.width);
-			const drawH = parseFloat(draw.height);
+			const drawW = parseFloat(effectiveDraw.width);
+			const drawH = parseFloat(effectiveDraw.height);
 			if (!(viewW > 0) || !(viewH > 0) || !(drawW > 0) || !(drawH > 0)) {
 				return null;
 			}
 			const viewCx = parseFloat(viewport.x || 0) + viewW / 2;
 			const viewCy = parseFloat(viewport.y || 0) + viewH / 2;
-			const drawCx = parseFloat(draw.x || 0) + drawW / 2;
-			const drawCy = parseFloat(draw.y || 0) + drawH / 2;
+			const drawCx = parseFloat(effectiveDraw.x || 0) + drawW / 2;
+			const drawCy = parseFloat(effectiveDraw.y || 0) + drawH / 2;
 			return {
 				width: drawW,
 				height: drawH,
 				deltaX: drawCx - viewCx,
 				deltaY: drawCy - viewCy,
+			};
+		}
+
+		iconCoverageTargetForRole(role) {
+			if (role === 'icon-left' || role === 'icon-right') {
+				return 0.82;
+			}
+			return 1;
+		}
+
+		effectiveSvgDrawBoundsForRole(drawBounds, viewport, role) {
+			if (!drawBounds || !viewport) {
+				return drawBounds || null;
+			}
+			const targetCoverage = this.iconCoverageTargetForRole(role || '');
+			if (!(targetCoverage > 0) || targetCoverage >= 0.999) {
+				return drawBounds;
+			}
+			const viewW = Math.max(0.001, parseFloat(viewport.width) || 0);
+			const viewH = Math.max(0.001, parseFloat(viewport.height) || 0);
+			const drawW = Math.max(0.001, parseFloat(drawBounds.width) || 0);
+			const drawH = Math.max(0.001, parseFloat(drawBounds.height) || 0);
+			const coverageW = drawW / viewW;
+			const coverageH = drawH / viewH;
+			const coverage = Math.sqrt(Math.max(0.0001, coverageW * coverageH));
+			const rawAdjust = coverage / targetCoverage;
+			const adjust = Math.max(0.7, Math.min(1.45, rawAdjust));
+			if (Math.abs(adjust - 1) < 0.001) {
+				return drawBounds;
+			}
+			const cx = (parseFloat(drawBounds.x) || 0) + drawW / 2;
+			const cy = (parseFloat(drawBounds.y) || 0) + drawH / 2;
+			const nextW = Math.max(0.001, drawW * adjust);
+			const nextH = Math.max(0.001, drawH * adjust);
+			return {
+				x: cx - nextW / 2,
+				y: cy - nextH / 2,
+				width: nextW,
+				height: nextH,
 			};
 		}
 
@@ -918,12 +958,17 @@
 				objects: [],
 			};
 
-			const svgNormalizationMeta = (fabricObj) => {
+			const svgNormalizationMeta = (fabricObj, role) => {
 				if (!fabricObj || !fabricObj.pckzSvgViewport || !fabricObj.pckzSvgDrawBounds) {
 					return {};
 				}
 				const view = fabricObj.pckzSvgViewport;
-				const draw = fabricObj.pckzSvgDrawBounds;
+				const shouldNormalize = this.iconCoverageTargetForRole(role || '') < 0.999;
+				const draw = this.effectiveSvgDrawBoundsForRole(
+					fabricObj.pckzSvgDrawBounds,
+					view,
+					role || ''
+				);
 				return {
 					svg_viewbox: {
 						x: parseFloat(view.x) || 0,
@@ -937,6 +982,7 @@
 						width: Math.max(0.001, parseFloat(draw.width) || 0),
 						height: Math.max(0.001, parseFloat(draw.height) || 0),
 					},
+					svg_draw_bounds_normalized: shouldNormalize,
 				};
 			};
 
@@ -991,7 +1037,7 @@
 					symbol: this.objects.iconLeft.pckzSymbol || selections.symbol_links || '',
 					fill: selections.icon_color_left || '',
 					alignment: 'center',
-					...svgNormalizationMeta(this.objects.iconLeft),
+					...svgNormalizationMeta(this.objects.iconLeft, 'icon-left'),
 				});
 			}
 
@@ -1000,7 +1046,7 @@
 					symbol: this.objects.iconRight.pckzSymbol || selections.symbol_rechts || '',
 					fill: selections.icon_color_right || '',
 					alignment: 'center',
-					...svgNormalizationMeta(this.objects.iconRight),
+					...svgNormalizationMeta(this.objects.iconRight, 'icon-right'),
 				});
 			}
 
@@ -1018,7 +1064,7 @@
 					svg_url: bgRef.url || '',
 					fill: selections.icon_color_left || '',
 					alignment: 'center',
-					...svgNormalizationMeta(this.objects.iconBgLeft),
+					...svgNormalizationMeta(this.objects.iconBgLeft, 'icon-bg-left'),
 				});
 			}
 
@@ -1028,7 +1074,7 @@
 					svg_url: bgRef.url || '',
 					fill: selections.icon_color_right || '',
 					alignment: 'center',
-					...svgNormalizationMeta(this.objects.iconBgRight),
+					...svgNormalizationMeta(this.objects.iconBgRight, 'icon-bg-right'),
 				});
 			}
 
@@ -1384,6 +1430,9 @@
 		}
 
 		svgDrawBoundsForObject(obj, vb) {
+			const viewboxMeta = obj && obj.svg_viewbox ? obj.svg_viewbox : null;
+			const fallbackX = viewboxMeta ? parseFloat(viewboxMeta.x) || 0 : 0;
+			const fallbackY = viewboxMeta ? parseFloat(viewboxMeta.y) || 0 : 0;
 			if (
 				obj &&
 				obj.svg_draw_bounds &&
@@ -1399,8 +1448,8 @@
 				};
 			}
 			return {
-				x: 0,
-				y: 0,
+				x: fallbackX,
+				y: fallbackY,
 				w: Math.max(0.001, vb.w),
 				h: Math.max(0.001, vb.h),
 			};
@@ -1408,7 +1457,33 @@
 
 		buildSvgPlacementMatrix(obj, placement, mmH) {
 			const vb = this.svgViewboxSize(obj.svg_source || '');
-			const draw = this.svgDrawBoundsForObject(obj, vb);
+			const viewBounds = {
+				x: obj && obj.svg_viewbox ? parseFloat(obj.svg_viewbox.x) || 0 : 0,
+				y: obj && obj.svg_viewbox ? parseFloat(obj.svg_viewbox.y) || 0 : 0,
+				width:
+					obj && obj.svg_viewbox && isFinite(parseFloat(obj.svg_viewbox.width))
+						? Math.max(0.001, parseFloat(obj.svg_viewbox.width))
+						: Math.max(0.001, vb.w),
+				height:
+					obj && obj.svg_viewbox && isFinite(parseFloat(obj.svg_viewbox.height))
+						? Math.max(0.001, parseFloat(obj.svg_viewbox.height))
+						: Math.max(0.001, vb.h),
+			};
+			const rawDraw = this.svgDrawBoundsForObject(obj, vb);
+			const alreadyNormalized = !!(obj && obj.svg_draw_bounds_normalized);
+			const normalizedDraw = alreadyNormalized
+				? { x: rawDraw.x, y: rawDraw.y, width: rawDraw.w, height: rawDraw.h }
+				: this.effectiveSvgDrawBoundsForRole(
+						{ x: rawDraw.x, y: rawDraw.y, width: rawDraw.w, height: rawDraw.h },
+						viewBounds,
+						(obj && obj.role) || ''
+				  );
+			const draw = {
+				x: normalizedDraw.x,
+				y: normalizedDraw.y,
+				w: normalizedDraw.width,
+				h: normalizedDraw.height,
+			};
 			const scale = Math.min(placement.width / draw.w, placement.height / draw.h);
 			const targetW = draw.w * scale;
 			const targetH = draw.h * scale;

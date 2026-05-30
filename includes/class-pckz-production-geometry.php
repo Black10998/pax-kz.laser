@@ -11,6 +11,10 @@ defined( 'ABSPATH' ) || exit;
  * Class PCKZ_Production_Geometry
  */
 class PCKZ_Production_Geometry {
+	/**
+	 * Target drawable coverage for symbol icons (prevents oversized outliers).
+	 */
+	const ICON_TARGET_COVERAGE = 0.82;
 
 	/**
 	 * Normalize package into export context.
@@ -703,7 +707,50 @@ class PCKZ_Production_Geometry {
 		if ( ! is_array( $obj ) || empty( $obj['svg_draw_bounds'] ) || ! is_array( $obj['svg_draw_bounds'] ) ) {
 			return null;
 		}
-		return self::sanitize_svg_draw_bounds( $obj['svg_draw_bounds'], $vb_w, $vb_h );
+		$bounds = self::sanitize_svg_draw_bounds( $obj['svg_draw_bounds'], $vb_w, $vb_h );
+		if ( ! $bounds ) {
+			return null;
+		}
+		$role = sanitize_key( (string) ( $obj['role'] ?? '' ) );
+		if ( ! empty( $obj['svg_draw_bounds_normalized'] ) ) {
+			return $bounds;
+		}
+		return self::normalize_icon_draw_bounds( $bounds, $vb_w, $vb_h, $role );
+	}
+
+	/**
+	 * Normalize icon draw bounds by coverage target to avoid outlier sizing.
+	 *
+	 * @param array  $bounds Draw bounds.
+	 * @param float  $vb_w   Viewbox width.
+	 * @param float  $vb_h   Viewbox height.
+	 * @param string $role   Object role.
+	 * @return array<string,float>
+	 */
+	public static function normalize_icon_draw_bounds( $bounds, $vb_w, $vb_h, $role ) {
+		if ( ! in_array( $role, array( 'icon-left', 'icon-right' ), true ) ) {
+			return $bounds;
+		}
+		$vb_w = max( 0.001, (float) $vb_w );
+		$vb_h = max( 0.001, (float) $vb_h );
+		$bw   = max( 0.001, (float) ( $bounds['width'] ?? 0 ) );
+		$bh   = max( 0.001, (float) ( $bounds['height'] ?? 0 ) );
+		$cx   = (float) ( $bounds['x'] ?? 0 ) + $bw / 2;
+		$cy   = (float) ( $bounds['y'] ?? 0 ) + $bh / 2;
+		$coverage = sqrt( max( 0.0001, ( $bw / $vb_w ) * ( $bh / $vb_h ) ) );
+		$target   = max( 0.1, (float) self::ICON_TARGET_COVERAGE );
+		$adjust   = max( 0.7, min( 1.45, $coverage / $target ) );
+		if ( abs( $adjust - 1 ) < 0.001 ) {
+			return $bounds;
+		}
+		$nw = max( 0.001, $bw * $adjust );
+		$nh = max( 0.001, $bh * $adjust );
+		return array(
+			'x'      => $cx - $nw / 2,
+			'y'      => $cy - $nh / 2,
+			'width'  => $nw,
+			'height' => $nh,
+		);
 	}
 
 	/**
@@ -1130,6 +1177,9 @@ class PCKZ_Production_Geometry {
 		$draw_bounds = self::svg_draw_bounds_for_object( $obj, $vb_w, $vb_h );
 		if ( ! $draw_bounds && in_array( $role, array( 'icon-left', 'icon-right', 'icon-bg-left', 'icon-bg-right' ), true ) ) {
 			$draw_bounds = self::infer_svg_draw_bounds_from_defs( $defs, $vb_w, $vb_h );
+		}
+		if ( $draw_bounds ) {
+			$draw_bounds = self::normalize_icon_draw_bounds( $draw_bounds, $vb_w, $vb_h, $role );
 		}
 		foreach ( $defs as $def ) {
 			foreach ( self::split_path_subpaths( $def['d'] ) as $sub ) {
