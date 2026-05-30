@@ -1172,6 +1172,53 @@
 			return btoa(unescape(encodeURIComponent(String(str || ''))));
 		}
 
+		appendExportCanvasMm(body) {
+			body.append('canvas_width_mm', String(this.mmW));
+			body.append('canvas_height_mm', String(this.mmH));
+		}
+
+		/**
+		 * POST text paths as base64 only (plain field is WAF-truncated on some hosts).
+		 */
+		appendExportTextPaths(body, textPlatePaths) {
+			const raw = String(textPlatePaths || '');
+			const encoded = raw ? this.utf8ToBase64(raw) : '';
+			body.append('text_plate_paths_b64', encoded);
+			body.append('text_plate_paths', encoded ? 'b64' : '');
+		}
+
+		formatExportDebugLines(payload) {
+			const data = payload && payload.data ? payload.data : payload || {};
+			const lines = [];
+			const msg = data.message || '';
+			if (msg) {
+				lines.push(msg);
+			}
+			const dbg = data.export_debug;
+			if (dbg && typeof dbg === 'object') {
+				const parts = [
+					dbg.pckz_version ? '[pckz=' + dbg.pckz_version + ']' : '',
+					dbg.font_family ? 'font=' + dbg.font_family : '',
+					dbg.font_url ? 'font_url=' + dbg.font_url : '',
+					dbg.has_production_vector_svg != null
+						? 'production_vector_svg=' + (dbg.has_production_vector_svg ? 'yes' : 'no')
+						: '',
+					dbg.has_text_plate_paths != null
+						? 'text_plate_paths=' + (dbg.has_text_plate_paths ? 'yes' : 'no')
+						: '',
+					dbg.lbrn2_parse_ok != null
+						? 'lbrn2_parse=' + (dbg.lbrn2_parse_ok ? 'ok' : 'fail')
+						: '',
+					dbg.parser ? 'parser=' + dbg.parser : '',
+					dbg.parsed_vert_count != null ? 'verts=' + dbg.parsed_vert_count : '',
+				].filter(Boolean);
+				if (parts.length) {
+					lines.push(parts.join(' '));
+				}
+			}
+			return lines;
+		}
+
 		async runServerExportValidate() {
 			const origin = CFG.origin || STD.coordinate_origin || 'bottom-left';
 			let layout = this.getLayoutData();
@@ -1210,8 +1257,8 @@
 			body.append('product_id', this.productId);
 			body.append('selections', JSON.stringify(this.selections));
 			body.append('production_vector_svg', productionVectorSvg || '');
-			body.append('text_plate_paths', textPlatePaths || '');
-			body.append('text_plate_paths_b64', this.utf8ToBase64(textPlatePaths || ''));
+			this.appendExportTextPaths(body, textPlatePaths);
+			this.appendExportCanvasMm(body);
 			if (canonicalScene) {
 				body.append('canonical_scene_json', JSON.stringify(canonicalScene));
 			}
@@ -1254,6 +1301,14 @@
 				this.root.__pckzExportReady = ok;
 				this._lastExportDebug = validated.res?.data?.export_debug || null;
 				this.setCheckoutButtonsEnabled(ok);
+				if (!ok && validated.res) {
+					const lines = this.formatExportDebugLines(validated.res);
+					if (lines.length) {
+						this.showValidationErrors(validated.res, lines[0]);
+					}
+				} else if (ok) {
+					this.clearValidationErrors();
+				}
 			} catch (err) {
 				this.exportReady = false;
 				this.root.__pckzExportReady = false;
@@ -1614,8 +1669,8 @@
 			body.append('canvas_json', canvasJson);
 			body.append('canonical_scene_json', JSON.stringify(canonicalScene));
 			body.append('production_vector_svg', productionVectorSvg);
-			body.append('text_plate_paths', textPlatePaths);
-			body.append('text_plate_paths_b64', this.utf8ToBase64(textPlatePaths));
+			this.appendExportTextPaths(body, textPlatePaths);
+			this.appendExportCanvasMm(body);
 			body.append('preview_png', this.getPreviewPng());
 			body.append('selections', JSON.stringify(this.selections));
 			this.appendCustomerFields(body);
@@ -1852,7 +1907,13 @@
 		}
 
 		showValidationErrors(payload, fallbackMessage) {
-			const lines = this.formatValidationErrors(payload);
+			let lines = this.formatValidationErrors(payload);
+			const debugLines = this.formatExportDebugLines(payload);
+			if (!lines.length && debugLines.length) {
+				lines = debugLines;
+			} else if (debugLines.length && lines.length === 1) {
+				lines = debugLines;
+			}
 			const message = lines.length
 				? lines.join(' · ')
 				: fallbackMessage || I18N.validationFailed || 'Export validation failed.';

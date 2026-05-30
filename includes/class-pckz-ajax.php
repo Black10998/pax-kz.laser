@@ -344,11 +344,12 @@ class PCKZ_Ajax {
 						$font_url    = self::export_font_url_for_family( $font_family );
 						$summary     = PCKZ_Export_Diagnostics::summarize_payload( $text_plate_paths, $production_vector_svg, $font_family, $font_url );
 						$probe       = is_array( $data ) && ! empty( $data['parse_probe'] ) ? $data['parse_probe'] : array();
-						if ( empty( $probe ) && class_exists( 'PCKZ_Plate_Calibration' ) ) {
-							$probe = PCKZ_Export_Diagnostics::probe_text_fragment_parse(
+						if ( empty( $probe ) ) {
+							$canvas = PCKZ_Export_Diagnostics::canvas_mm_from_request();
+							$probe  = PCKZ_Export_Diagnostics::probe_text_fragment_parse(
 								$text_plate_paths,
-								PCKZ_Plate_Calibration::TOTAL_WIDTH_MM,
-								PCKZ_Plate_Calibration::PLATE_HEIGHT_MM,
+								$canvas['width'],
+								$canvas['height'],
 								$layout
 							);
 						}
@@ -595,8 +596,9 @@ class PCKZ_Ajax {
 			);
 		}
 
-		$plate_w = class_exists( 'PCKZ_Plate_Calibration' ) ? PCKZ_Plate_Calibration::TOTAL_WIDTH_MM : 529.1;
-		$plate_h = class_exists( 'PCKZ_Plate_Calibration' ) ? PCKZ_Plate_Calibration::PLATE_HEIGHT_MM : 116;
+		$canvas  = PCKZ_Export_Diagnostics::canvas_mm_from_request();
+		$plate_w = $canvas['width'];
+		$plate_h = $canvas['height'];
 		$probe   = PCKZ_Export_Diagnostics::probe_text_fragment_parse( $text_plate_paths, $plate_w, $plate_h, array() );
 
 		if ( '' !== trim( (string) ( $selections['custom_text'] ?? '' ) ) && empty( $probe['lbrn2_parse_ok'] ) ) {
@@ -677,6 +679,22 @@ class PCKZ_Ajax {
 
 		if ( ! $design_id ) {
 			wp_send_json_error( array( 'message' => __( 'Bitte personalisieren Sie zuerst Ihr Produkt.', 'pckz-canonical-engine' ) ), 400 );
+		}
+
+		$design = PCKZ_Design_Storage::get_design( $design_id );
+		if ( ! $design ) {
+			wp_send_json_error( array( 'message' => __( 'Design nicht gefunden.', 'pckz-canonical-engine' ) ), 404 );
+		}
+		$production = is_array( $design['production'] ?? null ) ? $design['production'] : array();
+		$lbrn2_url  = (string) ( $production['production_lbrn2_url'] ?? $design['production_lbrn2_url'] ?? '' );
+		if ( '' === $lbrn2_url ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Export-Validierung fehlgeschlagen. Bitte warten Sie, bis die Vorschau bereit ist, und versuchen Sie es erneut.', 'pckz-canonical-engine' ) . ' [pckz=' . PCKZCE_VERSION . '] lbrn2=missing',
+					'code'    => 'export_not_ready',
+				),
+				422
+			);
 		}
 
 		PCKZ_Commerce::attach_customer_meta_to_design( $design_id, $email, $wishes, $details );

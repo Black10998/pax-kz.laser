@@ -55,6 +55,12 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.18.2 =
+* Fix production export path: prefer base64 text_plate_paths (avoids WAF/truncation of large script-font paths).
+* PayPal blocked until server export_validate passes; PayPal order requires saved LBRN2 file.
+* Export errors show live debug ([pckz=version], font, URLs, payload flags, parse probe).
+* export_validate uses customer canvas mm from the konfigurator POST.
+
 = 2.18.1 =
 * Export preflight AJAX mirrors save/LBRN2 validation; PayPal stays disabled until server confirms OK.
 * Rich export errors: [pckz=version], font, font URL, payload sizes, LBRN2 parse probe.

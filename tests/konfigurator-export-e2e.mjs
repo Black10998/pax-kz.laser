@@ -85,12 +85,12 @@ await browser.close();
 const validate = ajaxLog.find( ( e ) => e.action === 'pckzce_export_validate' );
 const save = ajaxLog.find( ( e ) => e.action === 'pckzce_save_design' );
 
-if ( meta.pluginVersion !== '2.18.1' ) {
-	console.error( 'WARN: expected plugin 2.18.1 on live, got', meta.pluginVersion );
+if ( meta.pluginVersion !== '2.18.2' ) {
+	console.error( 'WARN: expected plugin 2.18.2 on live, got', meta.pluginVersion );
 }
 
 if ( ! validate ) {
-	console.error( 'FAIL: no export_validate call (site may not have 2.18.1 yet)' );
+	console.error( 'FAIL: no export_validate call (site may not have 2.18.2 yet)' );
 	process.exit( 1 );
 }
 

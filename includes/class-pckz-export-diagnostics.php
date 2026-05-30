@@ -20,19 +20,35 @@ class PCKZ_Export_Diagnostics {
 	 * @return string
 	 */
 	public static function decode_text_plate_paths_from_request( $plain, $b64 = '' ) {
-		$plain = is_string( $plain ) ? trim( $plain ) : '';
-		if ( '' !== $plain ) {
-			return $plain;
-		}
 		$b64 = is_string( $b64 ) ? trim( $b64 ) : '';
-		if ( '' === $b64 ) {
-			return '';
+		if ( '' !== $b64 ) {
+			$decoded = base64_decode( $b64, true );
+			if ( is_string( $decoded ) && '' !== trim( $decoded ) ) {
+				return $decoded;
+			}
 		}
-		$decoded = base64_decode( $b64, true );
-		if ( ! is_string( $decoded ) || '' === trim( $decoded ) ) {
-			return '';
+		$plain = is_string( $plain ) ? trim( $plain ) : '';
+		return $plain;
+	}
+
+	/**
+	 * Canvas mm dimensions from export_validate POST (falls back to plate calibration).
+	 *
+	 * @return array{width:float,height:float}
+	 */
+	public static function canvas_mm_from_request() {
+		$w = isset( $_POST['canvas_width_mm'] ) ? (float) wp_unslash( $_POST['canvas_width_mm'] ) : 0.0;
+		$h = isset( $_POST['canvas_height_mm'] ) ? (float) wp_unslash( $_POST['canvas_height_mm'] ) : 0.0;
+		if ( $w > 0 && $h > 0 ) {
+			return array(
+				'width'  => $w,
+				'height' => $h,
+			);
 		}
-		return $decoded;
+		return array(
+			'width'  => class_exists( 'PCKZ_Plate_Calibration' ) ? (float) PCKZ_Plate_Calibration::TOTAL_WIDTH_MM : 529.1,
+			'height' => class_exists( 'PCKZ_Plate_Calibration' ) ? (float) PCKZ_Plate_Calibration::PLATE_HEIGHT_MM : 116.0,
+		);
 	}
 
 	/**
