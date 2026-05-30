@@ -1168,47 +1168,96 @@
 			}
 		}
 
+		utf8ToBase64(str) {
+			return btoa(unescape(encodeURIComponent(String(str || ''))));
+		}
+
+		async runServerExportValidate() {
+			const origin = CFG.origin || STD.coordinate_origin || 'bottom-left';
+			let layout = this.getLayoutData();
+			let canonicalScene = null;
+			if (this.previewEngine && this.previewEngine.buildCanonicalSceneJson) {
+				canonicalScene = await this.previewEngine.buildCanonicalSceneJson(
+					this.mmW,
+					this.mmH,
+					origin,
+					{
+						std: STD,
+						selections: this.selections,
+						preview_mode: this.previewMode,
+						product_id: this.productId,
+					}
+				);
+			}
+			const prodLayout = this.previewEngine.getProductionLayout
+				? this.previewEngine.getProductionLayout(this.mmW, this.mmH, origin, {
+						std: STD,
+						selections: this.selections,
+					})
+				: layout;
+			const productionVectorSvg = await this.previewEngine.buildFabricProductionSvg(
+				this.mmW,
+				this.mmH
+			);
+			const textPlatePaths = await this.previewEngine.buildTextPlatePathsForLbrn(
+				prodLayout,
+				this.mmW,
+				this.mmH
+			);
+			const body = new FormData();
+			body.append('action', 'pckzce_export_validate');
+			body.append('nonce', pckzceConfig.nonce);
+			body.append('product_id', this.productId);
+			body.append('selections', JSON.stringify(this.selections));
+			body.append('production_vector_svg', productionVectorSvg || '');
+			body.append('text_plate_paths', textPlatePaths || '');
+			body.append('text_plate_paths_b64', this.utf8ToBase64(textPlatePaths || ''));
+			if (canonicalScene) {
+				body.append('canonical_scene_json', JSON.stringify(canonicalScene));
+			}
+			const response = await fetch(pckzceConfig.ajaxUrl, { method: 'POST', body });
+			let res = null;
+			try {
+				res = await response.json();
+			} catch (parseErr) {
+				throw new Error(I18N.saveFailed || 'Export validation failed');
+			}
+			return {
+				res,
+				productionVectorSvg,
+				textPlatePaths,
+				canonicalScene,
+			};
+		}
+
 		async refreshExportReadyState() {
 			if (!this.bgLoaded || !this.previewEngine) {
 				this.exportReady = false;
+				this.root.__pckzExportReady = false;
 				this.setCheckoutButtonsEnabled(false);
 				return;
 			}
 			const text = (this.selections.custom_text || '').trim();
 			if (!text) {
 				this.exportReady = false;
+				this.root.__pckzExportReady = false;
 				this.setCheckoutButtonsEnabled(false);
 				return;
 			}
 			try {
 				await this.waitForAssetsReady();
-				if (!this.previewEngine.hasFabricEngraveObjects()) {
-					this.exportReady = false;
-					this.setCheckoutButtonsEnabled(false);
-					return;
-				}
 				const fontFamily = this.selections.font_family || 'Russo One';
 				await this.previewEngine.preloadExportFont(fontFamily);
-				const origin = CFG.origin || STD.coordinate_origin || 'bottom-left';
-				const layout = this.previewEngine.getProductionLayout
-					? this.previewEngine.getProductionLayout(this.mmW, this.mmH, origin, {
-							std: STD,
-							selections: this.selections,
-						})
-					: this.getLayoutData();
-				const paths = await this.previewEngine.buildTextPlatePathsForLbrn(
-					layout,
-					this.mmW,
-					this.mmH
-				);
-				const svg = await this.previewEngine.buildFabricProductionSvg(this.mmW, this.mmH);
-				const ok =
-					!!(svg && svg.trim() && svg.indexOf('pckz-export-meta') !== -1) &&
-					!!(paths && paths.trim() && paths.indexOf('<path') !== -1);
+				const validated = await this.runServerExportValidate();
+				const ok = !!(validated.res && validated.res.success);
 				this.exportReady = ok;
+				this.root.__pckzExportReady = ok;
+				this._lastExportDebug = validated.res?.data?.export_debug || null;
 				this.setCheckoutButtonsEnabled(ok);
 			} catch (err) {
 				this.exportReady = false;
+				this.root.__pckzExportReady = false;
+				this._lastExportDebug = null;
 				this.setCheckoutButtonsEnabled(false);
 			}
 		}
@@ -1566,6 +1615,7 @@
 			body.append('canonical_scene_json', JSON.stringify(canonicalScene));
 			body.append('production_vector_svg', productionVectorSvg);
 			body.append('text_plate_paths', textPlatePaths);
+			body.append('text_plate_paths_b64', this.utf8ToBase64(textPlatePaths));
 			body.append('preview_png', this.getPreviewPng());
 			body.append('selections', JSON.stringify(this.selections));
 			this.appendCustomerFields(body);
@@ -1623,8 +1673,12 @@
 				return;
 			}
 			btn.classList.toggle('is-loading', !!loading);
-			btn.disabled = !!loading;
-			btn.setAttribute('aria-disabled', loading ? 'true' : 'false');
+			if (!loading) {
+				this.setCheckoutButtonsEnabled(!!this.exportReady);
+				return;
+			}
+			btn.disabled = true;
+			btn.setAttribute('aria-disabled', 'true');
 			const spinner = btn.querySelector('.pckz-btn__spinner');
 			if (spinner) {
 				spinner.classList.toggle('pckz-hidden', !loading);
@@ -1696,6 +1750,8 @@
 					this.toast(msg, true);
 				})
 				.catch((err) => {
+					this.exportReady = false;
+					this.setCheckoutButtonsEnabled(false);
 					if (err && err.payload) {
 						this.showValidationErrors(err.payload, err.message);
 						return;
@@ -1703,7 +1759,10 @@
 					this.setPaymentStatus(err.message || I18N.paypalError, true);
 					this.toast(err.message || I18N.paypalError, true);
 				})
-				.finally(() => this.setSubmitLoading(false, 'paypal-checkout'));
+				.finally(() => {
+					this.setSubmitLoading(false, 'paypal-checkout');
+					this.setCheckoutButtonsEnabled(this.exportReady);
+				});
 		}
 
 		submit(toCart) {
@@ -1756,7 +1815,10 @@
 					}
 					this.toast(err.message || (I18N.saveFailed || 'Save failed'), true);
 				})
-				.finally(() => this.setSubmitLoading(false, action));
+				.finally(() => {
+					this.setSubmitLoading(false, action);
+					this.setCheckoutButtonsEnabled(this.exportReady);
+				});
 		}
 
 

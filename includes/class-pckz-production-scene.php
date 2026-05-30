@@ -403,7 +403,13 @@ class PCKZ_Production_Scene {
 			$fragment
 		);
 		$parsed = self::parse_master_svg( $wrapped, $w, $h, $ctx['layout'] );
-		if ( empty( $parsed['layers'] ) ) {
+		$parsed_vert_layers = 0;
+		foreach ( (array) ( $parsed['layers'] ?? array() ) as $layer ) {
+			if ( 'path' === ( $layer['type'] ?? '' ) && ! empty( $layer['verts'] ) ) {
+				++$parsed_vert_layers;
+			}
+		}
+		if ( $parsed_vert_layers < 1 ) {
 			$parsed = self::parse_text_plate_paths_fragment( $fragment, $w, $h, $ctx['layout'] );
 		}
 		$text_meta = null;
@@ -450,6 +456,7 @@ class PCKZ_Production_Scene {
 				return ! in_array( $lid, array( 'pckz-text', 'pckz-main-text' ), true );
 			}
 		) );
+		$merged = 0;
 		foreach ( $parsed['layers'] ?? array() as $layer ) {
 			if ( 'path' !== ( $layer['type'] ?? '' ) || empty( $layer['verts'] ) ) {
 				continue;
@@ -470,6 +477,21 @@ class PCKZ_Production_Scene {
 				$layer = array_merge( $meta, $layer );
 			}
 			$scene['layers'][] = $layer;
+			++$merged;
+		}
+		if ( $merged < 1 ) {
+			$fallback = self::parse_text_plate_paths_fragment( $fragment, $w, $h, $ctx['layout'] );
+			foreach ( $fallback['layers'] ?? array() as $layer ) {
+				if ( 'path' !== ( $layer['type'] ?? '' ) || empty( $layer['verts'] ) ) {
+					continue;
+				}
+				$layer['role']     = 'text-engrave';
+				$layer['layer_id'] = 'pckz-text-engrave';
+				if ( $text_meta ) {
+					$layer = array_merge( $text_meta, $layer );
+				}
+				$scene['layers'][] = $layer;
+			}
 		}
 	}
 
@@ -525,10 +547,54 @@ class PCKZ_Production_Scene {
 		}
 		if ( ! $has_vector ) {
 			$fragment = trim( (string) ( $ctx['layout']['text_plate_paths'] ?? $package['text_plate_paths'] ?? '' ) );
-			if ( '' === $fragment ) {
-				return new WP_Error( 'vector_text_missing', __( 'Vector text paths are missing from export payload.', 'pckz-canonical-engine' ) );
+			$font_family = '';
+			foreach ( $ctx['objects'] as $obj ) {
+				$obj = PCKZ_Production_Geometry::normalize_layout_object( $obj );
+				if ( in_array( $obj['role'] ?? '', array( 'text', 'main-text' ), true ) ) {
+					$font_family = (string) ( $obj['font_family'] ?? $obj['fontFamily'] ?? '' );
+					break;
+				}
 			}
-			return new WP_Error( 'vector_text_invalid', __( 'Vector text paths failed to parse for LBRN2 export.', 'pckz-canonical-engine' ) );
+			$font_url = '';
+			if ( class_exists( 'PCKZ_Font_Library' ) && '' !== $font_family ) {
+				$files = PCKZ_Font_Library::font_files_for_js();
+				$key   = strtolower( trim( $font_family ) );
+				$font_url = (string) ( $files[ $key ] ?? '' );
+			}
+			$summary = class_exists( 'PCKZ_Export_Diagnostics' )
+				? PCKZ_Export_Diagnostics::summarize_payload(
+					$fragment,
+					(string) ( $package['production_vector_svg'] ?? $ctx['layout']['production_vector_svg'] ?? '' ),
+					$font_family,
+					$font_url
+				)
+				: array();
+			$probe = class_exists( 'PCKZ_Export_Diagnostics' )
+				? PCKZ_Export_Diagnostics::probe_text_fragment_parse( $fragment, (float) $ctx['canvas_w'], (float) $ctx['canvas_h'], $ctx['layout'] )
+				: array();
+			$debug = class_exists( 'PCKZ_Export_Diagnostics' )
+				? PCKZ_Export_Diagnostics::format_debug_suffix( $summary, $probe )
+				: '';
+			if ( '' === $fragment ) {
+				return new WP_Error(
+					'vector_text_missing',
+					__( 'Vector text paths are missing from export payload.', 'pckz-canonical-engine' ) . ( $debug ? ' ' . $debug : '' ),
+					array(
+						'http_status'  => 422,
+						'export_debug' => array_merge( $summary, $probe ),
+						'parse_probe'  => $probe,
+					)
+				);
+			}
+			return new WP_Error(
+				'vector_text_invalid',
+				__( 'Vector text paths failed to parse for LBRN2 export.', 'pckz-canonical-engine' ) . ( $debug ? ' ' . $debug : '' ),
+				array(
+					'http_status'  => 422,
+					'export_debug' => array_merge( $summary, $probe ),
+					'parse_probe'  => $probe,
+				)
+			);
 		}
 		return true;
 	}

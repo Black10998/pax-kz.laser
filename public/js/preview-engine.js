@@ -1220,14 +1220,14 @@
 		/**
 		 * Convert OpenType path commands to bottom-left mm path data (no nested transforms).
 		 */
-		openTypePathToBottomLeftMm(path, cx, centerYMm, pathCx, pathCy) {
+		openTypePathToBottomLeftMm(path, cx, centerYMm, pathCx, pathCy, mmH) {
 			const parts = [];
+			const plateH = Math.max( 0.001, parseFloat( mmH ) || 0 );
 			const pushPt = function (x, y) {
-				return (
-					this.fmtMm(cx + (x - pathCx)) +
-					' ' +
-					this.fmtMm(centerYMm + (y - pathCy))
-				);
+				const xMm = cx + (x - pathCx);
+				const yBl = centerYMm + (y - pathCy);
+				const ySvg = plateH - yBl;
+				return this.fmtMm(xMm) + ' ' + this.fmtMm(ySvg);
 			}.bind(this);
 			for (let i = 0; i < path.commands.length; i++) {
 				const cmd = path.commands[i];
@@ -1592,7 +1592,7 @@
 			const centerYMm = box.center_y_mm;
 			const live = this.objects.text;
 			const fill = this.colorToHex(textObj.fill || (live && live.fill) || '') || '#ffffff';
-			const d = this.openTypePathToBottomLeftMm(path, cx, centerYMm, pathCx, pathCy);
+			const d = this.openTypePathToBottomLeftMm(path, cx, centerYMm, pathCx, pathCy, mmH);
 			if (!d) {
 				return '';
 			}

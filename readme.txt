@@ -55,6 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.18.1 =
+* Export preflight AJAX mirrors save/LBRN2 validation; PayPal stays disabled until server confirms OK.
+* Rich export errors: [pckz=version], font, font URL, payload sizes, LBRN2 parse probe.
+* text_plate_paths base64 POST fallback; SVG top-left path coords; stronger text path merge fallback.
+
 = 2.18.0 =
 * Export readiness: block PayPal/checkout until preview, Fabric production SVG, and text_plate_paths are ready.
 * Fix merge order: text_plate_paths merge before empty-layer validation; always merge browser OpenType paths.
