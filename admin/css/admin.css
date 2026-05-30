@@ -329,6 +329,154 @@
 	margin-top: 12px;
 }
 
+.pckz-pricing-panel {
+	background: #fff;
+	border: 1px solid #d0d5dd;
+	border-radius: 12px;
+	padding: 18px 20px;
+	box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
+}
+
+.pckz-pricing-panel__intro {
+	margin: 0 0 16px;
+	font-size: 13px;
+}
+
+.pckz-pricing-panel__toggle {
+	margin-bottom: 16px;
+	padding-bottom: 14px;
+	border-bottom: 1px solid #eaecf0;
+}
+
+.pckz-pricing-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(200px, 1fr));
+	gap: 14px;
+}
+
+.pckz-pricing-field {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.pckz-pricing-field label,
+.pckz-pricing-subsection label strong,
+.pckz-pricing-subsection p strong {
+	font-weight: 600;
+	color: #101828;
+}
+
+.pckz-pricing-input,
+.pckz-pricing-select {
+	min-height: 42px;
+	padding: 8px 12px;
+	font-size: 15px;
+	border-radius: 8px;
+	border: 1px solid #cfd4dc;
+	background: #fff;
+}
+
+.pckz-pricing-input--readonly {
+	font-weight: 700;
+	background: #f8fafc;
+	border-color: #b9c3d4;
+	color: #0f172a;
+}
+
+.pckz-pricing-input--symbol {
+	max-width: 120px;
+}
+
+.pckz-pricing-impact {
+	margin: 16px 0 10px;
+	padding: 12px 14px;
+	border: 1px solid #e4e7ec;
+	border-radius: 10px;
+	background: #f9fafb;
+}
+
+.pckz-pricing-impact p {
+	margin: 0 0 8px;
+}
+
+.pckz-pricing-impact ul {
+	margin: 0;
+	padding-left: 18px;
+}
+
+.pckz-pricing-impact li {
+	margin: 0 0 6px;
+}
+
+.pckz-pricing-subsection {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid #eaecf0;
+}
+
+.pckz-pricing-subsection--inline {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(220px, 1fr));
+	gap: 14px;
+}
+
+.pckz-pricing-currency-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 8px 12px;
+}
+
+.pckz-pricing-currency-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+	gap: 10px 12px;
+	margin-top: 10px;
+}
+
+.pckz-pricing-field--currency > span {
+	font-weight: 600;
+}
+
+.pckz-pricing-checkbox {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pckz-pricing-checkbox--switch {
+	margin-top: 22px;
+}
+
+.pckz-pricing-panel__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+	margin-top: 18px;
+	padding-top: 16px;
+	border-top: 1px solid #eaecf0;
+}
+
+.pckz-pricing-save.button.button-hero {
+	min-height: 44px;
+	padding: 0 18px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.pckz-pricing-preview-btn.button {
+	min-height: 40px;
+	padding: 0 14px;
+}
+
+@media (max-width: 1024px) {
+	.pckz-pricing-grid,
+	.pckz-pricing-subsection--inline {
+		grid-template-columns: 1fr;
+	}
+}
+
 @media (max-width: 960px) {
 	.pckz-settings-layout {
 		grid-template-columns: 1fr;

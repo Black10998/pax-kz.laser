@@ -91,95 +91,130 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 			<tr>
 				<th scope="row" colspan="2"><h2 class="title"><?php esc_html_e( 'Pricing (frontend display)', 'pckz-canonical-engine' ); ?></h2></th>
 			</tr>
+			<?php
+			$catalog          = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::currency_catalog() : array( 'EUR' => array( 'label' => 'EUR' ) );
+			$enabled          = $settings['price_currencies_enabled'] ?? array( 'EUR' );
+			$default_currency = $settings['price_default_currency'] ?? ( $settings['price_currency_code'] ?? 'EUR' );
+			if ( ! is_array( $enabled ) ) {
+				$enabled = array( 'EUR' );
+			}
+			$base_price      = (float) ( $settings['price_base'] ?? 0 );
+			$shipping_price  = (float) ( $settings['price_setup_fee'] ?? 0 );
+			$preview_total   = $base_price + $shipping_price;
+			$by_currency     = $settings['price_by_currency'] ?? array();
+			?>
 			<tr>
-				<th scope="row"><?php esc_html_e( 'Show price', 'pckz-canonical-engine' ); ?></th>
-				<td>
-					<label>
-						<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_show_enabled]" value="1" <?php checked( ! empty( $settings['price_show_enabled'] ) ); ?>>
-						<?php esc_html_e( 'Display price in configurator', 'pckz-canonical-engine' ); ?>
-					</label>
-				</td>
-			</tr>
-			<tr>
-				<th scope="row"><?php esc_html_e( 'Base price', 'pckz-canonical-engine' ); ?></th>
-				<td><input type="number" step="0.01" min="0" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_base]" value="<?php echo esc_attr( $settings['price_base'] ?? 0 ); ?>"></td>
-			</tr>
-			<tr>
-				<th scope="row"><?php esc_html_e( 'Setup fee', 'pckz-canonical-engine' ); ?></th>
-				<td><input type="number" step="0.01" min="0" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_setup_fee]" value="<?php echo esc_attr( $settings['price_setup_fee'] ?? 0 ); ?>"></td>
-			</tr>
-			<tr>
-				<th scope="row"><?php esc_html_e( 'Default currency', 'pckz-canonical-engine' ); ?></th>
-				<td>
-					<?php
-					$catalog         = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::currency_catalog() : array( 'EUR' => array( 'label' => 'EUR' ) );
-					$enabled         = $settings['price_currencies_enabled'] ?? array( 'EUR' );
-					$default_currency = $settings['price_default_currency'] ?? ( $settings['price_currency_code'] ?? 'EUR' );
-					if ( ! is_array( $enabled ) ) {
-						$enabled = array( 'EUR' );
-					}
-					?>
-					<select name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_default_currency]">
-						<?php foreach ( $catalog as $code => $meta ) : ?>
-							<?php if ( in_array( $code, $enabled, true ) ) : ?>
-								<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $default_currency, $code ); ?>>
-									<?php echo esc_html( $meta['label'] ?? $code ); ?>
-								</option>
-							<?php endif; ?>
-						<?php endforeach; ?>
-					</select>
-					<p class="description"><?php esc_html_e( 'Used for PayPal and checkout when the customer does not switch currency.', 'pckz-canonical-engine' ); ?></p>
-				</td>
-			</tr>
-			<tr>
-				<th scope="row"><?php esc_html_e( 'Enabled currencies', 'pckz-canonical-engine' ); ?></th>
-				<td>
-					<?php foreach ( $catalog as $code => $meta ) : ?>
-						<label style="display:block;margin-bottom:6px;">
-							<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_currencies_enabled][]" value="<?php echo esc_attr( $code ); ?>" <?php checked( in_array( $code, $enabled, true ) ); ?>>
-							<?php echo esc_html( $meta['label'] ?? $code ); ?>
-						</label>
-					<?php endforeach; ?>
-				</td>
-			</tr>
-			<tr>
-				<th scope="row"><?php esc_html_e( 'Currency symbol (default)', 'pckz-canonical-engine' ); ?></th>
-				<td>
-					<input type="text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_currency_symbol]" value="<?php echo esc_attr( $settings['price_currency_symbol'] ?? '€' ); ?>" maxlength="4">
-					<p class="description"><?php esc_html_e( 'Display symbol for the default currency. Other currencies use built-in symbols (€, $, CHF, £).', 'pckz-canonical-engine' ); ?></p>
-				</td>
-			</tr>
-			<tr>
-				<th scope="row"><?php esc_html_e( 'Allow currency selection', 'pckz-canonical-engine' ); ?></th>
-				<td>
-					<label>
-						<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_allow_currency_switch]" value="1" <?php checked( ! empty( $settings['price_allow_currency_switch'] ) ); ?>>
-						<?php esc_html_e( 'Let customers choose from enabled currencies at checkout', 'pckz-canonical-engine' ); ?>
-					</label>
-				</td>
-			</tr>
-			<?php if ( class_exists( 'PCKZ_Commerce' ) ) : ?>
-				<?php
-				$by_currency = $settings['price_by_currency'] ?? array();
-				$global_base = (float) ( $settings['price_base'] ?? 0 );
-				?>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Base price per currency', 'pckz-canonical-engine' ); ?></th>
-					<td>
-						<p class="description"><?php esc_html_e( 'Optional overrides. Leave empty to use the global base price above.', 'pckz-canonical-engine' ); ?></p>
-						<?php foreach ( $enabled as $code ) : ?>
-							<?php if ( isset( $catalog[ $code ] ) ) : ?>
-								<p>
-									<label>
-										<strong><?php echo esc_html( $code ); ?></strong>
-										<input type="number" step="0.01" min="0" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_by_currency][<?php echo esc_attr( $code ); ?>]" value="<?php echo esc_attr( $by_currency[ $code ] ?? '' ); ?>" placeholder="<?php echo esc_attr( (string) $global_base ); ?>">
+				<td colspan="2">
+					<section class="pckz-pricing-panel" data-pricing-panel>
+						<p class="description pckz-pricing-panel__intro">
+							<?php esc_html_e( 'Configure what customers see as product price, shipping cost, and final total during checkout.', 'pckz-canonical-engine' ); ?>
+						</p>
+
+						<div class="pckz-pricing-panel__toggle">
+							<label class="pckz-pricing-checkbox">
+								<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_show_enabled]" value="1" <?php checked( ! empty( $settings['price_show_enabled'] ) ); ?>>
+								<span><?php esc_html_e( 'Preis im Konfigurator anzeigen', 'pckz-canonical-engine' ); ?></span>
+							</label>
+						</div>
+
+						<div class="pckz-pricing-grid">
+							<div class="pckz-pricing-field">
+								<label for="pckz-price-base"><?php esc_html_e( 'Produktpreis (€)', 'pckz-canonical-engine' ); ?></label>
+								<input id="pckz-price-base" class="pckz-pricing-input" type="number" step="0.01" min="0" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_base]" value="<?php echo esc_attr( $base_price ); ?>" data-pricing-base>
+								<p class="description"><?php esc_html_e( 'Base product price shown to customers.', 'pckz-canonical-engine' ); ?></p>
+							</div>
+
+							<div class="pckz-pricing-field">
+								<label for="pckz-price-setup-fee"><?php esc_html_e( 'Versandkosten (€)', 'pckz-canonical-engine' ); ?></label>
+								<input id="pckz-price-setup-fee" class="pckz-pricing-input" type="number" step="0.01" min="0" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_setup_fee]" value="<?php echo esc_attr( $shipping_price ); ?>" data-pricing-shipping>
+								<p class="description"><?php esc_html_e( 'Shipping cost added during checkout.', 'pckz-canonical-engine' ); ?></p>
+							</div>
+
+							<div class="pckz-pricing-field pckz-pricing-field--total">
+								<label for="pckz-price-total-preview"><?php esc_html_e( 'Gesamtpreis (Vorschau)', 'pckz-canonical-engine' ); ?></label>
+								<input id="pckz-price-total-preview" class="pckz-pricing-input pckz-pricing-input--readonly" type="text" value="<?php echo esc_attr( number_format( $preview_total, 2, '.', '' ) ); ?>" readonly data-pricing-total>
+								<p class="description"><?php esc_html_e( 'Automatically calculated preview of base price + shipping.', 'pckz-canonical-engine' ); ?></p>
+							</div>
+						</div>
+
+						<div class="pckz-pricing-impact">
+							<p><strong><?php esc_html_e( 'What each value affects:', 'pckz-canonical-engine' ); ?></strong></p>
+							<ul>
+								<li><?php esc_html_e( 'Produktpreis: visible base amount in checkout summary.', 'pckz-canonical-engine' ); ?></li>
+								<li><?php esc_html_e( 'Versandkosten: additional setup/shipping line in checkout summary.', 'pckz-canonical-engine' ); ?></li>
+								<li><?php esc_html_e( 'Gesamtpreis: preview of final per-item amount shown to customers.', 'pckz-canonical-engine' ); ?></li>
+							</ul>
+						</div>
+
+						<div class="pckz-pricing-subsection">
+							<label for="pckz-price-default-currency"><strong><?php esc_html_e( 'Default currency', 'pckz-canonical-engine' ); ?></strong></label>
+							<select id="pckz-price-default-currency" class="pckz-pricing-select" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_default_currency]">
+								<?php foreach ( $catalog as $code => $meta ) : ?>
+									<?php if ( in_array( $code, $enabled, true ) ) : ?>
+										<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $default_currency, $code ); ?>>
+											<?php echo esc_html( $meta['label'] ?? $code ); ?>
+										</option>
+									<?php endif; ?>
+								<?php endforeach; ?>
+							</select>
+							<p class="description"><?php esc_html_e( 'Used for PayPal and checkout when the customer does not switch currency.', 'pckz-canonical-engine' ); ?></p>
+						</div>
+
+						<div class="pckz-pricing-subsection">
+							<p><strong><?php esc_html_e( 'Enabled currencies', 'pckz-canonical-engine' ); ?></strong></p>
+							<div class="pckz-pricing-currency-list">
+								<?php foreach ( $catalog as $code => $meta ) : ?>
+									<label class="pckz-pricing-checkbox">
+										<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_currencies_enabled][]" value="<?php echo esc_attr( $code ); ?>" <?php checked( in_array( $code, $enabled, true ) ); ?>>
+										<span><?php echo esc_html( $meta['label'] ?? $code ); ?></span>
 									</label>
-								</p>
-							<?php endif; ?>
-						<?php endforeach; ?>
-					</td>
-				</tr>
-			<?php endif; ?>
+								<?php endforeach; ?>
+							</div>
+						</div>
+
+						<div class="pckz-pricing-subsection pckz-pricing-subsection--inline">
+							<div class="pckz-pricing-field">
+								<label for="pckz-price-currency-symbol"><strong><?php esc_html_e( 'Currency symbol (default)', 'pckz-canonical-engine' ); ?></strong></label>
+								<input id="pckz-price-currency-symbol" class="pckz-pricing-input pckz-pricing-input--symbol" type="text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_currency_symbol]" value="<?php echo esc_attr( $settings['price_currency_symbol'] ?? '€' ); ?>" maxlength="4">
+								<p class="description"><?php esc_html_e( 'Display symbol for the default currency. Other currencies use built-in symbols (€, $, CHF, £).', 'pckz-canonical-engine' ); ?></p>
+							</div>
+							<div class="pckz-pricing-field">
+								<label class="pckz-pricing-checkbox pckz-pricing-checkbox--switch">
+									<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_allow_currency_switch]" value="1" <?php checked( ! empty( $settings['price_allow_currency_switch'] ) ); ?>>
+									<span><?php esc_html_e( 'Allow currency selection in checkout', 'pckz-canonical-engine' ); ?></span>
+								</label>
+								<p class="description"><?php esc_html_e( 'Let customers choose from enabled currencies at checkout.', 'pckz-canonical-engine' ); ?></p>
+							</div>
+						</div>
+
+						<?php if ( class_exists( 'PCKZ_Commerce' ) ) : ?>
+							<div class="pckz-pricing-subsection">
+								<p><strong><?php esc_html_e( 'Base price per currency', 'pckz-canonical-engine' ); ?></strong></p>
+								<p class="description"><?php esc_html_e( 'Optional overrides. Leave empty to use the global base price above.', 'pckz-canonical-engine' ); ?></p>
+								<div class="pckz-pricing-currency-grid">
+									<?php foreach ( $enabled as $code ) : ?>
+										<?php if ( isset( $catalog[ $code ] ) ) : ?>
+											<label class="pckz-pricing-field pckz-pricing-field--currency">
+												<span><?php echo esc_html( $code ); ?></span>
+												<input class="pckz-pricing-input" type="number" step="0.01" min="0" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[price_by_currency][<?php echo esc_attr( $code ); ?>]" value="<?php echo esc_attr( $by_currency[ $code ] ?? '' ); ?>" placeholder="<?php echo esc_attr( (string) $base_price ); ?>">
+											</label>
+										<?php endif; ?>
+									<?php endforeach; ?>
+								</div>
+							</div>
+						<?php endif; ?>
+
+						<div class="pckz-pricing-panel__actions">
+							<button type="submit" class="button button-primary button-hero pckz-pricing-save">
+								<?php esc_html_e( 'Save pricing settings', 'pckz-canonical-engine' ); ?>
+							</button>
+							<button type="button" class="button button-secondary pckz-pricing-preview-btn" data-pricing-preview-refresh>
+								<?php esc_html_e( 'Refresh total preview', 'pckz-canonical-engine' ); ?>
+							</button>
+						</div>
+					</section>
+				</td>
+			</tr>
 			<tr>
 				<th scope="row" colspan="2"><h2 class="title"><?php esc_html_e( 'Checkout customer message', 'pckz-canonical-engine' ); ?></h2></th>
 			</tr>

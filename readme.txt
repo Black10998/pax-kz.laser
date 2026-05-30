@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.20.14
+Stable tag: 2.20.15
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.20.15 =
+
+* Improved WordPress admin pricing/settings interface for clarity and professional UX.
+* Added larger, clearer pricing inputs with explicit labels/descriptions for product price, shipping cost, and calculated total preview.
+* Added live "Gesamtpreis" preview refresh in admin settings (UI-only helper, no pricing logic changes).
+* Upgraded pricing section action buttons styling and visual hierarchy for faster admin recognition.
 
 = 2.20.14 =
 

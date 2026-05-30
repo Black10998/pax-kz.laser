@@ -19,4 +19,33 @@
 
 		frame.open();
 	});
+
+	const pricingPanel = $('[data-pricing-panel]');
+	if (pricingPanel.length) {
+		const baseInput = pricingPanel.find('[data-pricing-base]');
+		const shippingInput = pricingPanel.find('[data-pricing-shipping]');
+		const totalInput = pricingPanel.find('[data-pricing-total]');
+
+		const parseMoney = function (value) {
+			const normalized = String(value || '').replace(',', '.');
+			const parsed = parseFloat(normalized);
+			return Number.isFinite(parsed) ? parsed : 0;
+		};
+
+		const updatePricingPreview = function () {
+			if (!totalInput.length) {
+				return;
+			}
+			const total = parseMoney(baseInput.val()) + parseMoney(shippingInput.val());
+			totalInput.val(total.toFixed(2));
+		};
+
+		baseInput.on('input change', updatePricingPreview);
+		shippingInput.on('input change', updatePricingPreview);
+		pricingPanel.on('click', '[data-pricing-preview-refresh]', function (event) {
+			event.preventDefault();
+			updatePricingPreview();
+		});
+		updatePricingPreview();
+	}
 })(jQuery);
