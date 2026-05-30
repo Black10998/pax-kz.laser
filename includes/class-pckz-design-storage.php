@@ -124,6 +124,35 @@ class PCKZ_Design_Storage {
 	}
 
 	/**
+	 * Resolve saved LightBurn .lbrn2 URL from a design row (meta_json structure).
+	 *
+	 * @param array|null $design Design row from get_design().
+	 * @return string
+	 */
+	public static function get_production_lbrn2_url( $design ) {
+		if ( ! is_array( $design ) ) {
+			return '';
+		}
+		$meta = array();
+		if ( ! empty( $design['meta'] ) && is_array( $design['meta'] ) ) {
+			$meta = $design['meta'];
+		} elseif ( ! empty( $design['meta_json'] ) ) {
+			$decoded = json_decode( (string) $design['meta_json'], true );
+			if ( is_array( $decoded ) ) {
+				$meta = $decoded;
+			}
+		}
+		if ( ! empty( $meta['production_lbrn2_url'] ) ) {
+			return (string) $meta['production_lbrn2_url'];
+		}
+		$production = $meta['production'] ?? $design['production'] ?? array();
+		if ( is_array( $production ) && ! empty( $production['production_lbrn2_url'] ) ) {
+			return (string) $production['production_lbrn2_url'];
+		}
+		return '';
+	}
+
+	/**
 	 * Update design meta JSON.
 	 *
 	 * @param int   $design_id Design ID.

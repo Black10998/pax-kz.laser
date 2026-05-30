@@ -342,7 +342,9 @@ class PCKZ_Production {
 
 		if ( class_exists( 'PCKZ_Production_Lbrn2' ) ) {
 			$lbrn2 = PCKZ_Production_Lbrn2::save_from_package( $package, $design_id );
-			if ( ! is_wp_error( $lbrn2 ) ) {
+			if ( is_wp_error( $lbrn2 ) ) {
+				$package['production_lbrn2_error'] = $lbrn2->get_error_message();
+			} else {
 				$package['production_lbrn2_url'] = $lbrn2;
 			}
 		}

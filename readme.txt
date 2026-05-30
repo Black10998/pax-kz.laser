@@ -55,6 +55,12 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.18.4 =
+* Fix PayPal gate: read LBRN2 URL from design meta (`meta.production_lbrn2_url`), not missing top-level `production` key.
+* export_validate runs full pipeline and verifies in-memory LBRN2 XML (`lbrn2_generated`, `lbrn2_length`, etc.).
+* save_design fails if LBRN2 file persist fails; persist errors surfaced in export_debug.
+* Close `</LightBurnProject>` in generated .lbrn2 XML.
+
 = 2.18.3 =
 * Fix LBRN2 text path parse: normalize text_plate_paths (UTF-8, entities, slashes); DOM path extraction; apply group transforms; drop broken PCRE /u mode.
 * parse_svg_path_to_verts: comma-separated coordinates and collapsed whitespace.

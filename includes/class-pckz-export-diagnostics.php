@@ -96,6 +96,42 @@ class PCKZ_Export_Diagnostics {
 	}
 
 	/**
+	 * Probe in-memory LBRN2 XML generation from a production package (no file persist).
+	 *
+	 * @param array $package Production package from export pipeline.
+	 * @return array
+	 */
+	public static function probe_lbrn2_generation( $package ) {
+		$package = is_array( $package ) ? $package : array();
+		$xml     = '';
+		$error   = '';
+		$built   = false;
+
+		if ( class_exists( 'PCKZ_Production_Lbrn2' ) ) {
+			$result = PCKZ_Production_Lbrn2::build_from_package( $package );
+			if ( is_wp_error( $result ) ) {
+				$error = $result->get_error_message();
+			} else {
+				$xml   = (string) $result;
+				$built = '' !== trim( $xml );
+			}
+		}
+
+		$url = (string) ( $package['production_lbrn2_url'] ?? '' );
+
+		return array(
+			'lbrn2_generated'            => $built,
+			'lbrn2_exists'               => $built && false !== stripos( $xml, '<LightBurnProject' ),
+			'lbrn2_length'               => strlen( $xml ),
+			'lbrn2_attached_to_request'  => '' !== $url,
+			'lbrn2_url'                  => $url,
+			'lbrn2_has_production_scene' => ! empty( $package['production_scene'] ),
+			'lbrn2_build_error'          => $error,
+			'lbrn2_persist_error'        => (string) ( $package['production_lbrn2_error'] ?? '' ),
+		);
+	}
+
+	/**
 	 * Probe merge/parse of text_plate_paths without full export.
 	 *
 	 * @param string $fragment Fragment.
@@ -212,6 +248,21 @@ class PCKZ_Export_Diagnostics {
 			}
 			if ( isset( $probe['dom_ok'] ) && ! $probe['dom_ok'] ) {
 				$parts[] = 'xml=invalid';
+			}
+			if ( isset( $probe['lbrn2_generated'] ) ) {
+				$parts[] = 'lbrn2_generated=' . ( ! empty( $probe['lbrn2_generated'] ) ? 'yes' : 'no' );
+			}
+			if ( isset( $probe['lbrn2_exists'] ) ) {
+				$parts[] = 'lbrn2_exists=' . ( ! empty( $probe['lbrn2_exists'] ) ? 'yes' : 'no' );
+			}
+			if ( isset( $probe['lbrn2_length'] ) ) {
+				$parts[] = 'lbrn2_length=' . (int) $probe['lbrn2_length'];
+			}
+			if ( isset( $probe['lbrn2_attached_to_request'] ) ) {
+				$parts[] = 'lbrn2_attached=' . ( ! empty( $probe['lbrn2_attached_to_request'] ) ? 'yes' : 'no' );
+			}
+			if ( ! empty( $probe['lbrn2_build_error'] ) ) {
+				$parts[] = 'lbrn2_err=' . substr( (string) $probe['lbrn2_build_error'], 0, 80 );
 			}
 		}
 		return implode( ' ', $parts );

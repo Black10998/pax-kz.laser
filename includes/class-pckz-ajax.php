@@ -372,6 +372,20 @@ class PCKZ_Ajax {
 				}
 
 				$package = PCKZ_Production::persist_export_files( $package, $design_id );
+				if ( $canonical_scene_json && empty( $package['production_lbrn2_url'] ) ) {
+					$lbrn2_probe = PCKZ_Export_Diagnostics::probe_lbrn2_generation( $package );
+					$font_family = (string) ( $selections['font_family'] ?? '' );
+					$font_url    = self::export_font_url_for_family( $font_family );
+					$summary     = PCKZ_Export_Diagnostics::summarize_payload( $text_plate_paths, $production_vector_svg, $font_family, $font_url );
+					$this->send_export_error(
+						__( 'LightBurn LBRN2 export file was not created.', 'pckz-canonical-engine' ) . ' ' . PCKZ_Export_Diagnostics::format_debug_suffix( $summary, $lbrn2_probe ),
+						422,
+						array(
+							'code'         => 'lbrn2_missing',
+							'export_debug' => array_merge( $summary, $lbrn2_probe ),
+						)
+					);
+				}
 			} catch ( \Throwable $export_error ) {
 				$this->send_export_error(
 					$export_error->getMessage(),
@@ -646,10 +660,22 @@ class PCKZ_Ajax {
 			);
 		}
 
+		$lbrn2_probe = PCKZ_Export_Diagnostics::probe_lbrn2_generation( $package );
+		if ( empty( $lbrn2_probe['lbrn2_generated'] ) ) {
+			wp_send_json_error(
+				array(
+					'message'      => __( 'LightBurn LBRN2 document could not be built from export scene.', 'pckz-canonical-engine' ) . ' ' . PCKZ_Export_Diagnostics::format_debug_suffix( $summary, array_merge( $probe, $lbrn2_probe ) ),
+					'code'         => 'lbrn2_build_failed',
+					'export_debug' => array_merge( $summary, $probe, $lbrn2_probe ),
+				),
+				422
+			);
+		}
+
 		wp_send_json_success(
 			array(
 				'ok'           => true,
-				'export_debug' => array_merge( $summary, $probe ),
+				'export_debug' => array_merge( $summary, $probe, $lbrn2_probe ),
 			)
 		);
 	}
@@ -685,13 +711,22 @@ class PCKZ_Ajax {
 		if ( ! $design ) {
 			wp_send_json_error( array( 'message' => __( 'Design nicht gefunden.', 'pckz-canonical-engine' ) ), 404 );
 		}
-		$production = is_array( $design['production'] ?? null ) ? $design['production'] : array();
-		$lbrn2_url  = (string) ( $production['production_lbrn2_url'] ?? $design['production_lbrn2_url'] ?? '' );
+		$lbrn2_url = PCKZ_Design_Storage::get_production_lbrn2_url( $design );
 		if ( '' === $lbrn2_url ) {
+			$meta      = is_array( $design['meta'] ?? null ) ? $design['meta'] : array();
+			$package   = is_array( $meta['production'] ?? null ) ? $meta['production'] : array();
+			$lbrn2_dbg = class_exists( 'PCKZ_Export_Diagnostics' )
+				? PCKZ_Export_Diagnostics::probe_lbrn2_generation( $package )
+				: array();
+			$lbrn2_dbg['lbrn2_attached_to_request'] = false;
 			wp_send_json_error(
 				array(
-					'message' => __( 'Export-Validierung fehlgeschlagen. Bitte warten Sie, bis die Vorschau bereit ist, und versuchen Sie es erneut.', 'pckz-canonical-engine' ) . ' [pckz=' . PCKZCE_VERSION . '] lbrn2=missing',
-					'code'    => 'export_not_ready',
+					'message'      => __( 'LightBurn LBRN2 file missing for saved design. Re-save after preview loads.', 'pckz-canonical-engine' ) . ' ' . PCKZ_Export_Diagnostics::format_debug_suffix(
+						array( 'pckz_version' => PCKZCE_VERSION ),
+						$lbrn2_dbg
+					),
+					'code'         => 'lbrn2_missing',
+					'export_debug' => $lbrn2_dbg,
 				),
 				422
 			);

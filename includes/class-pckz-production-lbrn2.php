@@ -92,7 +92,8 @@ class PCKZ_Production_Lbrn2 {
 			);
 		}
 
-		$xml = implode( "\n", array_filter( $parts ) );
+		$parts[] = '</LightBurnProject>';
+		$xml     = implode( "\n", array_filter( $parts ) );
 		if ( false !== strpos( $xml, 'Type="Text"' ) ) {
 			return new WP_Error( 'font_text_forbidden', __( 'LBRN2 export must not contain font text objects.', 'pckz-canonical-engine' ) );
 		}

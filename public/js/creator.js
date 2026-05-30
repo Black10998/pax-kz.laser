@@ -1211,6 +1211,14 @@
 						: '',
 					dbg.parser ? 'parser=' + dbg.parser : '',
 					dbg.parsed_vert_count != null ? 'verts=' + dbg.parsed_vert_count : '',
+					dbg.lbrn2_generated != null
+						? 'lbrn2_generated=' + (dbg.lbrn2_generated ? 'yes' : 'no')
+						: '',
+					dbg.lbrn2_exists != null ? 'lbrn2_exists=' + (dbg.lbrn2_exists ? 'yes' : 'no') : '',
+					dbg.lbrn2_length != null ? 'lbrn2_length=' + dbg.lbrn2_length : '',
+					dbg.lbrn2_attached_to_request != null
+						? 'lbrn2_attached=' + (dbg.lbrn2_attached_to_request ? 'yes' : 'no')
+						: '',
 				].filter(Boolean);
 				if (parts.length) {
 					lines.push(parts.join(' '));
