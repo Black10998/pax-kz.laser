@@ -70,6 +70,25 @@ class PCKZ_Ajax {
 		wp_send_json_error( $payload, $status );
 	}
 
+	/**
+	 * Enforce licensing for protected export actions (phase 1).
+	 */
+	private function enforce_export_license() {
+		if ( ! class_exists( 'PCKZ_Licensing' ) ) {
+			return;
+		}
+		$guard = PCKZ_Licensing::guard_or_error( 'export' );
+		if ( is_wp_error( $guard ) ) {
+			wp_send_json_error(
+				array(
+					'message' => $guard->get_error_message(),
+					'code'    => $guard->get_error_code(),
+				),
+				403
+			);
+		}
+	}
+
 
 	/**
 	 * Register REST routes.
@@ -212,6 +231,7 @@ class PCKZ_Ajax {
 		if ( ! $this->verify_nonce() ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
 		}
+		$this->enforce_export_license();
 
 		$product_id   = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
 		$canvas_json  = isset( $_POST['canvas_json'] ) ? wp_unslash( $_POST['canvas_json'] ) : '';
@@ -472,6 +492,7 @@ class PCKZ_Ajax {
 		if ( ! $this->verify_nonce() ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
 		}
+		$this->enforce_export_license();
 
 		$png_data   = isset( $_POST['export_png'] ) ? wp_unslash( $_POST['export_png'] ) : '';
 		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
@@ -605,6 +626,7 @@ class PCKZ_Ajax {
 		if ( ! $this->verify_nonce() ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
 		}
+		$this->enforce_export_license();
 
 		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
 		$config     = PCKZ_Post_Type::get_product_config( $product_id );

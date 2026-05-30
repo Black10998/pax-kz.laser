@@ -238,7 +238,17 @@ class PCKZ_Admin {
 			'paypal_success_url'   => esc_url_raw( $input['paypal_success_url'] ?? '' ),
 			'creator_page_id'      => absint( $input['creator_page_id'] ?? 0 ),
 			'paypal_cancel_url'    => esc_url_raw( $input['paypal_cancel_url'] ?? '' ),
+			'licensing_master_mode' => ! empty( $input['licensing_master_mode'] ),
+			'licensing_master_url'  => esc_url_raw( $input['licensing_master_url'] ?? 'https://paxdesign.at' ),
+			'licensing_key'         => sanitize_text_field( $input['licensing_key'] ?? '' ),
+			'licensing_install_uuid' => sanitize_text_field( $input['licensing_install_uuid'] ?? '' ),
+			'licensing_enforce'     => ! empty( $input['licensing_enforce'] ),
+			'licensing_grace_minutes' => max( 5, min( 1440, absint( $input['licensing_grace_minutes'] ?? 120 ) ) ),
 		);
+
+		if ( empty( $output['licensing_install_uuid'] ) ) {
+			$output['licensing_install_uuid'] = wp_generate_uuid4();
+		}
 
 		if ( ! empty( $input['color_palette'] ) && is_string( $input['color_palette'] ) ) {
 			$colors = array_filter( array_map( 'trim', explode( ',', $input['color_palette'] ) ) );

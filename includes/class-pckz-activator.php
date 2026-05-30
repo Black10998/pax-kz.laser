@@ -37,6 +37,9 @@ class PCKZ_Activator {
 		if ( class_exists( 'PCKZ_Commerce' ) ) {
 			PCKZ_Commerce::create_table();
 		}
+		if ( class_exists( 'PCKZ_Licensing' ) ) {
+			PCKZ_Licensing::create_tables();
+		}
 		flush_rewrite_rules();
 
 		if ( false === get_option( 'pckz_settings' ) ) {
@@ -84,6 +87,9 @@ class PCKZ_Activator {
 			}
 			if ( class_exists( 'PCKZ_Commerce' ) ) {
 				PCKZ_Commerce::create_table();
+			}
+			if ( class_exists( 'PCKZ_Licensing' ) ) {
+				PCKZ_Licensing::create_tables();
 			}
 			update_option( 'pckz_plugin_version', PCKZCE_VERSION );
 		}

@@ -216,6 +216,59 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 				</td>
 			</tr>
 			<tr>
+				<th scope="row" colspan="2"><h2 class="title"><?php esc_html_e( 'Licensing & Master Control', 'pckz-canonical-engine' ); ?></h2></th>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Master control mode (server)', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_master_mode]" value="1" <?php checked( ! empty( $settings['licensing_master_mode'] ) ); ?>>
+						<?php esc_html_e( 'Enable license-server APIs and controls on this installation (use only on paxdesign.at).', 'pckz-canonical-engine' ); ?>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Master server URL', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<input type="url" class="large-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_master_url]" value="<?php echo esc_attr( $settings['licensing_master_url'] ?? 'https://paxdesign.at' ); ?>">
+					<p class="description"><?php esc_html_e( 'Client installations use this URL for license, heartbeat, export authorization, and updates.', 'pckz-canonical-engine' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'License key (client)', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<input type="text" class="large-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_key]" value="<?php echo esc_attr( $settings['licensing_key'] ?? '' ); ?>" autocomplete="off">
+					<p class="description"><?php esc_html_e( 'Issued from paxdesign.at master control panel. Required for licensed operation.', 'pckz-canonical-engine' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Installation UUID', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<input type="text" class="regular-text" readonly name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_install_uuid]" value="<?php echo esc_attr( $settings['licensing_install_uuid'] ?? '' ); ?>">
+					<p class="description"><?php esc_html_e( 'Unique installation identifier used for domain lock and heartbeat tracking.', 'pckz-canonical-engine' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Enforce licensing', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_enforce]" value="1" <?php checked( ! empty( $settings['licensing_enforce'] ) ); ?>>
+						<?php esc_html_e( 'If enabled, protected features stop when the installation is not authorized by master server.', 'pckz-canonical-engine' ); ?>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Network grace period (minutes)', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<input type="number" min="5" max="1440" class="small-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_grace_minutes]" value="<?php echo esc_attr( (string) ( $settings['licensing_grace_minutes'] ?? 120 ) ); ?>">
+					<p class="description"><?php esc_html_e( 'Temporary offline window for valid installations before protected lock activates.', 'pckz-canonical-engine' ); ?></p>
+					<?php if ( class_exists( 'PCKZ_Licensing' ) ) : ?>
+						<?php $license_state = PCKZ_Licensing::get_client_state(); ?>
+						<p><strong><?php esc_html_e( 'Current license status:', 'pckz-canonical-engine' ); ?></strong> <?php echo esc_html( $license_state['status'] ?? 'unknown' ); ?><?php echo ! empty( $license_state['reason'] ) ? ' — ' . esc_html( $license_state['reason'] ) : ''; ?></p>
+					<?php endif; ?>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row" colspan="2"><h2 class="title"><?php esc_html_e( 'Checkout customer message', 'pckz-canonical-engine' ); ?></h2></th>
 			</tr>
 			<tr>

@@ -76,6 +76,12 @@ class PCKZ_Settings {
 			'paypal_success_url'  => '',
 			'paypal_cancel_url'   => '',
 			'creator_page_id'     => 0,
+			'licensing_master_mode' => false,
+			'licensing_master_url'  => 'https://paxdesign.at',
+			'licensing_key'         => '',
+			'licensing_install_uuid' => '',
+			'licensing_enforce'     => false,
+			'licensing_grace_minutes' => 120,
 		);
 	}
 
