@@ -184,21 +184,38 @@ foreach ( $customer_options as $option ) :
 			</div>
 
 		<?php elseif ( in_array( $type, array( 'swatch_color', 'color' ), true ) ) : ?>
-			<div class="pckz-color-grid pckz-color-grid--compact" role="listbox" aria-label="<?php echo esc_attr( $label ); ?>">
-				<?php foreach ( $choices as $tone ) :
-					$is_white = '#ffffff' === strtolower( $tone );
-					?>
-					<button
-						type="button"
-						class="pckz-color-chip<?php echo $default === $tone ? ' is-active' : ''; ?><?php echo $is_white ? ' pckz-color-chip--white' : ''; ?>"
-						data-value="<?php echo esc_attr( $tone ); ?>"
-						style="--chip-color: <?php echo esc_attr( $tone ); ?>"
-						title="<?php echo esc_attr( $tone ); ?>"
-						aria-label="<?php echo esc_attr( $tone ); ?>"
-						aria-pressed="<?php echo $default === $tone ? 'true' : 'false'; ?>"
-					></button>
-				<?php endforeach; ?>
-				<input type="hidden" class="pckz-tone-hidden" id="pckz-opt-<?php echo esc_attr( $id ); ?>" name="pckz_options[<?php echo esc_attr( $id ); ?>]" value="<?php echo esc_attr( $default ?: '#ffffff' ); ?>">
+			<?php
+			$selected_tone = $default ?: ( $choices[0] ?? '#ffffff' );
+			?>
+			<div class="pckz-mobile-color-picker" data-mobile-color-picker>
+				<button
+					type="button"
+					class="pckz-mobile-color-picker__trigger"
+					data-mobile-color-trigger
+					aria-expanded="false"
+				>
+					<span class="pckz-mobile-color-picker__chip" data-mobile-color-chip style="--chip-color: <?php echo esc_attr( $selected_tone ); ?>"></span>
+					<span class="pckz-mobile-color-picker__label" data-mobile-color-label><?php echo esc_html( strtoupper( $selected_tone ) ); ?></span>
+					<span class="pckz-mobile-color-picker__caret" aria-hidden="true"></span>
+				</button>
+				<div class="pckz-mobile-color-picker__panel" data-mobile-color-panel>
+					<div class="pckz-color-grid pckz-color-grid--compact" role="listbox" aria-label="<?php echo esc_attr( $label ); ?>">
+						<?php foreach ( $choices as $tone ) :
+							$is_white = '#ffffff' === strtolower( $tone );
+							?>
+							<button
+								type="button"
+								class="pckz-color-chip<?php echo $selected_tone === $tone ? ' is-active' : ''; ?><?php echo $is_white ? ' pckz-color-chip--white' : ''; ?>"
+								data-value="<?php echo esc_attr( $tone ); ?>"
+								style="--chip-color: <?php echo esc_attr( $tone ); ?>"
+								title="<?php echo esc_attr( $tone ); ?>"
+								aria-label="<?php echo esc_attr( $tone ); ?>"
+								aria-pressed="<?php echo $selected_tone === $tone ? 'true' : 'false'; ?>"
+							></button>
+						<?php endforeach; ?>
+						<input type="hidden" class="pckz-tone-hidden" id="pckz-opt-<?php echo esc_attr( $id ); ?>" name="pckz_options[<?php echo esc_attr( $id ); ?>]" value="<?php echo esc_attr( $selected_tone ); ?>">
+					</div>
+				</div>
 			</div>
 
 		<?php elseif ( 'font' === $type ) : ?>

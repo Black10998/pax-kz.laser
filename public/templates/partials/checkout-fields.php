@@ -20,34 +20,40 @@ $catalog              = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::currenc
 $active_currency      = $pricing['currency_code'] ?? 'EUR';
 $countries            = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::checkout_countries() : array( 'DE' => 'Deutschland' );
 $product_title        = $checkout_product_title ?? get_the_title( $product_id ?? 0 );
+$product_price_label  = $pricing['formatted_base'] ?? ( $pricing['formatted_unit'] ?? '' );
+$shipping_price_label = $pricing['formatted_setup'] ?? '';
+if ( '' === $shipping_price_label && class_exists( 'PCKZ_Commerce' ) ) {
+	$shipping_price_label = PCKZ_Commerce::format_money(
+		0,
+		(string) ( $pricing['currency_symbol'] ?? '€' ),
+		(string) ( $pricing['currency_code'] ?? 'EUR' )
+	);
+}
 ?>
 <div class="pckz-checkout" data-checkout>
-	<header class="pckz-checkout__header">
+	<header class="pckz-checkout__header" data-mobile-checkout-part="header">
 		<h2 class="pckz-checkout__heading">Kasse</h2>
 		<p class="pckz-checkout__intro">Personalisiertes Produkt: <strong><?php echo esc_html( $product_title ); ?></strong></p>
 	</header>
 
 	<?php if ( $show_price ) : ?>
-		<section class="pckz-checkout__summary" aria-labelledby="pckz-order-summary-heading" data-order-summary>
+		<section class="pckz-checkout__summary" aria-labelledby="pckz-order-summary-heading" data-order-summary data-mobile-checkout-part="summary">
 			<h3 id="pckz-order-summary-heading" class="pckz-checkout__summary-heading">Bestellübersicht</h3>
 			<dl class="pckz-checkout__summary-list">
 				<div class="pckz-checkout__summary-row">
-					<dt>Produkt</dt>
-					<dd data-summary-product><?php echo esc_html( $product_title ); ?></dd>
+					<dt>Produktpreis</dt>
+					<dd data-summary-product-price><?php echo esc_html( $product_price_label ); ?></dd>
 				</div>
 				<div class="pckz-checkout__summary-row">
-					<dt>Anzahl</dt>
-					<dd data-summary-qty>1</dd>
-				</div>
-				<div class="pckz-checkout__summary-row">
-					<dt>Preis pro Stück</dt>
-					<dd data-price-unit><?php echo esc_html( $pricing['formatted_unit'] ?? '' ); ?></dd>
+					<dt>Versandkosten</dt>
+					<dd data-summary-shipping><?php echo esc_html( $shipping_price_label ); ?></dd>
 				</div>
 				<div class="pckz-checkout__summary-row pckz-checkout__summary-row--total">
-					<dt>Gesamtbetrag</dt>
+					<dt>Gesamt</dt>
 					<dd data-order-summary-total><?php echo esc_html( $pricing['formatted_unit'] ?? '' ); ?></dd>
 				</div>
 			</dl>
+			<p class="pckz-checkout__summary-note">Versandkosten werden aus den Shop-Einstellungen übernommen.</p>
 			<?php if ( $currency_switch && count( $allowed_currencies ) > 1 ) : ?>
 				<div class="pckz-field pckz-field--currency">
 					<label class="pckz-field__label" for="pckz-checkout-currency">Währung</label>
@@ -65,8 +71,8 @@ $product_title        = $checkout_product_title ?? get_the_title( $product_id ??
 		</section>
 	<?php endif; ?>
 
-	<section class="pckz-checkout__customer" aria-labelledby="pckz-customer-heading">
-		<h3 id="pckz-customer-heading" class="pckz-checkout__section-heading">Ihre Daten</h3>
+	<section class="pckz-checkout__customer" aria-labelledby="pckz-customer-heading" data-mobile-checkout-part="customer">
+		<h3 id="pckz-customer-heading" class="pckz-checkout__section-heading">Kundendaten &amp; Versandadresse</h3>
 
 		<div class="pckz-checkout__field-grid">
 			<div class="pckz-field">
@@ -118,10 +124,10 @@ $product_title        = $checkout_product_title ?? get_the_title( $product_id ??
 	</section>
 
 	<?php if ( $notice_html ) : ?>
-		<div class="pckz-checkout__notice" role="note">
+		<div class="pckz-checkout__notice" role="note" data-mobile-checkout-part="notice">
 			<?php echo $notice_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		</div>
 	<?php endif; ?>
 
-	<div class="pckz-checkout__status pckz-hidden" data-payment-status role="status" aria-live="polite"></div>
+	<div class="pckz-checkout__status pckz-hidden" data-payment-status role="status" aria-live="polite" data-mobile-checkout-part="status"></div>
 </div>

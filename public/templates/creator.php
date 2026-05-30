@@ -32,9 +32,35 @@ $payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz
 	<div class="pckz-product__inner page-width">
 		<form class="pckz-product__form" id="pckz-form-<?php echo esc_attr( (string) $product_id ); ?>" novalidate>
 			<input type="hidden" name="pckz_options[preview_mode]" value="day" data-preview-mode-input>
+			<?php if ( class_exists( 'PCKZ_Commerce' ) ) : ?>
+				<div class="pckz-mobile-flow" data-mobile-flow>
+					<ol class="pckz-mobile-flow__steps" aria-label="<?php esc_attr_e( 'Konfigurator-Schritte', 'pckz-canonical-engine' ); ?>">
+						<li class="pckz-mobile-flow__step is-active" data-mobile-step-indicator="1">
+							<span class="pckz-mobile-flow__step-index">1</span>
+							<span class="pckz-mobile-flow__step-label"><?php esc_html_e( 'Design', 'pckz-canonical-engine' ); ?></span>
+						</li>
+						<li class="pckz-mobile-flow__step" data-mobile-step-indicator="2">
+							<span class="pckz-mobile-flow__step-index">2</span>
+							<span class="pckz-mobile-flow__step-label"><?php esc_html_e( 'Kundendaten', 'pckz-canonical-engine' ); ?></span>
+						</li>
+						<li class="pckz-mobile-flow__step" data-mobile-step-indicator="3">
+							<span class="pckz-mobile-flow__step-index">3</span>
+							<span class="pckz-mobile-flow__step-label"><?php esc_html_e( 'Zahlung', 'pckz-canonical-engine' ); ?></span>
+						</li>
+					</ol>
+					<div class="pckz-mobile-flow__actions">
+						<button type="button" class="pckz-btn pckz-btn--secondary pckz-mobile-flow__btn" data-mobile-step-prev>
+							<?php esc_html_e( 'Zurück', 'pckz-canonical-engine' ); ?>
+						</button>
+						<button type="button" class="pckz-btn pckz-mobile-flow__btn pckz-mobile-flow__btn--next" data-mobile-step-next>
+							<?php esc_html_e( 'Weiter', 'pckz-canonical-engine' ); ?>
+						</button>
+					</div>
+				</div>
+			<?php endif; ?>
 
 			<div class="pckz-product__grid">
-				<div class="pckz-product__configure-stack">
+				<div class="pckz-product__configure-stack" data-mobile-step-panel="1">
 				<div class="pckz-product__media-column">
 					<p class="pckz-product__preview-heading">Live-Vorschau Ihres Rahmens</p>
 					<div class="pckz-gallery" data-gallery>
@@ -140,7 +166,7 @@ $payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz
 							<?php endif; ?>
 						</div>
 					<?php endif; ?>
-					<div class="pckz-checkout-panel">
+					<div class="pckz-checkout-panel" data-mobile-step-panel="checkout">
 						<?php
 						$checkout_product_title = get_the_title( $product_id );
 						include PCKZCE_PLUGIN_DIR . 'public/templates/partials/checkout-fields.php';

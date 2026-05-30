@@ -56,6 +56,10 @@
 	min-width: 0;
 }
 
+.pckz-mobile-flow {
+	display: none;
+}
+
 /* Desktop: preview + checkout left, options right (DOM is preview → options → checkout for mobile) */
 @media (min-width: 990px) {
 	.pckz-product__grid {
@@ -818,6 +822,14 @@ select.pckz-field__control {
 	box-shadow: inset 0 0 0 1px var(--pckz-gray-300);
 }
 
+.pckz-mobile-color-picker__trigger {
+	display: none;
+}
+
+.pckz-mobile-color-picker__panel {
+	display: block;
+}
+
 .pckz-icon-swatch {
 	display: flex;
 	flex-direction: column;
@@ -1249,6 +1261,12 @@ select.pckz-field__control {
 	margin: 0;
 }
 
+.pckz-checkout__summary-note {
+	margin: 10px 0 0;
+	font-size: 12px;
+	color: var(--pckz-gray-500);
+}
+
 .pckz-checkout__summary-row {
 	display: flex;
 	justify-content: space-between;
@@ -1494,7 +1512,94 @@ select.pckz-field__control {
 	}
 
 	.pckz-product__inner {
-		padding: 16px 0 28px;
+		padding: 12px 0 22px;
+	}
+
+	.pckz-mobile-flow {
+		display: block;
+		position: sticky;
+		top: env(safe-area-inset-top, 0);
+		z-index: 45;
+		margin-bottom: 10px;
+		padding: 10px;
+		border: 1px solid var(--pckz-gray-200);
+		border-radius: var(--pckz-radius-sm);
+		background: rgba(255, 255, 255, 0.96);
+		backdrop-filter: blur(6px);
+	}
+
+	.pckz-mobile-flow__steps {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 6px;
+	}
+
+	.pckz-mobile-flow__step {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px;
+		font-size: 11px;
+		font-weight: 600;
+		color: var(--pckz-gray-500);
+		border-radius: 8px;
+		background: var(--pckz-gray-100);
+	}
+
+	.pckz-mobile-flow__step-index {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		font-size: 11px;
+		font-weight: 700;
+		background: var(--pckz-white);
+		color: var(--pckz-black);
+		border: 1px solid var(--pckz-gray-300);
+		flex-shrink: 0;
+	}
+
+	.pckz-mobile-flow__step.is-active {
+		color: var(--pckz-black);
+		background: #eef4ff;
+	}
+
+	.pckz-mobile-flow__step.is-active .pckz-mobile-flow__step-index {
+		background: var(--pckz-black);
+		border-color: var(--pckz-black);
+		color: var(--pckz-white);
+	}
+
+	.pckz-mobile-flow__actions {
+		display: flex;
+		gap: 8px;
+		margin-top: 8px;
+	}
+
+	.pckz-mobile-flow__btn {
+		flex: 1 1 0;
+		min-height: 40px;
+		padding: 8px 12px;
+		font-size: 14px;
+	}
+
+	.pckz-mobile-flow__btn[disabled] {
+		opacity: 0.55;
+		pointer-events: none;
+	}
+
+	.pckz-mobile-flow__btn--next {
+		background: var(--pckz-black);
+		color: var(--pckz-white);
+	}
+
+	.pckz-mobile-flow__btn--next:hover {
+		opacity: 0.88;
 	}
 
 	/* Preview stays visible; options scroll below without covering controls */
@@ -1503,6 +1608,8 @@ select.pckz-field__control {
 		flex-direction: column;
 		height: calc(100dvh - env(safe-area-inset-top, 0px));
 		max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+		height: calc(100svh - env(safe-area-inset-top, 0px));
+		max-height: calc(100svh - env(safe-area-inset-top, 0px));
 		overflow: hidden;
 		min-width: 0;
 	}
@@ -1535,11 +1642,11 @@ select.pckz-field__control {
 
 	.pckz-product__media-column .pckz-gallery__stage {
 		min-height: 96px;
-		max-height: min(24dvh, 176px);
+		max-height: min(24svh, 176px);
 	}
 
 	.pckz-product--cloudlift .pckz-product__media-column .pckz-gallery__stage {
-		max-height: min(26dvh, 190px);
+		max-height: min(26svh, 190px);
 	}
 
 	.pckz-product__media-column .pckz-gallery__caption {
@@ -1567,8 +1674,8 @@ select.pckz-field__control {
 	}
 
 	.pckz-options {
-		padding: 16px;
-		gap: 14px;
+		padding: 12px;
+		gap: 10px;
 	}
 
 	.pckz-product__benefits {
@@ -1585,12 +1692,72 @@ select.pckz-field__control {
 		grid-template-columns: repeat(7, minmax(0, 1fr));
 	}
 
+	.pckz-mobile-color-picker {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.pckz-mobile-color-picker__trigger {
+		display: inline-flex;
+		align-items: center;
+		gap: 10px;
+		width: 100%;
+		min-height: 40px;
+		padding: 8px 12px;
+		background: var(--pckz-white);
+		border: 1px solid var(--pckz-gray-300);
+		border-radius: var(--pckz-radius-sm);
+		font-family: inherit;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--pckz-black);
+		cursor: pointer;
+	}
+
+	.pckz-mobile-color-picker__chip {
+		display: inline-block;
+		width: 18px;
+		height: 18px;
+		border-radius: 50%;
+		border: 1px solid var(--pckz-gray-300);
+		background: var(--chip-color, #fff);
+		flex-shrink: 0;
+	}
+
+	.pckz-mobile-color-picker__label {
+		flex: 1;
+		text-align: left;
+	}
+
+	.pckz-mobile-color-picker__caret {
+		width: 8px;
+		height: 8px;
+		border-right: 2px solid var(--pckz-black);
+		border-bottom: 2px solid var(--pckz-black);
+		transform: rotate(45deg);
+		transition: transform 0.15s ease;
+	}
+
+	.pckz-mobile-color-picker.is-open .pckz-mobile-color-picker__caret {
+		transform: rotate(-135deg);
+	}
+
+	.pckz-mobile-color-picker__panel {
+		display: none;
+	}
+
+	.pckz-mobile-color-picker.is-open .pckz-mobile-color-picker__panel {
+		display: block;
+	}
+
 	.pckz-product--paypal-only .pckz-checkout-panel {
-		padding: 18px 14px;
+		padding: 14px 12px;
 	}
 
 	.pckz-checkout__field-grid {
 		grid-template-columns: 1fr;
+		gap: 10px;
 	}
 
 	.pckz-checkout-panel {
@@ -1610,6 +1777,27 @@ select.pckz-field__control {
 		padding: 12px;
 	}
 
+	.pckz-checkout__summary-row {
+		padding: 7px 0;
+		font-size: 13px;
+	}
+
+	.pckz-checkout__summary-row--total dt,
+	.pckz-checkout__summary-row--total dd {
+		font-size: 15px;
+	}
+
+	.pckz-field__label {
+		margin-bottom: 5px;
+		font-size: 13px;
+	}
+
+	.pckz-field__control {
+		min-height: 40px;
+		padding: 8px 12px;
+		font-size: 14px;
+	}
+
 	.pckz-checkout__customer {
 		margin-top: 0;
 	}
@@ -1620,6 +1808,7 @@ select.pckz-field__control {
 		bottom: 0;
 		z-index: 20;
 		margin-top: 12px;
+		padding: 14px;
 		padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
 		box-shadow: 0 -6px 20px rgba(255, 255, 255, 0.92);
 	}
@@ -1643,6 +1832,11 @@ select.pckz-field__control {
 	.pckz-btn--cart {
 		width: 100%;
 		min-width: 0;
+	}
+
+	.pckz-btn--checkout-primary {
+		min-height: 48px;
+		font-size: 15px;
 	}
 }
 
