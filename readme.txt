@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.21.0
+Stable tag: 2.22.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,28 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.22.0 =
+
+* Licensing/security hardening:
+  * Master API now validates signed client requests with nonce + timestamp replay protection.
+  * Added secure short-lived download tokens for protected update package delivery.
+  * Added export authorization endpoint and permit tokens for protected export access.
+* Master control/admin expansion:
+  * License server UI now supports editing domains, permissions, expiry, max installs, and installation filtering.
+  * Installation monitoring now tracks plugin build, WP/PHP version, heartbeat count, integrity hash, and tamper signals.
+  * Added optional release policy flag to allow licensed remote export generation.
+* Export protection strategy:
+  * Added optional remote authorization gate before local export operations.
+  * Added optional remote export mode endpoint scaffolding (`/client/export-generate`) for master-controlled generation paths.
+* Payment architecture expansion:
+  * Added non-breaking payment provider abstraction layer (`PayPal` adapter + `Stripe` scaffolding) for future card/Apple Pay/Google Pay/subscription support.
+* Protected distribution workflow:
+  * Added tooling for protected ZIP release builds with signed manifest support:
+    * `tools/build-protected-release.php`
+    * `tools/verify-release-manifest.php`
+* Added security helper module for integrity fingerprints + anti-tamper telemetry (`includes/class-pckz-security.php`).
+* Compatibility preserved by default: existing configurator preview/export/checkout behavior remains unchanged unless new licensing enforcement/protection toggles are explicitly enabled.
 
 = 2.21.0 =
 

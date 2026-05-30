@@ -73,20 +73,26 @@ class PCKZ_Ajax {
 	/**
 	 * Enforce licensing for protected export actions (phase 1).
 	 */
-	private function enforce_export_license() {
+	private function enforce_export_license( $operation = 'export', $context = array() ) {
 		if ( ! class_exists( 'PCKZ_Licensing' ) ) {
-			return;
+			return true;
 		}
-		$guard = PCKZ_Licensing::guard_or_error( 'export' );
-		if ( is_wp_error( $guard ) ) {
+		$auth = PCKZ_Licensing::authorize_export_operation(
+			array_merge(
+				array( 'operation' => $operation ),
+				is_array( $context ) ? $context : array()
+			)
+		);
+		if ( is_wp_error( $auth ) ) {
 			wp_send_json_error(
 				array(
-					'message' => $guard->get_error_message(),
-					'code'    => $guard->get_error_code(),
+					'message' => $auth->get_error_message(),
+					'code'    => $auth->get_error_code(),
 				),
 				403
 			);
 		}
+		return $auth;
 	}
 
 
@@ -231,7 +237,7 @@ class PCKZ_Ajax {
 		if ( ! $this->verify_nonce() ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
 		}
-		$this->enforce_export_license();
+		$license_auth = $this->enforce_export_license( 'save-design' );
 
 		$product_id   = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
 		$canvas_json  = isset( $_POST['canvas_json'] ) ? wp_unslash( $_POST['canvas_json'] ) : '';
@@ -345,50 +351,76 @@ class PCKZ_Ajax {
 			);
 
 			try {
-				if ( $canonical_scene_json ) {
-					$export_args['canonical_scene'] = $canonical_scene_json;
-					if ( $production_vector_svg ) {
-						$export_args['production_vector_svg'] = $production_vector_svg;
-					}
-					if ( $text_plate_paths ) {
-						$export_args['text_plate_paths'] = $text_plate_paths;
-					}
-					$package = PCKZ_Export_Engine::run( $export_args );
+				$use_remote_export = class_exists( 'PCKZ_Licensing' ) && ! empty( PCKZ_Settings::get_all()['licensing_export_remote_mode'] );
+				if ( $use_remote_export ) {
+					$remote_payload = array(
+						'product_id'           => $product_id,
+						'config'               => $config,
+						'selections'           => $selections,
+						'canvas_json'          => $canvas_json,
+						'canonical_scene_json' => $canonical_scene_json,
+						'production_vector_svg'=> $production_vector_svg,
+						'text_plate_paths'     => $text_plate_paths,
+						'design_id'            => (int) $design_id,
+						'std_spec'             => $meta['std_spec'] ?? array(),
+					);
+					$package = PCKZ_Licensing::remote_generate_export( $remote_payload, $license_auth );
 					if ( is_wp_error( $package ) ) {
-						$data   = $package->get_error_data();
-						$status = 422;
-						if ( is_array( $data ) && ! empty( $data['http_status'] ) ) {
-							$status = (int) $data['http_status'];
-						}
-						$font_family = (string) ( $selections['font_family'] ?? '' );
-						$font_url    = self::export_font_url_for_family( $font_family );
-						$summary     = PCKZ_Export_Diagnostics::summarize_payload( $text_plate_paths, $production_vector_svg, $font_family, $font_url );
-						$probe       = is_array( $data ) && ! empty( $data['parse_probe'] ) ? $data['parse_probe'] : array();
-						if ( empty( $probe ) ) {
-							$canvas = PCKZ_Export_Diagnostics::canvas_mm_from_request();
-							$probe  = PCKZ_Export_Diagnostics::probe_text_fragment_parse(
-								$text_plate_paths,
-								$canvas['width'],
-								$canvas['height'],
-								$layout
-							);
-						}
-						$debug = PCKZ_Export_Diagnostics::format_debug_suffix( $summary, $probe );
 						$this->send_export_error(
-							$package->get_error_message() . ' ' . $debug,
-							$status,
+							$package->get_error_message(),
+							403,
 							array(
-								'code'       => $package->get_error_code(),
-								'validation' => $data,
-								'errors'     => is_array( $data ) ? ( $data['errors'] ?? array() ) : array(),
-								'parity'     => is_array( $data ) ? ( $data['parity'] ?? null ) : null,
-								'export_debug' => array_merge( $summary, $probe ),
+								'code' => $package->get_error_code(),
+								'stage'=> 'remote_export',
 							)
 						);
 					}
 				} else {
-					$export_args['production_vector_svg'] = $production_vector_svg;
-					$package = PCKZ_Production::build_package( $export_args );
+					if ( $canonical_scene_json ) {
+						$export_args['canonical_scene'] = $canonical_scene_json;
+						if ( $production_vector_svg ) {
+							$export_args['production_vector_svg'] = $production_vector_svg;
+						}
+						if ( $text_plate_paths ) {
+							$export_args['text_plate_paths'] = $text_plate_paths;
+						}
+						$package = PCKZ_Export_Engine::run( $export_args );
+						if ( is_wp_error( $package ) ) {
+							$data   = $package->get_error_data();
+							$status = 422;
+							if ( is_array( $data ) && ! empty( $data['http_status'] ) ) {
+								$status = (int) $data['http_status'];
+							}
+							$font_family = (string) ( $selections['font_family'] ?? '' );
+							$font_url    = self::export_font_url_for_family( $font_family );
+							$summary     = PCKZ_Export_Diagnostics::summarize_payload( $text_plate_paths, $production_vector_svg, $font_family, $font_url );
+							$probe       = is_array( $data ) && ! empty( $data['parse_probe'] ) ? $data['parse_probe'] : array();
+							if ( empty( $probe ) ) {
+								$canvas = PCKZ_Export_Diagnostics::canvas_mm_from_request();
+								$probe  = PCKZ_Export_Diagnostics::probe_text_fragment_parse(
+									$text_plate_paths,
+									$canvas['width'],
+									$canvas['height'],
+									$layout
+								);
+							}
+							$debug = PCKZ_Export_Diagnostics::format_debug_suffix( $summary, $probe );
+							$this->send_export_error(
+								$package->get_error_message() . ' ' . $debug,
+								$status,
+								array(
+									'code'       => $package->get_error_code(),
+									'validation' => $data,
+									'errors'     => is_array( $data ) ? ( $data['errors'] ?? array() ) : array(),
+									'parity'     => is_array( $data ) ? ( $data['parity'] ?? null ) : null,
+									'export_debug' => array_merge( $summary, $probe ),
+								)
+							);
+						}
+					} else {
+						$export_args['production_vector_svg'] = $production_vector_svg;
+						$package = PCKZ_Production::build_package( $export_args );
+					}
 				}
 
 				$package = PCKZ_Production::persist_export_files( $package, $design_id );
@@ -492,7 +524,7 @@ class PCKZ_Ajax {
 		if ( ! $this->verify_nonce() ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
 		}
-		$this->enforce_export_license();
+		$this->enforce_export_license( 'export-design' );
 
 		$png_data   = isset( $_POST['export_png'] ) ? wp_unslash( $_POST['export_png'] ) : '';
 		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
@@ -626,7 +658,7 @@ class PCKZ_Ajax {
 		if ( ! $this->verify_nonce() ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
 		}
-		$this->enforce_export_license();
+		$this->enforce_export_license( 'export-validate' );
 
 		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
 		$config     = PCKZ_Post_Type::get_product_config( $product_id );
@@ -740,6 +772,7 @@ class PCKZ_Ajax {
 		if ( ! $this->verify_nonce() ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
 		}
+		$this->enforce_export_license( 'create-paypal-order' );
 
 		if ( ! class_exists( 'PCKZ_Commerce' ) || ! PCKZ_Commerce::paypal_enabled() ) {
 			wp_send_json_error( array( 'message' => __( 'PayPal ist derzeit nicht verfügbar.', 'pckz-canonical-engine' ) ), 400 );
