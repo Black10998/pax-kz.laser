@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.20.12
+Stable tag: 2.20.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,12 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.20.13 =
+
+* Targeted icon-size normalization for remaining oversized symbols reported in QA (including Symbol 1040248, 1087610, 1185226, 1294363, 1296647, 1297939, 154903, 1578289, 159681, 160752, 1911742, 1915356, 2022611, 2027245, 2884303, 2962084, 297607, 308943, 309386, 36417, 41646, 722073).
+* Added role+symbol aware outlier profile so only the listed oversized symbols receive extra draw-bounds scaling; already-correct icons are left unchanged.
+* Kept preview/export parity by applying the same targeted normalization metadata in preview layout and production geometry mapping.
 
 = 2.20.12 =
 

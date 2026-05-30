@@ -245,7 +245,12 @@
 			if (!viewport || !draw) {
 				return null;
 			}
-			const effectiveDraw = this.effectiveSvgDrawBoundsForRole(draw, viewport, role || '');
+			const effectiveDraw = this.effectiveSvgDrawBoundsForRole(
+				draw,
+				viewport,
+				role || '',
+				obj.pckzSymbol || ''
+			);
 			const viewW = parseFloat(viewport.width);
 			const viewH = parseFloat(viewport.height);
 			const drawW = parseFloat(effectiveDraw.width);
@@ -265,21 +270,69 @@
 			};
 		}
 
-		iconCoverageTargetForRole(role) {
-			if (role === 'icon-left' || role === 'icon-right') {
-				return 0.82;
+		normalizeIconSymbolKey(symbol) {
+			const raw = String(symbol || '').trim().toLowerCase();
+			if (!raw) {
+				return '';
 			}
-			return 1;
+			if (/^icon_\d+$/.test(raw)) {
+				return raw;
+			}
+			if (/^\d+$/.test(raw)) {
+				return 'icon_' + raw;
+			}
+			const m = raw.match(/(\d{4,})/);
+			return m ? 'icon_' + m[1] : raw;
 		}
 
-		effectiveSvgDrawBoundsForRole(drawBounds, viewport, role) {
+		iconCoverageProfile(role, symbol) {
+			if (role !== 'icon-left' && role !== 'icon-right') {
+				return null;
+			}
+			const outliers = {
+				icon_1040248: 1,
+				icon_1087610: 1,
+				icon_1185226: 1,
+				icon_1294363: 1,
+				icon_1296647: 1,
+				icon_1297939: 1,
+				icon_154903: 1,
+				icon_1578289: 1,
+				icon_159681: 1,
+				icon_160752: 1,
+				icon_1911742: 1,
+				icon_1915356: 1,
+				icon_2022611: 1,
+				icon_2027245: 1,
+				icon_2884303: 1,
+				icon_2962084: 1,
+				icon_297607: 1,
+				icon_308943: 1,
+				icon_309386: 1,
+				icon_36417: 1,
+				icon_41646: 1,
+				icon_722073: 1,
+			};
+			const key = this.normalizeIconSymbolKey(symbol);
+			if (!key || !outliers[key]) {
+				return null;
+			}
+			return {
+				targetCoverage: 0.82,
+				minAdjust: 1.0,
+				maxAdjust: 2.5,
+			};
+		}
+
+		effectiveSvgDrawBoundsForRole(drawBounds, viewport, role, symbol) {
 			if (!drawBounds || !viewport) {
 				return drawBounds || null;
 			}
-			const targetCoverage = this.iconCoverageTargetForRole(role || '');
-			if (!(targetCoverage > 0) || targetCoverage >= 0.999) {
+			const profile = this.iconCoverageProfile(role || '', symbol || '');
+			if (!profile) {
 				return drawBounds;
 			}
+			const targetCoverage = profile.targetCoverage;
 			const viewW = Math.max(0.001, parseFloat(viewport.width) || 0);
 			const viewH = Math.max(0.001, parseFloat(viewport.height) || 0);
 			const drawW = Math.max(0.001, parseFloat(drawBounds.width) || 0);
@@ -287,9 +340,9 @@
 			const coverageW = drawW / viewW;
 			const coverageH = drawH / viewH;
 			const coverage = Math.sqrt(Math.max(0.0001, coverageW * coverageH));
-			const rawAdjust = coverage / targetCoverage;
-			const adjust = Math.max(0.7, Math.min(1.45, rawAdjust));
-			if (Math.abs(adjust - 1) < 0.001) {
+			const rawAdjust = coverage / Math.max(0.001, targetCoverage);
+			const adjust = Math.max(profile.minAdjust, Math.min(profile.maxAdjust, rawAdjust));
+			if (adjust <= 1.001) {
 				return drawBounds;
 			}
 			const cx = (parseFloat(drawBounds.x) || 0) + drawW / 2;
@@ -963,11 +1016,16 @@
 					return {};
 				}
 				const view = fabricObj.pckzSvgViewport;
-				const shouldNormalize = this.iconCoverageTargetForRole(role || '') < 0.999;
+				const profile = this.iconCoverageProfile(
+					role || '',
+					(fabricObj && fabricObj.pckzSymbol) || ''
+				);
+				const shouldNormalize = !!profile;
 				const draw = this.effectiveSvgDrawBoundsForRole(
 					fabricObj.pckzSvgDrawBounds,
 					view,
-					role || ''
+					role || '',
+					(fabricObj && fabricObj.pckzSymbol) || ''
 				);
 				return {
 					svg_viewbox: {
@@ -1476,7 +1534,8 @@
 				: this.effectiveSvgDrawBoundsForRole(
 						{ x: rawDraw.x, y: rawDraw.y, width: rawDraw.w, height: rawDraw.h },
 						viewBounds,
-						(obj && obj.role) || ''
+						(obj && obj.role) || '',
+						(obj && obj.symbol) || ''
 				  );
 			const draw = {
 				x: normalizedDraw.x,

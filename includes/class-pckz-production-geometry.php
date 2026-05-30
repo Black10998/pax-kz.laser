@@ -17,6 +17,34 @@ class PCKZ_Production_Geometry {
 	const ICON_TARGET_COVERAGE = 0.82;
 
 	/**
+	 * User-verified oversized symbol set requiring stronger normalization.
+	 */
+	const OUTLIER_ICON_SYMBOLS = array(
+		'icon_1040248',
+		'icon_1087610',
+		'icon_1185226',
+		'icon_1294363',
+		'icon_1296647',
+		'icon_1297939',
+		'icon_154903',
+		'icon_1578289',
+		'icon_159681',
+		'icon_160752',
+		'icon_1911742',
+		'icon_1915356',
+		'icon_2022611',
+		'icon_2027245',
+		'icon_2884303',
+		'icon_2962084',
+		'icon_297607',
+		'icon_308943',
+		'icon_309386',
+		'icon_36417',
+		'icon_41646',
+		'icon_722073',
+	);
+
+	/**
 	 * Normalize package into export context.
 	 *
 	 * @param array $package Production package.
@@ -712,10 +740,34 @@ class PCKZ_Production_Geometry {
 			return null;
 		}
 		$role = sanitize_key( (string) ( $obj['role'] ?? '' ) );
+		$symbol = self::normalize_icon_symbol( $obj['symbol'] ?? '' );
 		if ( ! empty( $obj['svg_draw_bounds_normalized'] ) ) {
 			return $bounds;
 		}
-		return self::normalize_icon_draw_bounds( $bounds, $vb_w, $vb_h, $role );
+		return self::normalize_icon_draw_bounds( $bounds, $vb_w, $vb_h, $role, $symbol );
+	}
+
+	/**
+	 * Normalize raw symbol key to icon_<id> format.
+	 *
+	 * @param string $symbol Symbol key/label.
+	 * @return string
+	 */
+	public static function normalize_icon_symbol( $symbol ) {
+		$raw = strtolower( trim( (string) $symbol ) );
+		if ( '' === $raw ) {
+			return '';
+		}
+		if ( preg_match( '/^icon_\d+$/', $raw ) ) {
+			return $raw;
+		}
+		if ( preg_match( '/^\d+$/', $raw ) ) {
+			return 'icon_' . $raw;
+		}
+		if ( preg_match( '/(\d{4,})/', $raw, $m ) ) {
+			return 'icon_' . $m[1];
+		}
+		return sanitize_key( $raw );
 	}
 
 	/**
@@ -727,8 +779,11 @@ class PCKZ_Production_Geometry {
 	 * @param string $role   Object role.
 	 * @return array<string,float>
 	 */
-	public static function normalize_icon_draw_bounds( $bounds, $vb_w, $vb_h, $role ) {
+	public static function normalize_icon_draw_bounds( $bounds, $vb_w, $vb_h, $role, $symbol = '' ) {
 		if ( ! in_array( $role, array( 'icon-left', 'icon-right' ), true ) ) {
+			return $bounds;
+		}
+		if ( ! in_array( self::normalize_icon_symbol( $symbol ), self::OUTLIER_ICON_SYMBOLS, true ) ) {
 			return $bounds;
 		}
 		$vb_w = max( 0.001, (float) $vb_w );
@@ -739,8 +794,8 @@ class PCKZ_Production_Geometry {
 		$cy   = (float) ( $bounds['y'] ?? 0 ) + $bh / 2;
 		$coverage = sqrt( max( 0.0001, ( $bw / $vb_w ) * ( $bh / $vb_h ) ) );
 		$target   = max( 0.1, (float) self::ICON_TARGET_COVERAGE );
-		$adjust   = max( 0.7, min( 1.45, $coverage / $target ) );
-		if ( abs( $adjust - 1 ) < 0.001 ) {
+		$adjust   = max( 1.0, min( 2.5, $coverage / $target ) );
+		if ( $adjust <= 1.001 ) {
 			return $bounds;
 		}
 		$nw = max( 0.001, $bw * $adjust );
@@ -1174,12 +1229,11 @@ class PCKZ_Production_Geometry {
 		$vb_w = (float) $defs[0]['vb_w'];
 		$vb_h = (float) $defs[0]['vb_h'];
 		$role = sanitize_key( (string) ( $obj['role'] ?? '' ) );
+		$symbol = self::normalize_icon_symbol( $obj['symbol'] ?? '' );
 		$draw_bounds = self::svg_draw_bounds_for_object( $obj, $vb_w, $vb_h );
 		if ( ! $draw_bounds && in_array( $role, array( 'icon-left', 'icon-right', 'icon-bg-left', 'icon-bg-right' ), true ) ) {
 			$draw_bounds = self::infer_svg_draw_bounds_from_defs( $defs, $vb_w, $vb_h );
-		}
-		if ( $draw_bounds ) {
-			$draw_bounds = self::normalize_icon_draw_bounds( $draw_bounds, $vb_w, $vb_h, $role );
+			$draw_bounds = self::normalize_icon_draw_bounds( $draw_bounds, $vb_w, $vb_h, $role, $symbol );
 		}
 		foreach ( $defs as $def ) {
 			foreach ( self::split_path_subpaths( $def['d'] ) as $sub ) {
