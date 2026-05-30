@@ -319,7 +319,7 @@ class PCKZ_Production_Scene {
 	 * @param array $layer Scene layer.
 	 * @return bool
 	 */
-	private static function layer_is_authoritative_text_engrave_path( $layer ) {
+	public static function layer_is_authoritative_text_engrave_path( $layer ) {
 		if ( 'path' !== ( $layer['type'] ?? '' ) || empty( $layer['verts'] ) ) {
 			return false;
 		}
@@ -454,9 +454,11 @@ class PCKZ_Production_Scene {
 		return $entries;
 	}
 
-	public static function parse_text_plate_paths_fragment( $fragment, $w, $h, $layout = array() ) {
+	public static function parse_text_plate_paths_fragment( $fragment, $w, $h, $layout = array(), $coord_system = null ) {
 		$layers = array();
-		$coord  = self::COORD_SVG_TOP_LEFT;
+		$coord  = is_string( $coord_system ) && '' !== trim( $coord_system )
+			? $coord_system
+			: self::text_fragment_coordinate_system( $fragment );
 		$entries = self::extract_path_entries_from_text_fragment( $fragment );
 		foreach ( $entries as $entry ) {
 			$d = (string) ( $entry['d'] ?? '' );
@@ -493,10 +495,52 @@ class PCKZ_Production_Scene {
 	}
 
 
+	/**
+	 * Resolve browser text_plate_paths from a production package (all known storage keys).
+	 *
+	 * @param array $package Production package or design meta slice.
+	 * @return string
+	 */
+	public static function resolve_text_plate_paths_from_package( $package ) {
+		$package = is_array( $package ) ? $package : array();
+		$sources = array(
+			$package['text_plate_paths'] ?? '',
+			$package['layout']['text_plate_paths'] ?? '',
+			$package['meta']['text_plate_paths'] ?? '',
+			$package['meta']['layout']['text_plate_paths'] ?? '',
+			$package['production']['text_plate_paths'] ?? '',
+			$package['production']['layout']['text_plate_paths'] ?? '',
+		);
+		foreach ( $sources as $candidate ) {
+			$fragment = self::normalize_text_plate_paths_fragment( $candidate );
+			if ( '' !== $fragment ) {
+				return $fragment;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Coordinate system for a browser text_plate_paths fragment.
+	 *
+	 * OpenType layout paths bake svg-top-left mm into path d (no transform).
+	 * Fabric fallback paths use matrix() on the engrave group (lightburn-mm-bottom-left).
+	 *
+	 * @param string $fragment Normalized fragment.
+	 * @return string
+	 */
+	public static function text_fragment_coordinate_system( $fragment ) {
+		$fragment = self::normalize_text_plate_paths_fragment( $fragment );
+		if ( '' !== $fragment && preg_match( '/\btransform\s*=\s*["\']matrix\s*\(/i', $fragment ) ) {
+			return self::COORD_LIGHTBURN_BOTTOM_LEFT;
+		}
+		return self::COORD_SVG_TOP_LEFT;
+	}
+
 	public static function merge_text_plate_paths_from_layout( &$scene, $ctx, $package = array() ) {
 		$fragment = trim( (string) ( $ctx['layout']['text_plate_paths'] ?? '' ) );
-		if ( '' === $fragment && ! empty( $package['text_plate_paths'] ) ) {
-			$fragment = trim( (string) $package['text_plate_paths'] );
+		if ( '' === $fragment ) {
+			$fragment = self::resolve_text_plate_paths_from_package( $package );
 		}
 		$fragment = self::normalize_text_plate_paths_fragment( $fragment );
 		if ( '' === $fragment ) {
@@ -505,9 +549,19 @@ class PCKZ_Production_Scene {
 		if ( empty( $scene['layers'] ) ) {
 			$scene['layers'] = array();
 		}
+		$text_backup = array();
+		foreach ( (array) ( $scene['layers'] ?? array() ) as $layer ) {
+			if ( self::layer_is_authoritative_text_engrave_path( $layer ) ) {
+				$text_backup[] = $layer;
+			}
+		}
 		$w = (float) $ctx['canvas_w'];
 		$h = (float) $ctx['canvas_h'];
-		$meta    = '<metadata id="pckz-export-meta"><pckz:export xmlns:pckz="https://pckz-canonical-engine.local/export" format="text-plate-paths" coordinate-system="svg-top-left-mm"/></metadata>';
+		$coord_sys = self::text_fragment_coordinate_system( $fragment );
+		$meta      = sprintf(
+			'<metadata id="pckz-export-meta"><pckz:export xmlns:pckz="https://pckz-canonical-engine.local/export" format="text-plate-paths" coordinate-system="%s"/></metadata>',
+			esc_attr( $coord_sys )
+		);
 		$wrapped = sprintf(
 			'<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %s %s">%s%s</svg>',
 			PCKZ_Production_Geometry::fmt( $w ),
@@ -515,7 +569,8 @@ class PCKZ_Production_Scene {
 			$meta,
 			$fragment
 		);
-		$parsed = self::parse_master_svg( $wrapped, $w, $h, $ctx['layout'] );
+		// Prefer dedicated fragment parser (handles entity encoding, group transforms, subpaths).
+		$parsed = self::parse_text_plate_paths_fragment( $fragment, $w, $h, $ctx['layout'], $coord_sys );
 		$parsed_vert_layers = 0;
 		foreach ( (array) ( $parsed['layers'] ?? array() ) as $layer ) {
 			if ( 'path' === ( $layer['type'] ?? '' ) && ! empty( $layer['verts'] ) ) {
@@ -523,7 +578,13 @@ class PCKZ_Production_Scene {
 			}
 		}
 		if ( $parsed_vert_layers < 1 ) {
-			$parsed = self::parse_text_plate_paths_fragment( $fragment, $w, $h, $ctx['layout'] );
+			$parsed = self::parse_master_svg( $wrapped, $w, $h, $ctx['layout'] );
+			$parsed_vert_layers = 0;
+			foreach ( (array) ( $parsed['layers'] ?? array() ) as $layer ) {
+				if ( 'path' === ( $layer['type'] ?? '' ) && ! empty( $layer['verts'] ) ) {
+					++$parsed_vert_layers;
+				}
+			}
 		}
 		$text_meta = null;
 		$text_metas = array();
@@ -592,7 +653,7 @@ class PCKZ_Production_Scene {
 			}
 		}
 		if ( $merged < 1 ) {
-			$fallback = self::parse_text_plate_paths_fragment( $fragment, $w, $h, $ctx['layout'] );
+			$fallback = self::parse_text_plate_paths_fragment( $fragment, $w, $h, $ctx['layout'], $coord_sys );
 			foreach ( $fallback['layers'] ?? array() as $layer ) {
 				if ( 'path' !== ( $layer['type'] ?? '' ) || empty( $layer['verts'] ) ) {
 					continue;
@@ -601,7 +662,16 @@ class PCKZ_Production_Scene {
 				$layer['layer_id'] = 'pckz-text-engrave';
 				foreach ( self::expand_text_path_layers( $layer, $text_meta ) as $text_layer ) {
 					$scene['layers'][] = $text_layer;
+					++$merged;
 				}
+			}
+		}
+		if ( $merged < 1 && ! empty( $text_backup ) ) {
+			foreach ( $text_backup as $layer ) {
+				$scene['layers'][] = $layer;
+			}
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'PCKZ: text_plate_paths merge failed; restored ' . count( $text_backup ) . ' text-engrave layer(s) from scene backup.' );
 			}
 		}
 	}
@@ -676,7 +746,10 @@ class PCKZ_Production_Scene {
 			}
 		}
 		if ( ! $has_vector ) {
-			$fragment = trim( (string) ( $ctx['layout']['text_plate_paths'] ?? $package['text_plate_paths'] ?? '' ) );
+			$fragment = PCKZ_Production_Scene::resolve_text_plate_paths_from_package( $package );
+			if ( '' === $fragment ) {
+				$fragment = trim( (string) ( $ctx['layout']['text_plate_paths'] ?? '' ) );
+			}
 			$font_family = '';
 			foreach ( $ctx['objects'] as $obj ) {
 				$obj = PCKZ_Production_Geometry::normalize_layout_object( $obj );

@@ -341,6 +341,14 @@ class PCKZ_Production {
 		}
 
 		if ( class_exists( 'PCKZ_Production_Lbrn2' ) ) {
+			$fragment = PCKZ_Production_Scene::resolve_text_plate_paths_from_package( $package );
+			if ( '' !== $fragment ) {
+				$package['text_plate_paths'] = $fragment;
+				if ( empty( $package['layout'] ) || ! is_array( $package['layout'] ) ) {
+					$package['layout'] = array();
+				}
+				$package['layout']['text_plate_paths'] = $fragment;
+			}
 			$lbrn2 = PCKZ_Production_Lbrn2::save_from_package( $package, $design_id );
 			if ( is_wp_error( $lbrn2 ) ) {
 				$package['production_lbrn2_error'] = $lbrn2->get_error_message();

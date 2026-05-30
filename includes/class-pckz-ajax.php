@@ -386,6 +386,22 @@ class PCKZ_Ajax {
 						)
 					);
 				}
+				if ( $canonical_scene_json && '' !== trim( (string) ( $selections['custom_text'] ?? '' ) ) ) {
+					$lbrn2_probe = PCKZ_Export_Diagnostics::probe_lbrn2_generation( $package );
+					if ( empty( $lbrn2_probe['lbrn2_text_shape_count'] ) ) {
+						$font_family = (string) ( $selections['font_family'] ?? '' );
+						$font_url    = self::export_font_url_for_family( $font_family );
+						$summary     = PCKZ_Export_Diagnostics::summarize_payload( $text_plate_paths, $production_vector_svg, $font_family, $font_url );
+						$this->send_export_error(
+							__( 'LightBurn LBRN2 export is missing customer text vector paths.', 'pckz-canonical-engine' ) . ' ' . PCKZ_Export_Diagnostics::format_debug_suffix( $summary, $lbrn2_probe ),
+							422,
+							array(
+								'code'         => 'lbrn2_text_missing',
+								'export_debug' => array_merge( $summary, $lbrn2_probe ),
+							)
+						);
+					}
+				}
 			} catch ( \Throwable $export_error ) {
 				$this->send_export_error(
 					$export_error->getMessage(),

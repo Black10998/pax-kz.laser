@@ -55,6 +55,10 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.20.2 =
+
+* LBRN2 text: non-destructive `text_plate_paths` merge (restore scene text when re-parse fails); resolve fragment from all package/meta keys; detect Fabric matrix vs baked svg-top-left coordinates; validate customer text shapes in LBRN2 before save.
+
 = 2.20.1 =
 
 * LBRN2: always merge `text_plate_paths` into the production scene before writing `.lbrn2` (fixes missing customer text when a cached `production_scene` snapshot had icons/lines only).

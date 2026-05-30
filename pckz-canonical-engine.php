@@ -18,8 +18,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PCKZCE_VERSION', '2.20.1' );
-define( 'PCKZCE_BUILD', '2.20.1.20260530-lbrn2-text-plate-merge-fix' );
+define( 'PCKZCE_VERSION', '2.20.2' );
+define( 'PCKZCE_BUILD', '2.20.2.20260530-lbrn2-text-merge-backup-fix' );
 define( 'PCKZCE_PLUGIN_FILE', __FILE__ );
 define( 'PCKZCE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PCKZCE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

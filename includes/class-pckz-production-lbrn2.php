@@ -50,25 +50,60 @@ class PCKZ_Production_Lbrn2 {
 			}
 		}
 
-		$fragment = trim( (string) ( $package['text_plate_paths'] ?? '' ) );
-		if ( '' === $fragment && ! empty( $package['layout']['text_plate_paths'] ) ) {
-			$fragment = trim( (string) $package['layout']['text_plate_paths'] );
-		}
-		if ( '' === $fragment && ! empty( $package['meta']['text_plate_paths'] ) ) {
-			$fragment = trim( (string) $package['meta']['text_plate_paths'] );
-		}
-		if ( '' === $fragment && ! empty( $package['meta']['layout']['text_plate_paths'] ) ) {
-			$fragment = trim( (string) $package['meta']['layout']['text_plate_paths'] );
-		}
+		$fragment = PCKZ_Production_Scene::resolve_text_plate_paths_from_package( $package );
+		$has_text = self::scene_has_text_engrave_paths( $scene );
 
 		if ( '' !== $fragment ) {
 			$strict = ! empty( $package['canonical_scene'] ) || ! empty( $package['layout']['canonical_scene'] );
 			$ctx    = PCKZ_Production_Geometry::normalize_package( $package, $strict );
+			if ( '' === trim( (string) ( $ctx['layout']['text_plate_paths'] ?? '' ) ) ) {
+				$ctx['layout']['text_plate_paths'] = $fragment;
+			}
 			PCKZ_Production_Scene::merge_text_plate_paths_from_layout( $scene, $ctx, $package );
 			PCKZ_Production_Scene::consolidate_scene_text_layers( $scene );
+		} elseif ( ! $has_text ) {
+			$strict = ! empty( $package['canonical_scene'] ) || ! empty( $package['layout']['canonical_scene'] );
+			$ctx    = PCKZ_Production_Geometry::normalize_package( $package, $strict );
+			$needs  = self::package_requires_vector_text( $ctx );
+			if ( $needs && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'PCKZ LBRN2: custom text required but text_plate_paths fragment is empty and scene has no text-engrave paths.' );
+			}
 		}
 
 		return $scene;
+	}
+
+	/**
+	 * Whether the scene contains text-engrave vector paths.
+	 *
+	 * @param array $scene Scene.
+	 * @return bool
+	 */
+	private static function scene_has_text_engrave_paths( $scene ) {
+		foreach ( (array) ( $scene['layers'] ?? array() ) as $layer ) {
+			if ( PCKZ_Production_Scene::layer_is_authoritative_text_engrave_path( $layer ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Whether export context includes non-empty custom text.
+	 *
+	 * @param array $ctx Normalized package context.
+	 * @return bool
+	 */
+	private static function package_requires_vector_text( $ctx ) {
+		foreach ( (array) ( $ctx['objects'] ?? array() ) as $obj ) {
+			$obj = PCKZ_Production_Geometry::normalize_layout_object( $obj );
+			if ( in_array( $obj['role'] ?? '', array( 'text', 'main-text' ), true )
+				&& '' !== trim( (string) ( $obj['text'] ?? '' ) ) ) {
+				return true;
+			}
+		}
+		$selections = (array) ( $ctx['selections'] ?? array() );
+		return '' !== trim( (string) ( $selections['custom_text'] ?? '' ) );
 	}
 
 	/**

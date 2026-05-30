@@ -118,11 +118,13 @@ class PCKZ_Export_Diagnostics {
 		}
 
 		$url = (string) ( $package['production_lbrn2_url'] ?? '' );
+		$text_shapes = ( '' !== $xml ) ? preg_match_all( '/<!-- (pckz-)?text-engrave/', $xml ) : 0;
 
 		return array(
 			'lbrn2_generated'            => $built,
 			'lbrn2_exists'               => $built && false !== stripos( $xml, '<LightBurnProject' ),
 			'lbrn2_length'               => strlen( $xml ),
+			'lbrn2_text_shape_count'     => (int) $text_shapes,
 			'lbrn2_attached_to_request'  => '' !== $url,
 			'lbrn2_url'                  => $url,
 			'lbrn2_has_production_scene' => ! empty( $package['production_scene'] ),
@@ -168,7 +170,14 @@ class PCKZ_Export_Diagnostics {
 			$raw        = PCKZ_Production_Geometry::parse_svg_path_to_verts( $d );
 			$raw_path_verts += count( $raw['verts'] ?? array() );
 		}
-		$meta    = '<metadata id="pckz-export-meta"><pckz:export format="text-plate-paths" coordinate-system="svg-top-left-mm"/></metadata>';
+		$meta    = sprintf(
+			'<metadata id="pckz-export-meta"><pckz:export format="text-plate-paths" coordinate-system="%s"/></metadata>',
+			esc_attr(
+				class_exists( 'PCKZ_Production_Scene' )
+					? PCKZ_Production_Scene::text_fragment_coordinate_system( $fragment )
+					: 'svg-top-left-mm'
+			)
+		);
 		$wrapped = sprintf(
 			'<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %s %s">%s%s</svg>',
 			PCKZ_Production_Geometry::fmt( $w ),
@@ -257,6 +266,9 @@ class PCKZ_Export_Diagnostics {
 			}
 			if ( isset( $probe['lbrn2_length'] ) ) {
 				$parts[] = 'lbrn2_length=' . (int) $probe['lbrn2_length'];
+			}
+			if ( isset( $probe['lbrn2_text_shape_count'] ) ) {
+				$parts[] = 'lbrn2_text_shapes=' . (int) $probe['lbrn2_text_shape_count'];
 			}
 			if ( isset( $probe['lbrn2_attached_to_request'] ) ) {
 				$parts[] = 'lbrn2_attached=' . ( ! empty( $probe['lbrn2_attached_to_request'] ) ? 'yes' : 'no' );

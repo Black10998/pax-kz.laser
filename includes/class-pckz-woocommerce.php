@@ -239,6 +239,21 @@ class PCKZ_WooCommerce {
 				}
 				if ( ! empty( $meta['production'] ) && is_array( $meta['production'] ) ) {
 					$package = $meta['production'];
+					if ( class_exists( 'PCKZ_Production_Scene' ) ) {
+						$fragment = PCKZ_Production_Scene::resolve_text_plate_paths_from_package(
+							array_merge(
+								is_array( $package ) ? $package : array(),
+								array( 'meta' => is_array( $meta ) ? $meta : array() )
+							)
+						);
+						if ( '' !== $fragment ) {
+							$package['text_plate_paths'] = $fragment;
+							if ( empty( $package['layout'] ) || ! is_array( $package['layout'] ) ) {
+								$package['layout'] = array();
+							}
+							$package['layout']['text_plate_paths'] = $fragment;
+						}
+					}
 				} else {
 					$package = PCKZ_Production::build_package(
 						array(
