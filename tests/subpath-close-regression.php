@@ -47,8 +47,8 @@ $svg = sprintf(
 
 $scene = PCKZ_Production_Scene::parse_master_svg( $svg, 529.1, 116, array() );
 $loops = PCKZ_Production_Scene::path_loops_from_scene( $scene );
-if ( empty( $loops ) ) {
-	fwrite( STDERR, "FAIL: no path loops in scene\n" );
+if ( count( $loops ) < 2 ) {
+	fwrite( STDERR, "FAIL: expected 2 path loops for 2-subpath icon (got " . count( $loops ) . ")\n" );
 	exit( 1 );
 }
 

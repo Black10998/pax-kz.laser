@@ -596,14 +596,78 @@ class PCKZ_Production {
 		$html .= esc_textarea( wp_json_encode( $export_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
 		$html .= '</textarea></details>';
 
-		$html .= self::render_html_table( $package );
-
 		if ( $preview ) {
 			$html .= '<p><img src="' . esc_url( $preview ) . '" alt="" class="pckz-production-preview-img"></p>';
 		}
 
 		$html .= '</div>';
 		return $html;
+	}
+
+	/**
+	 * Admin font block: name, category, live preview sample.
+	 *
+	 * @param string $font_family CSS font family.
+	 * @param string $sample_text Text to render.
+	 * @return string
+	 */
+	public static function render_admin_font_block( $font_family, $sample_text = '' ) {
+		$font_family = trim( (string) $font_family );
+		$sample_text = trim( (string) $sample_text );
+		if ( '' === $font_family ) {
+			return '<p class="description">' . esc_html__( 'No font selected.', 'pckz-canonical-engine' ) . '</p>';
+		}
+		if ( '' === $sample_text ) {
+			$sample_text = $font_family;
+		}
+		$entry    = class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::find_by_family( $font_family ) : null;
+		$category = $entry ? PCKZ_Font_Library::category_label( $entry ) : '—';
+		$style    = sprintf( 'font-family:%s,sans-serif;font-size:28px;line-height:1.3;margin:8px 0 0', esc_attr( $font_family ) );
+
+		$html  = '<dl class="pckz-detail-dl">';
+		$html .= '<div class="pckz-detail-dl__row"><dt>' . esc_html__( 'Font', 'pckz-canonical-engine' ) . '</dt><dd>' . esc_html( $font_family ) . '</dd></div>';
+		$html .= '<div class="pckz-detail-dl__row"><dt>' . esc_html__( 'Category', 'pckz-canonical-engine' ) . '</dt><dd>' . esc_html( $category ) . '</dd></div>';
+		$html .= '<div class="pckz-detail-dl__row"><dt>' . esc_html__( 'Preview', 'pckz-canonical-engine' ) . '</dt><dd><span class="pckz-admin-font-preview" style="' . esc_attr( $style ) . '">' . esc_html( $sample_text ) . '</span></dd></div>';
+		$html .= '</dl>';
+		return $html;
+	}
+
+	/**
+	 * Resolve display value for a design selection key.
+	 *
+	 * @param string $key         Selection key.
+	 * @param mixed  $value       Raw value.
+	 * @param array  $config      Product config.
+	 * @return string
+	 */
+	public static function format_selection_value( $key, $value, $config = array() ) {
+		if ( is_array( $value ) ) {
+			$value = wp_json_encode( $value );
+		}
+		$display = (string) $value;
+		if ( in_array( $key, array( 'symbol_links', 'symbol_rechts' ), true ) && $display ) {
+			$display = PCKZ_Icons::label_for_slug( $display ) . ' (' . $display . ')';
+		}
+		if ( 'linien' === $key ) {
+			if ( 'none' === $display || 'no' === $display ) {
+				$display = 'Keine Linien';
+			} elseif ( preg_match( '/^type_(\d+)$/', $display, $m ) ) {
+				$display = 'Typ ' . $m[1];
+			} elseif ( 'yes' === $display ) {
+				$display = 'Linien anzeigen';
+			}
+		}
+		if ( in_array( $key, array( 'preview_mode', 'preview_led' ), true ) ) {
+			$display = ( 'night' === $display ) ? 'Nacht' : 'Tag';
+		}
+		if ( 'led_enabled' === $key ) {
+			$display = ( 'yes' === $display ) ? 'Ja' : 'Nein';
+		}
+		if ( 'font_family' === $key && $display ) {
+			return $display;
+		}
+		unset( $config );
+		return $display;
 	}
 
 	/**

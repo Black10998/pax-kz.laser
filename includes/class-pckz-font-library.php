@@ -143,6 +143,38 @@ class PCKZ_Font_Library {
 	}
 
 	/**
+	 * Find catalog entry by CSS font-family name (case-insensitive).
+	 *
+	 * @param string $family Font family.
+	 * @return array|null
+	 */
+	public static function find_by_family( $family ) {
+		$needle = strtolower( trim( (string) $family ) );
+		if ( '' === $needle ) {
+			return null;
+		}
+		foreach ( self::all_entries() as $row ) {
+			$candidate = strtolower( trim( (string) ( $row['family'] ?? '' ) ) );
+			if ( $candidate && $candidate === $needle ) {
+				return $row;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * German category label for a font row.
+	 *
+	 * @param array $row Font row.
+	 * @return string
+	 */
+	public static function category_label( $row ) {
+		$key = (string) ( $row['category'] ?? '' );
+		$map = self::categories();
+		return $map[ $key ] ?? $key;
+	}
+
+	/**
 	 * @param string $id Font ID.
 	 * @return bool
 	 */

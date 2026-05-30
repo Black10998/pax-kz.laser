@@ -19,6 +19,7 @@ class PCKZ_Admin {
 		add_action( 'admin_menu', array( $this, 'register_menus' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_post_pckz_update_order_status', array( $this, 'handle_update_order_status' ) );
 	}
 
 	/**
@@ -96,6 +97,36 @@ class PCKZ_Admin {
 			'pckz-designs',
 			array( $this, 'render_designs' )
 		);
+
+		add_submenu_page(
+			'pckz-canonical-engine',
+			__( 'Orders', 'pckz-canonical-engine' ),
+			__( 'Orders', 'pckz-canonical-engine' ),
+			'manage_options',
+			'pckz-orders',
+			array( $this, 'render_orders' )
+		);
+	}
+
+	/**
+	 * Save production workflow status from admin.
+	 */
+	public function handle_update_order_status() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'pckz-canonical-engine' ) );
+		}
+		check_admin_referer( 'pckz_update_order_status', 'pckz_order_status_nonce' );
+		$order_id = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
+		$status   = isset( $_POST['workflow_status'] ) ? sanitize_key( wp_unslash( $_POST['workflow_status'] ) ) : '';
+		$redirect = isset( $_POST['redirect'] ) ? esc_url_raw( wp_unslash( $_POST['redirect'] ) ) : admin_url( 'admin.php?page=pckz-orders' );
+		if ( $order_id && class_exists( 'PCKZ_Commerce' ) ) {
+			$result = PCKZ_Commerce::set_workflow_status( $order_id, $status );
+			if ( is_wp_error( $result ) ) {
+				wp_die( esc_html( $result->get_error_message() ) );
+			}
+		}
+		wp_safe_redirect( add_query_arg( 'pckz_status_updated', '1', $redirect ) );
+		exit;
 	}
 
 	/**
@@ -270,6 +301,13 @@ class PCKZ_Admin {
 			array(),
 			PCKZ_Assets::version( 'admin/css/admin.css' )
 		);
+
+		if ( class_exists( 'PCKZ_Font_Library' ) && ( false !== strpos( $hook, 'pckz-designs' ) || false !== strpos( $hook, 'pckz-orders' ) ) ) {
+			$google_url = PCKZ_Font_Library::google_fonts_css_url();
+			if ( $google_url ) {
+				wp_enqueue_style( 'pckz-admin-google-fonts', $google_url, array(), null );
+			}
+		}
 
 		wp_enqueue_media();
 		wp_enqueue_script(
@@ -480,5 +518,33 @@ class PCKZ_Admin {
 		}
 
 		include PCKZCE_PLUGIN_DIR . 'admin/views/design-detail.php';
+	}
+
+	/**
+	 * Render commerce orders list or single order detail.
+	 */
+	public function render_orders() {
+		$order_id = isset( $_GET['order_id'] ) ? absint( $_GET['order_id'] ) : 0;
+		$orders   = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::list_orders( 200 ) : array();
+		$order    = null;
+		$order_package = array();
+
+		if ( $order_id && class_exists( 'PCKZ_Commerce' ) ) {
+			$order = PCKZ_Commerce::get_order( $order_id );
+			if ( $order && ! empty( $order['design_id'] ) ) {
+				$design = PCKZ_Design_Storage::get_design( (int) $order['design_id'] );
+				if ( $design ) {
+					$meta = array();
+					if ( ! empty( $design['meta_json'] ) ) {
+						$meta = json_decode( $design['meta_json'], true );
+					}
+					if ( is_array( $meta ) && ! empty( $meta['production'] ) ) {
+						$order_package = $meta['production'];
+					}
+				}
+			}
+		}
+
+		include PCKZCE_PLUGIN_DIR . 'admin/views/orders.php';
 	}
 }

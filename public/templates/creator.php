@@ -21,6 +21,7 @@ $description       = $config['description'] ?? '';
 $img_day           = $config['background_day'] ?: $config['background_image'];
 $img_night         = $config['background_night'] ?: $img_day;
 $use_cloudlift     = ! empty( $config['use_cloudlift_layout'] );
+$payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz_paid'];
 ?>
 <div
 	class="pckz-product<?php echo $use_cloudlift ? ' pckz-product--cloudlift' : ''; ?><?php echo $paypal_only ? ' pckz-product--paypal-only' : ''; ?>"
@@ -121,6 +122,11 @@ $use_cloudlift     = ! empty( $config['use_cloudlift_layout'] );
 				</div>
 
 				<?php if ( class_exists( 'PCKZ_Commerce' ) ) : ?>
+					<?php if ( $payment_success ) : ?>
+						<div class="pckz-checkout__notice pckz-checkout__notice--success" role="status" data-payment-success>
+							<p><?php esc_html_e( 'Vielen Dank. Ihre Zahlung wurde erfolgreich abgeschlossen und Ihre Bestellung wurde übermittelt.', 'pckz-canonical-engine' ); ?></p>
+						</div>
+					<?php endif; ?>
 					<div class="pckz-checkout-panel">
 						<?php
 						$checkout_product_title = get_the_title( $product_id );

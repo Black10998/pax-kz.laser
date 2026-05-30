@@ -55,6 +55,12 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.19.0 =
+
+* LightBurn: vector text with many SVG subpaths (e.g. Playfair Display) is split into separate Path shapes so lettering appears in .lbrn2.
+* Admin: grouped design detail (customer, order, design, production), font name/category/preview, Orders submenu with workflow statuses.
+* Checkout: clear German success message after PayPal return (`pckz_paid=1`).
+
 = 2.18.4 =
 * Fix PayPal gate: read LBRN2 URL from design meta (`meta.production_lbrn2_url`), not missing top-level `production` key.
 * export_validate runs full pipeline and verifies in-memory LBRN2 XML (`lbrn2_generated`, `lbrn2_length`, etc.).

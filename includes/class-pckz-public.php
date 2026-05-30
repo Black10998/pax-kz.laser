@@ -101,7 +101,7 @@ class PCKZ_Public {
 			(int) $commerce['id'],
 			array(
 				'paypal_capture_id' => $capture['capture_id'] ?? '',
-				'status'            => 'captured',
+				'status'            => 'paid',
 			)
 		);
 		$commerce['paypal_capture_id'] = $capture['capture_id'] ?? '';

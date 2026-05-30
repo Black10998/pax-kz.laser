@@ -1802,44 +1802,142 @@ class PCKZ_Production_Scene {
 			if ( 'path' !== ( $layer['type'] ?? '' ) || empty( $layer['verts'] ) ) {
 				continue;
 			}
-			$verts = $layer['verts'];
-			$prims = ! empty( $layer['prims'] ) && is_array( $layer['prims'] ) ? $layer['prims'] : array();
-			$breaks = array();
-			if ( ! empty( $layer['subpath_starts'] ) && is_array( $layer['subpath_starts'] ) ) {
-				foreach ( $layer['subpath_starts'] as $b ) {
-					$breaks[ (int) $b ] = true;
-				}
+			foreach ( self::split_path_layer_subpaths( $layer ) as $chunk ) {
+				$loops[] = self::path_loop_from_layer_chunk( $chunk );
 			}
-			if ( empty( $prims ) ) {
-				for ( $i = 1; $i < count( $verts ); $i++ ) {
-					if ( ! empty( $breaks[ $i ] ) ) {
-						continue;
-					}
-					$prims[] = array( 'p0' => $i - 1, 'p1' => $i, 't' => 'L' );
-				}
-			}
-			if ( ! empty( $layer['closed'] ) && count( $verts ) > 2 && empty( $prims ) ) {
-				$close_to = 0;
-				if ( ! empty( $layer['subpath_starts'] ) ) {
-					$starts = array_map( 'intval', $layer['subpath_starts'] );
-					$close_to = max( $starts );
-				}
-				$last = count( $verts ) - 1;
-				if ( $last !== $close_to && empty( $breaks[ $close_to ] ) ) {
-					$prims[] = array( 'p0' => $last, 'p1' => $close_to, 't' => 'L' );
-				}
-			}
-			$loops[] = array(
-				'verts'    => $verts,
-				'prims'    => $prims,
-				'closed'   => ! empty( $layer['closed'] ),
-				'fill'     => $layer['fill'] ?? '#000000',
-				'role'     => $layer['role'] ?? 'engrave',
-				'layer_id' => $layer['layer_id'] ?? ( $layer['role'] ?? 'engrave' ),
-				'subpath_starts' => $layer['subpath_starts'] ?? array(),
-			);
 		}
 		return $loops;
+	}
+
+	/**
+	 * Split a path layer into one layer per SVG subpath (LightBurn renders one contour per shape).
+	 *
+	 * @param array $layer Path layer.
+	 * @return array<int,array>
+	 */
+	private static function split_path_layer_subpaths( $layer ) {
+		$starts = array();
+		if ( ! empty( $layer['subpath_starts'] ) && is_array( $layer['subpath_starts'] ) ) {
+			foreach ( $layer['subpath_starts'] as $b ) {
+				$starts[] = (int) $b;
+			}
+		}
+		$starts = array_values( array_unique( array_filter( $starts, function ( $i ) {
+			return $i > 0;
+		} ) ) );
+		sort( $starts );
+		if ( count( $starts ) < 1 ) {
+			return array( $layer );
+		}
+
+		$verts = $layer['verts'];
+		$count = count( $verts );
+		$bounds = array_merge( array( 0 ), $starts, array( $count ) );
+		$bounds = array_values( array_unique( $bounds ) );
+		sort( $bounds );
+
+		$chunks = array();
+		$base_id = (string) ( $layer['layer_id'] ?? ( $layer['role'] ?? 'path' ) );
+		for ( $i = 0; $i + 1 < count( $bounds ); $i++ ) {
+			$start = (int) $bounds[ $i ];
+			$end   = (int) $bounds[ $i + 1 ];
+			if ( $end - $start < 2 ) {
+				continue;
+			}
+			$slice_verts = array_slice( $verts, $start, $end - $start );
+			$slice_prims = array();
+			if ( ! empty( $layer['prims'] ) && is_array( $layer['prims'] ) ) {
+				foreach ( $layer['prims'] as $prim ) {
+					$p0 = (int) ( $prim['p0'] ?? -1 );
+					$p1 = (int) ( $prim['p1'] ?? -1 );
+					if ( $p0 < $start || $p1 < $start || $p0 >= $end || $p1 >= $end ) {
+						continue;
+					}
+					$slice_prims[] = array(
+						'p0' => $p0 - $start,
+						'p1' => $p1 - $start,
+						't'  => $prim['t'] ?? 'L',
+					);
+				}
+			}
+			$chunk = $layer;
+			$chunk['verts']           = $slice_verts;
+			$chunk['prims']           = $slice_prims;
+			$chunk['subpath_starts']  = array();
+			$chunk['closed']          = self::chunk_path_is_closed( $slice_verts, $slice_prims );
+			$chunk['layer_id']        = $base_id . '-sp' . ( count( $chunks ) + 1 );
+			$chunks[] = $chunk;
+		}
+
+		return ! empty( $chunks ) ? $chunks : array( $layer );
+	}
+
+	/**
+	 * Whether a subpath chunk is closed (Z or closing segment to first vertex).
+	 *
+	 * @param array $verts Vertices.
+	 * @param array $prims Primitives.
+	 * @return bool
+	 */
+	private static function chunk_path_is_closed( $verts, $prims ) {
+		$n = count( $verts );
+		if ( $n < 3 ) {
+			return false;
+		}
+		foreach ( $prims as $prim ) {
+			if ( 0 === (int) ( $prim['p1'] ?? -1 ) && ( $n - 1 ) === (int) ( $prim['p0'] ?? -2 ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Build export loop metadata from a (possibly split) path layer chunk.
+	 *
+	 * @param array $layer Path layer chunk.
+	 * @return array
+	 */
+	private static function path_loop_from_layer_chunk( $layer ) {
+		$verts = $layer['verts'];
+		$prims = ! empty( $layer['prims'] ) && is_array( $layer['prims'] ) ? $layer['prims'] : array();
+		$breaks = array();
+		if ( ! empty( $layer['subpath_starts'] ) && is_array( $layer['subpath_starts'] ) ) {
+			foreach ( $layer['subpath_starts'] as $b ) {
+				$breaks[ (int) $b ] = true;
+			}
+		}
+		if ( empty( $prims ) ) {
+			for ( $i = 1; $i < count( $verts ); $i++ ) {
+				if ( ! empty( $breaks[ $i ] ) ) {
+					continue;
+				}
+				$prims[] = array( 'p0' => $i - 1, 'p1' => $i, 't' => 'L' );
+			}
+		}
+		if ( ! empty( $layer['closed'] ) && count( $verts ) > 2 ) {
+			$close_to = 0;
+			$last     = count( $verts ) - 1;
+			$has_close = false;
+			foreach ( $prims as $prim ) {
+				if ( $close_to === (int) ( $prim['p1'] ?? -1 ) && $last === (int) ( $prim['p0'] ?? -2 ) ) {
+					$has_close = true;
+					break;
+				}
+			}
+			if ( ! $has_close && $last !== $close_to && empty( $breaks[ $close_to ] ) ) {
+				$prims[] = array( 'p0' => $last, 'p1' => $close_to, 't' => 'L' );
+			}
+		}
+		return array(
+			'verts'          => $verts,
+			'prims'          => $prims,
+			'closed'         => ! empty( $layer['closed'] ),
+			'fill'           => $layer['fill'] ?? '#000000',
+			'role'           => $layer['role'] ?? 'engrave',
+			'layer_id'       => $layer['layer_id'] ?? ( $layer['role'] ?? 'engrave' ),
+			'subpath_starts' => array(),
+		);
 	}
 
 	/**

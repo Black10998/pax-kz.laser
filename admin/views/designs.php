@@ -19,6 +19,7 @@ defined( 'ABSPATH' ) || exit;
 				<tr>
 					<th><?php esc_html_e( 'ID', 'pckz-canonical-engine' ); ?></th>
 					<th><?php esc_html_e( 'Product', 'pckz-canonical-engine' ); ?></th>
+					<th><?php esc_html_e( 'Order status', 'pckz-canonical-engine' ); ?></th>
 					<th><?php esc_html_e( 'User', 'pckz-canonical-engine' ); ?></th>
 					<th><?php esc_html_e( 'Preview', 'pckz-canonical-engine' ); ?></th>
 					<th><?php esc_html_e( 'Created', 'pckz-canonical-engine' ); ?></th>
@@ -28,10 +29,15 @@ defined( 'ABSPATH' ) || exit;
 			<tbody>
 				<?php foreach ( $designs as $design ) :
 					$detail_url = admin_url( 'admin.php?page=pckz-designs&design_id=' . (int) $design->id );
+					$commerce_row = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::get_order_by_design_id( (int) $design->id ) : null;
+					$status_label = $commerce_row
+						? PCKZ_Commerce::status_label( $commerce_row['status'] ?? '' )
+						: '—';
 					?>
 					<tr>
 						<td><?php echo esc_html( $design->id ); ?></td>
 						<td><?php echo esc_html( get_the_title( $design->product_id ) ?: $design->product_id ); ?></td>
+						<td><span class="pckz-order-status"><?php echo esc_html( $status_label ); ?></span></td>
 						<td><?php echo esc_html( $design->user_id ? get_userdata( $design->user_id )->display_name ?? $design->user_id : __( 'Guest', 'pckz-canonical-engine' ) ); ?></td>
 						<td>
 							<?php if ( ! empty( $design->preview_url ) ) : ?>

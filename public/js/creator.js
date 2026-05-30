@@ -85,7 +85,23 @@
 			this.bindActions();
 			this.initCanvas();
 			this.setCheckoutButtonsEnabled(false);
+			this.showPaymentSuccessIfReturned();
 			window.addEventListener('resize', () => this.resizeStage());
+		}
+
+		showPaymentSuccessIfReturned() {
+			const params = new URLSearchParams(window.location.search);
+			if (params.get('pckz_paid') !== '1') {
+				return;
+			}
+			const message =
+				I18N.paymentSuccess ||
+				'Vielen Dank. Ihre Zahlung wurde erfolgreich abgeschlossen und Ihre Bestellung wurde übermittelt.';
+			this.setPaymentStatus(message, false);
+			const banner = this.root.querySelector('[data-payment-success]');
+			if (banner) {
+				banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+			}
 		}
 
 		getStageSize() {

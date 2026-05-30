@@ -536,6 +536,113 @@ class PCKZ_Commerce {
 	}
 
 	/**
+	 * Latest commerce order for a saved design.
+	 *
+	 * @param int $design_id Design ID.
+	 * @return array|null
+	 */
+	public static function get_order_by_design_id( $design_id ) {
+		global $wpdb;
+		$table = $wpdb->prefix . self::TABLE_ORDERS;
+		$row   = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE design_id = %d ORDER BY id DESC LIMIT 1",
+				absint( $design_id )
+			),
+			ARRAY_A
+		);
+		return $row ?: null;
+	}
+
+	/**
+	 * List commerce orders (newest first).
+	 *
+	 * @param int $limit Max rows.
+	 * @return array<int,array>
+	 */
+	public static function list_orders( $limit = 100 ) {
+		global $wpdb;
+		self::create_table();
+		$table = $wpdb->prefix . self::TABLE_ORDERS;
+		$rows  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} ORDER BY created_at DESC, id DESC LIMIT %d",
+				max( 1, min( 500, absint( $limit ) ) )
+			),
+			ARRAY_A
+		);
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Production workflow status codes stored in the orders table.
+	 *
+	 * @return array<string,string> code => German label.
+	 */
+	public static function workflow_statuses() {
+		return array(
+			'pending'        => __( 'Zahlung ausstehend', 'pckz-canonical-engine' ),
+			'paid'           => __( 'Bezahlt', 'pckz-canonical-engine' ),
+			'in_progress'    => __( 'In Bearbeitung', 'pckz-canonical-engine' ),
+			'production'     => __( 'Produktion', 'pckz-canonical-engine' ),
+			'ready_to_ship'  => __( 'Versandbereit', 'pckz-canonical-engine' ),
+			'shipped'        => __( 'Versendet', 'pckz-canonical-engine' ),
+			'completed'      => __( 'Abgeschlossen', 'pckz-canonical-engine' ),
+			'cancelled'      => __( 'Storniert', 'pckz-canonical-engine' ),
+		);
+	}
+
+	/**
+	 * Human-readable label for a stored status (includes legacy PayPal codes).
+	 *
+	 * @param string $status Raw status.
+	 * @return string
+	 */
+	public static function status_label( $status ) {
+		$status = sanitize_key( (string) $status );
+		$labels = self::workflow_statuses();
+		if ( isset( $labels[ $status ] ) ) {
+			return $labels[ $status ];
+		}
+		$legacy = array(
+			'paypal_created' => $labels['pending'],
+			'captured'       => $labels['paid'],
+			'failed'         => __( 'Zahlung fehlgeschlagen', 'pckz-canonical-engine' ),
+		);
+		return $legacy[ $status ] ?? $status;
+	}
+
+	/**
+	 * Whether a status may be saved on an order row.
+	 *
+	 * @param string $status Status code.
+	 * @return bool
+	 */
+	public static function is_valid_workflow_status( $status ) {
+		return array_key_exists( sanitize_key( (string) $status ), self::workflow_statuses() );
+	}
+
+	/**
+	 * Update order workflow status (admin).
+	 *
+	 * @param int    $id     Order ID.
+	 * @param string $status New status.
+	 * @return true|WP_Error
+	 */
+	public static function set_workflow_status( $id, $status ) {
+		$status = sanitize_key( (string) $status );
+		if ( ! self::is_valid_workflow_status( $status ) ) {
+			return new WP_Error( 'invalid_status', __( 'Ungültiger Bestellstatus.', 'pckz-canonical-engine' ) );
+		}
+		$row = self::get_order( $id );
+		if ( ! $row ) {
+			return new WP_Error( 'not_found', __( 'Bestellung nicht gefunden.', 'pckz-canonical-engine' ) );
+		}
+		self::update_order( $id, array( 'status' => $status ) );
+		return true;
+	}
+
+	/**
 	 * Persist customer email/note on design meta.
 	 *
 	 * @param int    $design_id Design ID.
