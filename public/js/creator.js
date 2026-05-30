@@ -1235,6 +1235,10 @@
 					dbg.lbrn2_attached_to_request != null
 						? 'lbrn2_attached=' + (dbg.lbrn2_attached_to_request ? 'yes' : 'no')
 						: '',
+					dbg.svg_generated != null ? 'svg_generated=' + (dbg.svg_generated ? 'yes' : 'no') : '',
+					dbg.svg_exists != null ? 'svg_exists=' + (dbg.svg_exists ? 'yes' : 'no') : '',
+					dbg.svg_text_group_count != null ? 'svg_text_groups=' + dbg.svg_text_group_count : '',
+					dbg.svg_text_path_count != null ? 'svg_text_paths=' + dbg.svg_text_path_count : '',
 				].filter(Boolean);
 				if (parts.length) {
 					lines.push(parts.join(' '));
@@ -1266,7 +1270,7 @@
 						selections: this.selections,
 					})
 				: layout;
-			const productionVectorSvg = await this.previewEngine.buildFabricProductionSvg(
+			let productionVectorSvg = await this.previewEngine.buildFabricProductionSvg(
 				this.mmW,
 				this.mmH
 			);
@@ -1275,6 +1279,13 @@
 				this.mmW,
 				this.mmH
 			);
+			if (this.previewEngine.injectTextPathsIntoProductionSvg) {
+				productionVectorSvg = this.previewEngine.injectTextPathsIntoProductionSvg(
+					productionVectorSvg,
+					textPlatePaths,
+					this.mmH
+				);
+			}
 			const body = new FormData();
 			body.append('action', 'pckzce_export_validate');
 			body.append('nonce', pckzceConfig.nonce);
@@ -1651,6 +1662,13 @@
 					textPlatePaths = await this.previewEngine.buildTextPlatePathsForLbrn(
 						prodLayout,
 						this.mmW,
+						this.mmH
+					);
+				}
+				if (this.previewEngine.injectTextPathsIntoProductionSvg) {
+					productionVectorSvg = this.previewEngine.injectTextPathsIntoProductionSvg(
+						productionVectorSvg,
+						textPlatePaths,
 						this.mmH
 					);
 				}

@@ -1472,7 +1472,7 @@
 		}
 
 		/**
-		 * Plate-mm vector paths for LBRN2 only (not written into production SVG).
+		 * Plate-mm vector paths for LBRN2 (and embedded redundantly into production SVG).
 		 *
 		 * @param {object} layout Production layout (objects + refs).
 		 * @param {number} mmW
@@ -1671,6 +1671,38 @@
 			}
 
 			return parts.join('\n');
+		}
+
+		normalizeTextPlatePathsFragment(fragment) {
+			return String(fragment || '')
+				.replace(/<\?xml[\s\S]*?\?>/gi, '')
+				.trim();
+		}
+
+		buildEmbeddedTextPathsForProductionSvg(textPlatePaths, mmH) {
+			const fragment = this.normalizeTextPlatePathsFragment(textPlatePaths);
+			if (!fragment || fragment.indexOf('<path') === -1) {
+				return '';
+			}
+			return (
+				'<g id="pckz-text-engrave-export" data-pckz-role="text-engrave" transform="matrix(1 0 0 -1 0 ' +
+				this.fmtMm(mmH) +
+				')">\n' +
+				fragment +
+				'\n</g>'
+			);
+		}
+
+		injectTextPathsIntoProductionSvg(svg, textPlatePaths, mmH) {
+			const markup = String(svg || '');
+			if (!markup || /id="pckz-text-engrave(?:-export)?"/i.test(markup)) {
+				return markup;
+			}
+			const embedded = this.buildEmbeddedTextPathsForProductionSvg(textPlatePaths, mmH);
+			if (!embedded) {
+				return markup;
+			}
+			return markup.replace(/<\/svg>\s*$/i, embedded + '\n</svg>');
 		}
 
 		/**

@@ -55,6 +55,10 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.20.4 =
+
+* Export hardening: embed customer text outline paths into `production_vector_svg` (redundant channel) and recover `text_plate_paths` from SVG when POST payload loses text fields; keeps customer text visible in final SVG + LBRN2 exports.
+
 = 2.20.3 =
 
 * Export: production SVG and LBRN2 now share `prepare_export_scene()` so customer text vector paths from `text_plate_paths` appear in both files; non-destructive merge preserves existing text when re-parse fails; save rejects exports missing text when custom text is set.

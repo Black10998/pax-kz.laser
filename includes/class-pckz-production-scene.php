@@ -529,7 +529,76 @@ class PCKZ_Production_Scene {
 				return $fragment;
 			}
 		}
+		$master_sources = array(
+			$package['production_vector_svg'] ?? '',
+			$package['layout']['production_vector_svg'] ?? '',
+			$package['meta']['production_vector_svg'] ?? '',
+			$package['meta']['layout']['production_vector_svg'] ?? '',
+			$package['production']['production_vector_svg'] ?? '',
+			$package['production']['layout']['production_vector_svg'] ?? '',
+		);
+		foreach ( $master_sources as $master_svg ) {
+			$fragment = self::extract_text_plate_paths_fragment_from_master_svg( $master_svg );
+			if ( '' !== $fragment ) {
+				return $fragment;
+			}
+		}
 		return '';
+	}
+
+	/**
+	 * Extract text_plate_paths-compatible fragment from a production SVG snapshot.
+	 *
+	 * @param string $svg Master production SVG.
+	 * @return string
+	 */
+	public static function extract_text_plate_paths_fragment_from_master_svg( $svg ) {
+		$svg = trim( (string) $svg );
+		if ( '' === $svg ) {
+			return '';
+		}
+
+		$dom  = new DOMDocument();
+		$prev = libxml_use_internal_errors( true );
+		$ok   = $dom->loadXML( $svg );
+		libxml_clear_errors();
+		libxml_use_internal_errors( $prev );
+		if ( ! $ok ) {
+			return '';
+		}
+
+		$xp      = new DOMXPath( $dom );
+		$wrapper = $xp->query( '//*[@id="pckz-text-engrave-export"]' );
+		if ( $wrapper && $wrapper->length > 0 ) {
+			return self::normalize_text_plate_paths_fragment( (string) $dom->saveXML( $wrapper->item( 0 ) ) );
+		}
+
+		$nodes = $xp->query( '//*[starts-with(@id,"pckz-text-engrave")]' );
+		if ( ! $nodes || $nodes->length < 1 ) {
+			return '';
+		}
+		$parts = array();
+		foreach ( $nodes as $node ) {
+			if ( ! $node instanceof DOMElement ) {
+				continue;
+			}
+			$parent = $node->parentNode;
+			$skip   = false;
+			while ( $parent instanceof DOMElement ) {
+				$pid = (string) $parent->getAttribute( 'id' );
+				if ( '' !== $pid && 0 === strpos( $pid, 'pckz-text-engrave' ) ) {
+					$skip = true;
+					break;
+				}
+				$parent = $parent->parentNode;
+			}
+			if ( $skip ) {
+				continue;
+			}
+			$parts[] = (string) $dom->saveXML( $node );
+		}
+
+		return self::normalize_text_plate_paths_fragment( implode( "\n", $parts ) );
 	}
 
 	/**
