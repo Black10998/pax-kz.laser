@@ -31,13 +31,13 @@ if ( '' === $shipping_price_label && class_exists( 'PCKZ_Commerce' ) ) {
 }
 ?>
 <div class="pckz-checkout" data-checkout>
-	<header class="pckz-checkout__header" data-mobile-checkout-part="header">
+	<header class="pckz-checkout__header">
 		<h2 class="pckz-checkout__heading">Kasse</h2>
 		<p class="pckz-checkout__intro">Personalisiertes Produkt: <strong><?php echo esc_html( $product_title ); ?></strong></p>
 	</header>
 
 	<?php if ( $show_price ) : ?>
-		<section class="pckz-checkout__summary" aria-labelledby="pckz-order-summary-heading" data-order-summary data-mobile-checkout-part="summary">
+		<section class="pckz-checkout__summary" aria-labelledby="pckz-order-summary-heading" data-order-summary>
 			<h3 id="pckz-order-summary-heading" class="pckz-checkout__summary-heading">Bestellübersicht</h3>
 			<dl class="pckz-checkout__summary-list">
 				<div class="pckz-checkout__summary-row">
@@ -71,7 +71,7 @@ if ( '' === $shipping_price_label && class_exists( 'PCKZ_Commerce' ) ) {
 		</section>
 	<?php endif; ?>
 
-	<section class="pckz-checkout__customer" aria-labelledby="pckz-customer-heading" data-mobile-checkout-part="customer">
+	<section class="pckz-checkout__customer" aria-labelledby="pckz-customer-heading">
 		<h3 id="pckz-customer-heading" class="pckz-checkout__section-heading">Kundendaten &amp; Versandadresse</h3>
 
 		<div class="pckz-checkout__field-grid">
@@ -124,10 +124,10 @@ if ( '' === $shipping_price_label && class_exists( 'PCKZ_Commerce' ) ) {
 	</section>
 
 	<?php if ( $notice_html ) : ?>
-		<div class="pckz-checkout__notice" role="note" data-mobile-checkout-part="notice">
+		<div class="pckz-checkout__notice" role="note">
 			<?php echo $notice_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		</div>
 	<?php endif; ?>
 
-	<div class="pckz-checkout__status pckz-hidden" data-payment-status role="status" aria-live="polite" data-mobile-checkout-part="status"></div>
+	<div class="pckz-checkout__status pckz-hidden" data-payment-status role="status" aria-live="polite"></div>
 </div>

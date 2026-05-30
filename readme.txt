@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.20.9
+Stable tag: 2.20.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.20.10 =
+
+* Mobile UX simplification: removed step wizard navigation and restored a single compact scrolling flow on phones.
+* Compact mobile controls: reduced spacing, paddings, section sizing, and button heights for a cleaner premium mobile layout.
+* Mobile collapsible selectors: large option groups (especially font selection) now use compact dropdown/collapsible behavior on phones while desktop remains unchanged.
+* Keyboard + preview stability: mobile viewport resize handling now avoids keyboard-triggered preview/layout jumps during typing.
 
 = 2.20.9 =
 

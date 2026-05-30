@@ -71,8 +71,9 @@
 			this._splideSyncing = false;
 			this.exportReady = false;
 			this._exportReadyTimer = null;
-			this.mobileFlow = null;
 			this._uiClosersBound = false;
+			this._mobileViewportLock = false;
+			this._mobileResizeUnlockTimer = null;
 			this.init();
 		}
 
@@ -86,14 +87,11 @@
 			this.bindThumbs();
 			this.bindActions();
 			this.bindGlobalUiClosers();
-			this.initMobileFlow();
+			this.initMobileViewportStability();
 			this.initCanvas();
 			this.setCheckoutButtonsEnabled(false);
 			this.showPaymentSuccessIfReturned();
-			window.addEventListener('resize', () => {
-				this.resizeStage();
-				this.syncMobileFlowMode();
-			});
+			window.addEventListener('resize', () => this.handleWindowResize());
 		}
 
 		showPaymentSuccessIfReturned() {
@@ -120,123 +118,51 @@
 				const target = event.target;
 				if (!this.root.contains(target)) {
 					this.closeMobileColorPickers();
+					this.closeMobileFontPickers();
 					return;
 				}
 				if (!target.closest('[data-mobile-color-picker]')) {
 					this.closeMobileColorPickers();
 				}
-			});
-		}
-
-		initMobileFlow() {
-			const stepper = this.root.querySelector('[data-mobile-flow]');
-			if (!stepper || typeof window.matchMedia !== 'function') {
-				return;
-			}
-			const mq = window.matchMedia('(max-width: 989px)');
-			this.mobileFlow = {
-				enabled: false,
-				step: 1,
-				stepper,
-				prevBtn: stepper.querySelector('[data-mobile-step-prev]'),
-				nextBtn: stepper.querySelector('[data-mobile-step-next]'),
-				designPanel: this.root.querySelector('[data-mobile-step-panel="1"]'),
-				checkoutPanel: this.root.querySelector('[data-mobile-step-panel="checkout"]'),
-				indicators: Array.from(stepper.querySelectorAll('[data-mobile-step-indicator]')),
-				checkoutParts: Array.from(this.root.querySelectorAll('[data-mobile-checkout-part]')),
-				mq,
-			};
-			if (this.mobileFlow.prevBtn) {
-				this.mobileFlow.prevBtn.addEventListener('click', () => {
-					this.setMobileStep(this.mobileFlow.step - 1);
-				});
-			}
-			if (this.mobileFlow.nextBtn) {
-				this.mobileFlow.nextBtn.addEventListener('click', () => {
-					if (this.mobileFlow.step === 2 && !this.validateCommerce()) {
-						return;
-					}
-					this.setMobileStep(this.mobileFlow.step + 1);
-				});
-			}
-			const onMqChange = () => this.syncMobileFlowMode();
-			if (typeof mq.addEventListener === 'function') {
-				mq.addEventListener('change', onMqChange);
-			} else if (typeof mq.addListener === 'function') {
-				mq.addListener(onMqChange);
-			}
-			this.syncMobileFlowMode();
-		}
-
-		syncMobileFlowMode() {
-			if (!this.mobileFlow) {
-				return;
-			}
-			const enabled = this.mobileFlow.mq.matches;
-			if (enabled) {
-				if (!this.mobileFlow.enabled) {
-					this.mobileFlow.enabled = true;
-					this.root.classList.add('is-mobile-flow-active');
+				if (!target.closest('[data-mobile-font-picker]')) {
+					this.closeMobileFontPickers();
 				}
-				this.setMobileStep(this.mobileFlow.step || 1, { keepScroll: true, force: true });
-				return;
-			}
-			if (!this.mobileFlow.enabled) {
-				return;
-			}
-			this.mobileFlow.enabled = false;
-			this.root.classList.remove('is-mobile-flow-active');
-			if (this.mobileFlow.designPanel) {
-				this.mobileFlow.designPanel.hidden = false;
-			}
-			if (this.mobileFlow.checkoutPanel) {
-				this.mobileFlow.checkoutPanel.hidden = false;
-			}
-			this.mobileFlow.checkoutParts.forEach((part) => {
-				part.hidden = false;
 			});
 		}
 
-		setMobileStep(step, opts = {}) {
-			if (!this.mobileFlow || !this.mobileFlow.enabled) {
+		initMobileViewportStability() {
+			const isMobileInput = (el) => {
+				if (!el || !el.tagName) {
+					return false;
+				}
+				const tag = el.tagName.toLowerCase();
+				return tag === 'input' || tag === 'textarea' || tag === 'select';
+			};
+			const isMobileViewport = () => window.matchMedia && window.matchMedia('(max-width: 989px)').matches;
+			this.root.addEventListener('focusin', (event) => {
+				if (!isMobileViewport() || !isMobileInput(event.target)) {
+					return;
+				}
+				this._mobileViewportLock = true;
+				clearTimeout(this._mobileResizeUnlockTimer);
+			});
+			this.root.addEventListener('focusout', () => {
+				if (!this._mobileViewportLock) {
+					return;
+				}
+				clearTimeout(this._mobileResizeUnlockTimer);
+				this._mobileResizeUnlockTimer = setTimeout(() => {
+					this._mobileViewportLock = false;
+					this.handleWindowResize();
+				}, 180);
+			});
+		}
+
+		handleWindowResize() {
+			if (this._mobileViewportLock && window.matchMedia && window.matchMedia('(max-width: 989px)').matches) {
 				return;
 			}
-			const clamped = Math.max(1, Math.min(3, parseInt(step, 10) || 1));
-			this.mobileFlow.step = clamped;
-			this.mobileFlow.indicators.forEach((item) => {
-				const index = parseInt(item.dataset.mobileStepIndicator || '0', 10);
-				item.classList.toggle('is-active', index === clamped);
-			});
-			if (this.mobileFlow.prevBtn) {
-				this.mobileFlow.prevBtn.disabled = clamped <= 1;
-			}
-			if (this.mobileFlow.nextBtn) {
-				this.mobileFlow.nextBtn.hidden = clamped >= 3;
-			}
-			if (this.mobileFlow.designPanel) {
-				this.mobileFlow.designPanel.hidden = clamped !== 1;
-			}
-			if (this.mobileFlow.checkoutPanel) {
-				this.mobileFlow.checkoutPanel.hidden = clamped === 1;
-			}
-			const partsByStep = {
-				header: clamped > 1,
-				customer: clamped === 2,
-				summary: clamped === 3,
-				payment: clamped === 3,
-				notice: clamped > 1,
-				status: clamped === 3,
-			};
-			this.mobileFlow.checkoutParts.forEach((part) => {
-				const key = part.dataset.mobileCheckoutPart || '';
-				part.hidden = !partsByStep[key];
-			});
-			if (!opts.keepScroll) {
-				const topAnchor = this.root.querySelector('.pckz-product__inner');
-				if (topAnchor && typeof topAnchor.scrollIntoView === 'function') {
-					topAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
-				}
-			}
+			this.resizeStage();
 		}
 
 		closeMobileColorPickers(except) {
@@ -246,6 +172,19 @@
 				}
 				picker.classList.remove('is-open');
 				const trigger = picker.querySelector('[data-mobile-color-trigger]');
+				if (trigger) {
+					trigger.setAttribute('aria-expanded', 'false');
+				}
+			});
+		}
+
+		closeMobileFontPickers(except) {
+			this.root.querySelectorAll('[data-mobile-font-picker].is-open').forEach((picker) => {
+				if (picker === except) {
+					return;
+				}
+				picker.classList.remove('is-open');
+				const trigger = picker.querySelector('[data-mobile-font-trigger]');
 				if (trigger) {
 					trigger.setAttribute('aria-expanded', 'false');
 				}
@@ -871,6 +810,8 @@
 		initFontPickers() {
 			this.root.querySelectorAll('[data-font-picker]').forEach((picker) => {
 				const hidden = picker.querySelector('.pckz-font-hidden');
+				const mobileTrigger = picker.querySelector('[data-mobile-font-trigger]');
+				const mobileLabel = picker.querySelector('[data-mobile-font-label]');
 				const setActive = (family) => {
 					if (!hidden || !family) {
 						return;
@@ -880,12 +821,29 @@
 						const on = btn.dataset.fontFamily === family;
 						btn.classList.toggle('is-active', on);
 						btn.setAttribute('aria-selected', on ? 'true' : 'false');
+						if (on && mobileLabel) {
+							mobileLabel.textContent = btn.dataset.fontLabel || btn.dataset.fontFamily || family;
+						}
 					});
+					if (mobileTrigger) {
+						picker.classList.remove('is-open');
+						mobileTrigger.setAttribute('aria-expanded', 'false');
+					}
 					this.syncFromForm();
 				};
 				picker.querySelectorAll('.pckz-font-picker__option').forEach((btn) => {
 					btn.addEventListener('click', () => setActive(btn.dataset.fontFamily));
 				});
+				if (mobileTrigger) {
+					mobileTrigger.addEventListener('click', (event) => {
+						event.preventDefault();
+						event.stopPropagation();
+						const open = !picker.classList.contains('is-open');
+						this.closeMobileFontPickers(open ? picker : null);
+						picker.classList.toggle('is-open', open);
+						mobileTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+					});
+				}
 				if (hidden && hidden.value) {
 					setActive(hidden.value);
 				}
@@ -1176,12 +1134,7 @@
 					this.toast(msg || I18N.checkoutIncomplete, true);
 					const el = this.root.querySelector('[data-field="' + field + '"]');
 					if (el) {
-						if (this.mobileFlow && this.mobileFlow.enabled) {
-							this.setMobileStep(2);
-							setTimeout(() => el.focus(), 80);
-						} else {
-							el.focus();
-						}
+						el.focus();
 					}
 					return false;
 				}
@@ -1191,20 +1144,12 @@
 				this.toast(I18N.requireEmail || I18N.invalidEmail, true);
 				const el = this.root.querySelector('[data-field="customer_email"]');
 				if (el) {
-					if (this.mobileFlow && this.mobileFlow.enabled) {
-						this.setMobileStep(2);
-						setTimeout(() => el.focus(), 80);
-					} else {
-						el.focus();
-					}
+					el.focus();
 				}
 				return false;
 			}
 			if (!details.country) {
 				this.toast(I18N.requireCountry || I18N.checkoutIncomplete, true);
-				if (this.mobileFlow && this.mobileFlow.enabled) {
-					this.setMobileStep(2);
-				}
 				return false;
 			}
 			return true;
@@ -2011,9 +1956,6 @@
 		}
 
 		setPaymentStatus(message, isError) {
-			if (message && this.mobileFlow && this.mobileFlow.enabled) {
-				this.setMobileStep(3, { keepScroll: true });
-			}
 			const el = this.root.querySelector('[data-payment-status]');
 			if (!el) {
 				return;

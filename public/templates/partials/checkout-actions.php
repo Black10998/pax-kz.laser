@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 
 $paypal_only = isset( $paypal_only ) ? $paypal_only : ( class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::checkout_paypal_only() );
 ?>
-<section class="pckz-checkout__payment" aria-labelledby="pckz-payment-heading" data-mobile-checkout-part="payment">
+<section class="pckz-checkout__payment" aria-labelledby="pckz-payment-heading">
 	<h3 id="pckz-payment-heading" class="pckz-checkout__payment-heading">Zahlung</h3>
 
 	<?php if ( $paypal_only ) : ?>

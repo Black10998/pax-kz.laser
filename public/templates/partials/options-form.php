@@ -222,8 +222,15 @@ foreach ( $customer_options as $option ) :
 			<?php
 			$font_categories = class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::categories() : array();
 			$active_family   = $default ?: ( $fonts[0]['family'] ?? 'Russo One' );
+			$active_label    = $active_family;
+			foreach ( $fonts as $font_item ) {
+				if ( ( $font_item['family'] ?? '' ) === $active_family ) {
+					$active_label = $font_item['label'] ?? $active_family;
+					break;
+				}
+			}
 			?>
-			<div class="pckz-font-picker" data-font-picker data-option-id="<?php echo esc_attr( $id ); ?>">
+			<div class="pckz-font-picker" data-font-picker data-option-id="<?php echo esc_attr( $id ); ?>" data-mobile-font-picker>
 				<input
 					type="hidden"
 					class="pckz-font-hidden"
@@ -231,13 +238,19 @@ foreach ( $customer_options as $option ) :
 					name="pckz_options[<?php echo esc_attr( $id ); ?>]"
 					value="<?php echo esc_attr( $active_family ); ?>"
 				>
-				<div class="pckz-font-picker__grid" role="listbox" aria-label="<?php echo esc_attr( $label ); ?>">
+				<button type="button" class="pckz-font-picker__trigger" data-mobile-font-trigger aria-expanded="false">
+					<span class="pckz-font-picker__trigger-label" data-mobile-font-label><?php echo esc_html( $active_label ); ?></span>
+					<span class="pckz-font-picker__trigger-caret" aria-hidden="true"></span>
+				</button>
+				<div class="pckz-font-picker__panel" data-mobile-font-panel>
+					<div class="pckz-font-picker__grid" role="listbox" aria-label="<?php echo esc_attr( $label ); ?>">
 					<?php foreach ( $fonts as $font ) :
 						$family   = $font['family'] ?? '';
 						$cat      = $font['category'] ?? 'modern';
 						$cat_lbl  = $font_categories[ $cat ] ?? ucfirst( $cat );
 						$sample   = $font['sample'] ?? 'Aa Bb 123';
 						$is_active = $active_family === $family;
+						$font_label = $font['label'] ?? $family;
 						?>
 						<button
 							type="button"
@@ -245,15 +258,17 @@ foreach ( $customer_options as $option ) :
 							role="option"
 							aria-selected="<?php echo $is_active ? 'true' : 'false'; ?>"
 							data-font-family="<?php echo esc_attr( $family ); ?>"
+							data-font-label="<?php echo esc_attr( $font_label ); ?>"
 							style="font-family: <?php echo esc_attr( $family ); ?>, sans-serif;"
 						>
 							<span class="pckz-font-picker__sample"><?php echo esc_html( $sample ); ?></span>
 							<span class="pckz-font-picker__meta">
-								<span class="pckz-font-picker__name"><?php echo esc_html( $font['label'] ?? $family ); ?></span>
+								<span class="pckz-font-picker__name"><?php echo esc_html( $font_label ); ?></span>
 								<span class="pckz-font-picker__cat"><?php echo esc_html( $cat_lbl ); ?></span>
 							</span>
 						</button>
 					<?php endforeach; ?>
+					</div>
 				</div>
 			</div>
 
