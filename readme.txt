@@ -55,6 +55,13 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.20.0 =
+
+* LightBurn text: split OpenType paths per SVG subpath at parse/merge time; fix text-engrave layer roles in SVG walk.
+* PayPal: return to configurator page with success message and public order number (PCKZ-000123); optional configurator page in settings.
+* Order tracking shortcode `[pckz_order_tracking]` for customers.
+* Admin orders: search by order ID/email, internal notes, design summary on order detail.
+
 = 2.19.0 =
 
 * LightBurn: vector text with many SVG subpaths (e.g. Playfair Display) is split into separate Path shapes so lettering appears in .lbrn2.

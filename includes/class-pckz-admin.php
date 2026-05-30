@@ -20,6 +20,7 @@ class PCKZ_Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_post_pckz_update_order_status', array( $this, 'handle_update_order_status' ) );
+		add_action( 'admin_post_pckz_update_order_notes', array( $this, 'handle_update_order_notes' ) );
 	}
 
 	/**
@@ -106,6 +107,24 @@ class PCKZ_Admin {
 			'pckz-orders',
 			array( $this, 'render_orders' )
 		);
+	}
+
+	/**
+	 * Save production workflow status from admin.
+	 */
+	public function handle_update_order_notes() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'pckz-canonical-engine' ) );
+		}
+		check_admin_referer( 'pckz_update_order_notes', 'pckz_order_notes_nonce' );
+		$order_id = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
+		$notes    = isset( $_POST['admin_notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['admin_notes'] ) ) : '';
+		$redirect = isset( $_POST['redirect'] ) ? esc_url_raw( wp_unslash( $_POST['redirect'] ) ) : admin_url( 'admin.php?page=pckz-orders' );
+		if ( $order_id && class_exists( 'PCKZ_Commerce' ) ) {
+			PCKZ_Commerce::update_order( $order_id, array( 'admin_notes' => $notes ) );
+		}
+		wp_safe_redirect( add_query_arg( 'pckz_notes_updated', '1', $redirect ) );
+		exit;
 	}
 
 	/**
@@ -217,6 +236,7 @@ class PCKZ_Admin {
 			'paypal_live_client_id'    => sanitize_text_field( $input['paypal_live_client_id'] ?? '' ),
 			'paypal_live_secret'       => sanitize_text_field( $input['paypal_live_secret'] ?? '' ),
 			'paypal_success_url'   => esc_url_raw( $input['paypal_success_url'] ?? '' ),
+			'creator_page_id'      => absint( $input['creator_page_id'] ?? 0 ),
 			'paypal_cancel_url'    => esc_url_raw( $input['paypal_cancel_url'] ?? '' ),
 		);
 
@@ -525,21 +545,25 @@ class PCKZ_Admin {
 	 */
 	public function render_orders() {
 		$order_id = isset( $_GET['order_id'] ) ? absint( $_GET['order_id'] ) : 0;
-		$orders   = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::list_orders( 200 ) : array();
-		$order    = null;
+		$search   = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+		$orders   = class_exists( 'PCKZ_Commerce' )
+			? PCKZ_Commerce::list_orders( 200, array( 'search' => $search ) )
+			: array();
+		$order         = null;
 		$order_package = array();
+		$order_design  = null;
+		$order_meta    = array();
 
 		if ( $order_id && class_exists( 'PCKZ_Commerce' ) ) {
 			$order = PCKZ_Commerce::get_order( $order_id );
 			if ( $order && ! empty( $order['design_id'] ) ) {
-				$design = PCKZ_Design_Storage::get_design( (int) $order['design_id'] );
-				if ( $design ) {
-					$meta = array();
-					if ( ! empty( $design['meta_json'] ) ) {
-						$meta = json_decode( $design['meta_json'], true );
+				$order_design = PCKZ_Design_Storage::get_design( (int) $order['design_id'] );
+				if ( $order_design ) {
+					if ( ! empty( $order_design['meta_json'] ) ) {
+						$order_meta = json_decode( $order_design['meta_json'], true );
 					}
-					if ( is_array( $meta ) && ! empty( $meta['production'] ) ) {
-						$order_package = $meta['production'];
+					if ( is_array( $order_meta ) && ! empty( $order_meta['production'] ) ) {
+						$order_package = $order_meta['production'];
 					}
 				}
 			}

@@ -124,7 +124,20 @@ $payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz
 				<?php if ( class_exists( 'PCKZ_Commerce' ) ) : ?>
 					<?php if ( $payment_success ) : ?>
 						<div class="pckz-checkout__notice pckz-checkout__notice--success" role="status" data-payment-success>
-							<p><?php esc_html_e( 'Vielen Dank. Ihre Zahlung wurde erfolgreich abgeschlossen und Ihre Bestellung wurde übermittelt.', 'pckz-canonical-engine' ); ?></p>
+							<p><?php esc_html_e( 'Vielen Dank. Ihre Zahlung wurde erfolgreich abgeschlossen. Ihre Bestellung wurde erfolgreich übermittelt.', 'pckz-canonical-engine' ); ?></p>
+							<?php if ( ! empty( $_GET['pckz_order'] ) && class_exists( 'PCKZ_Commerce' ) ) : ?>
+								<p class="pckz-checkout__order-id">
+									<?php
+									echo esc_html(
+										sprintf(
+											/* translators: %s: public order number */
+											__( 'Ihre Bestellnummer: %s', 'pckz-canonical-engine' ),
+											PCKZ_Commerce::format_order_number( absint( $_GET['pckz_order'] ) )
+										)
+									);
+									?>
+								</p>
+							<?php endif; ?>
 						</div>
 					<?php endif; ?>
 					<div class="pckz-checkout-panel">

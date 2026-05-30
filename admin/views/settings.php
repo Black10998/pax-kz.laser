@@ -251,7 +251,23 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 				<th scope="row"><?php esc_html_e( 'Payment success URL', 'pckz-canonical-engine' ); ?></th>
 				<td>
 					<input type="url" class="large-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[paypal_success_url]" value="<?php echo esc_attr( $settings['paypal_success_url'] ?? '' ); ?>" placeholder="<?php echo esc_attr( home_url( '/' ) ); ?>">
-					<p class="description"><?php esc_html_e( 'Customer is redirected here after successful PayPal payment.', 'pckz-canonical-engine' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Optional fallback. After PayPal, customers are normally returned to the configurator page where they placed the order (stored automatically). Set this to your konfigurator URL if auto-detection fails.', 'pckz-canonical-engine' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Configurator page', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<?php
+					wp_dropdown_pages(
+						array(
+							'name'              => PCKZ_Settings::OPTION_KEY . '[creator_page_id]',
+							'selected'          => absint( $settings['creator_page_id'] ?? 0 ),
+							'show_option_none'  => __( '— Auto-detect —', 'pckz-canonical-engine' ),
+							'option_none_value' => '0',
+						)
+					);
+					?>
+					<p class="description"><?php esc_html_e( 'Page containing the [product_creator] shortcode (used for PayPal return and payment confirmation).', 'pckz-canonical-engine' ); ?></p>
 				</td>
 			</tr>
 			<tr>

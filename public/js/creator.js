@@ -1815,6 +1815,10 @@
 					body.append('product_id', this.productId);
 					body.append('design_id', this.designId);
 					body.append('quantity', qty);
+					body.append(
+						'page_url',
+						window.location.href.split('#')[0].split('?')[0] || window.location.href
+					);
 					this.appendCustomerFields(body);
 					return fetch(pckzceConfig.ajaxUrl, { method: 'POST', body }).then((r) => r.json());
 				})

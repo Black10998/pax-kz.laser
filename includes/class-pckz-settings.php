@@ -75,6 +75,7 @@ class PCKZ_Settings {
 			'paypal_live_secret'       => '',
 			'paypal_success_url'  => '',
 			'paypal_cancel_url'   => '',
+			'creator_page_id'     => 0,
 		);
 	}
 

@@ -60,6 +60,7 @@ class PCKZ_Plugin {
 		new PCKZ_Public();
 		new PCKZ_Ajax();
 		new PCKZ_Shortcode();
+		new PCKZ_Order_Tracking();
 
 		if ( class_exists( 'WooCommerce' ) ) {
 			new PCKZ_WooCommerce();

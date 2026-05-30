@@ -234,7 +234,7 @@ class PCKZ_Assets {
 					'validationFailed'      => 'Bitte prüfen Sie die markierten Hinweise.',
 					'saveFailed'            => 'Speichern fehlgeschlagen. Bitte versuchen Sie es erneut.',
 					'paypalRedirect'        => 'Weiterleitung zu PayPal…',
-					'paymentSuccess'        => 'Vielen Dank. Ihre Zahlung wurde erfolgreich abgeschlossen und Ihre Bestellung wurde übermittelt.',
+					'paymentSuccess'        => 'Vielen Dank. Ihre Zahlung wurde erfolgreich abgeschlossen. Ihre Bestellung wurde erfolgreich übermittelt.',
 					'paypalError'           => 'PayPal-Zahlung konnte nicht gestartet werden.',
 					'paymentRequired'       => 'Bitte schließen Sie die Zahlung über PayPal ab, um die Bestellung abzuschließen.',
 					'preparingCheckout'     => 'Bestellung wird vorbereitet – Sie werden zu PayPal weitergeleitet…',

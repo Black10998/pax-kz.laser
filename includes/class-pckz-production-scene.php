@@ -469,7 +469,18 @@ class PCKZ_Production_Scene {
 				'fill'     => (string) ( $entry['fill'] ?? '#ffffff' ),
 			);
 			$matrix = (array) ( $entry['matrix'] ?? array( 1, 0, 0, 1, 0, 0 ) );
-			self::add_path_layer( $d, $matrix, $h, $state, $layers, $coord );
+			$sub_idx = 0;
+			foreach ( PCKZ_Production_Geometry::split_path_subpaths( $d ) as $sub_d ) {
+				if ( '' === trim( $sub_d ) ) {
+					continue;
+				}
+				$sub_state = $state;
+				if ( $sub_idx > 0 ) {
+					$sub_state['layer_id'] = $state['layer_id'] . '-sp' . ( $sub_idx + 1 );
+				}
+				self::add_path_layer( $sub_d, $matrix, $h, $sub_state, $layers, $coord );
+				++$sub_idx;
+			}
 		}
 		unset( $layout );
 		return array(
@@ -575,11 +586,10 @@ class PCKZ_Production_Scene {
 			} elseif ( ! empty( $text_metas ) ) {
 				$meta = reset( $text_metas );
 			}
-			if ( $meta ) {
-				$layer = array_merge( $meta, $layer );
+			foreach ( self::expand_text_path_layers( $layer, $meta ) as $text_layer ) {
+				$scene['layers'][] = $text_layer;
+				++$merged;
 			}
-			$scene['layers'][] = $layer;
-			++$merged;
 		}
 		if ( $merged < 1 ) {
 			$fallback = self::parse_text_plate_paths_fragment( $fragment, $w, $h, $ctx['layout'] );
@@ -589,12 +599,30 @@ class PCKZ_Production_Scene {
 				}
 				$layer['role']     = 'text-engrave';
 				$layer['layer_id'] = 'pckz-text-engrave';
-				if ( $text_meta ) {
-					$layer = array_merge( $text_meta, $layer );
+				foreach ( self::expand_text_path_layers( $layer, $text_meta ) as $text_layer ) {
+					$scene['layers'][] = $text_layer;
 				}
-				$scene['layers'][] = $layer;
 			}
 		}
+	}
+
+	/**
+	 * Expand a text path layer into one layer per contour (LightBurn-safe).
+	 *
+	 * @param array      $layer Path layer.
+	 * @param array|null $meta  Optional export meta.
+	 * @return array<int,array>
+	 */
+	public static function expand_text_path_layers( $layer, $meta = null ) {
+		$out = array();
+		foreach ( self::split_path_layer_subpaths( $layer ) as $chunk ) {
+			$chunk['role'] = 'text-engrave';
+			if ( $meta ) {
+				$chunk = array_merge( $meta, $chunk );
+			}
+			$out[] = $chunk;
+		}
+		return $out;
 	}
 
 	/**
@@ -1437,14 +1465,20 @@ class PCKZ_Production_Scene {
 				return;
 			}
 			if ( in_array( $id, array( 'pckz-text-paths' ), true ) ) {
+				if ( $node->hasChildNodes() ) {
+					foreach ( $node->childNodes as $child ) {
+						self::walk_svg_node( $child, $matrix, $canvas_h, $new_state, $layers, $coord_system );
+					}
+				}
 				return;
 			}
 			if ( $id && 0 === strpos( $id, 'pckz-' ) ) {
 				$new_state['layer_id'] = $id;
 				if ( preg_match( '/^pckz-line-\d+$/', $id ) ) {
 					$new_state['role'] = $id;
-				} elseif ( in_array( $id, array( 'pckz-text', 'pckz-text-engrave' ), true ) ) {
-					$new_state['role'] = $id;
+				} elseif ( in_array( $id, array( 'pckz-text', 'pckz-text-engrave' ), true ) || 0 === strpos( $id, 'pckz-text-engrave-' ) ) {
+					$new_state['role'] = 'text-engrave';
+					$new_state['layer_id'] = $id;
 				} else {
 					$new_state['role'] = preg_replace( '/-\d+$/', '', substr( $id, 5 ) );
 				}
@@ -1929,15 +1963,34 @@ class PCKZ_Production_Scene {
 				$prims[] = array( 'p0' => $last, 'p1' => $close_to, 't' => 'L' );
 			}
 		}
+		$closed = ! empty( $layer['closed'] );
+		$role   = (string) ( $layer['role'] ?? '' );
+		$lid    = (string) ( $layer['layer_id'] ?? '' );
+		if ( self::layer_is_text_engrave_role( $role, $lid ) && count( $verts ) >= 3 ) {
+			$closed = self::chunk_path_is_closed( $verts, $prims ) || $closed;
+		}
+
 		return array(
 			'verts'          => $verts,
 			'prims'          => $prims,
-			'closed'         => ! empty( $layer['closed'] ),
+			'closed'         => $closed,
 			'fill'           => $layer['fill'] ?? '#000000',
-			'role'           => $layer['role'] ?? 'engrave',
-			'layer_id'       => $layer['layer_id'] ?? ( $layer['role'] ?? 'engrave' ),
+			'role'           => $role ?: 'engrave',
+			'layer_id'       => $lid ?: ( $role ?: 'engrave' ),
 			'subpath_starts' => array(),
 		);
+	}
+
+	/**
+	 * @param string $role    Layer role.
+	 * @param string $layer_id Layer id.
+	 * @return bool
+	 */
+	private static function layer_is_text_engrave_role( $role, $layer_id ) {
+		if ( in_array( $role, array( 'text-engrave', 'pckz-text-engrave' ), true ) ) {
+			return true;
+		}
+		return 0 === strpos( $layer_id, 'pckz-text-engrave' );
 	}
 
 	/**

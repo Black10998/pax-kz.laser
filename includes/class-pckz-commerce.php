@@ -37,12 +37,15 @@ class PCKZ_Commerce {
 			paypal_capture_id varchar(64) NOT NULL DEFAULT '',
 			status varchar(32) NOT NULL DEFAULT 'pending',
 			wc_order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			return_url varchar(512) NOT NULL DEFAULT '',
+			admin_notes longtext,
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
 			KEY design_id (design_id),
 			KEY paypal_order_id (paypal_order_id),
-			KEY status (status)
+			KEY status (status),
+			KEY customer_email (customer_email)
 		) {$charset};";
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -463,11 +466,15 @@ class PCKZ_Commerce {
 	public static function insert_order( $data ) {
 		global $wpdb;
 		self::create_table();
+		$product_id = absint( $data['product_id'] ?? 0 );
+		$return_url = ! empty( $data['return_url'] )
+			? esc_url_raw( $data['return_url'] )
+			: self::resolve_creator_page_url( $product_id );
 		$wpdb->insert(
 			$wpdb->prefix . self::TABLE_ORDERS,
 			array(
 				'design_id'       => absint( $data['design_id'] ?? 0 ),
-				'product_id'      => absint( $data['product_id'] ?? 0 ),
+				'product_id'      => $product_id,
 				'customer_email'  => sanitize_email( $data['customer_email'] ?? '' ),
 				'customer_note'   => sanitize_textarea_field( $data['customer_note'] ?? '' ),
 				'customer_details'=> is_string( $data['customer_details'] ?? '' ) ? $data['customer_details'] : self::encode_customer_details( $data['customer_details'] ?? array() ),
@@ -476,8 +483,10 @@ class PCKZ_Commerce {
 				'currency'        => sanitize_text_field( $data['currency'] ?? 'EUR' ),
 				'paypal_order_id' => sanitize_text_field( $data['paypal_order_id'] ?? '' ),
 				'status'          => sanitize_key( $data['status'] ?? 'pending' ),
+				'return_url'      => $return_url,
+				'admin_notes'     => sanitize_textarea_field( $data['admin_notes'] ?? '' ),
 			),
-			array( '%d', '%d', '%s', '%s', '%s', '%d', '%f', '%s', '%s', '%s' )
+			array( '%d', '%d', '%s', '%s', '%s', '%d', '%f', '%s', '%s', '%s', '%s', '%s' )
 		);
 		return (int) $wpdb->insert_id;
 	}
@@ -560,18 +569,55 @@ class PCKZ_Commerce {
 	 * @param int $limit Max rows.
 	 * @return array<int,array>
 	 */
-	public static function list_orders( $limit = 100 ) {
+	public static function list_orders( $limit = 100, $args = array() ) {
 		global $wpdb;
 		self::create_table();
-		$table = $wpdb->prefix . self::TABLE_ORDERS;
-		$rows  = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM {$table} ORDER BY created_at DESC, id DESC LIMIT %d",
-				max( 1, min( 500, absint( $limit ) ) )
-			),
-			ARRAY_A
-		);
+		$table  = $wpdb->prefix . self::TABLE_ORDERS;
+		$limit  = max( 1, min( 500, absint( $limit ) ) );
+		$where  = array( '1=1' );
+		$params = array();
+
+		$search = trim( (string) ( $args['search'] ?? '' ) );
+		if ( '' !== $search ) {
+			$order_id = self::parse_order_number_input( $search );
+			if ( $order_id ) {
+				$where[]  = 'id = %d';
+				$params[] = $order_id;
+			} else {
+				$like     = '%' . $wpdb->esc_like( $search ) . '%';
+				$where[]  = '( customer_email LIKE %s OR customer_details LIKE %s OR customer_note LIKE %s )';
+				$params[] = $like;
+				$params[] = $like;
+				$params[] = $like;
+			}
+		}
+
+		$sql = "SELECT * FROM {$table} WHERE " . implode( ' AND ', $where ) . " ORDER BY created_at DESC, id DESC LIMIT %d";
+		$params[] = $limit;
+		$query    = $wpdb->prepare( $sql, $params );
+		$rows     = $wpdb->get_results( $query, ARRAY_A );
 		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Lookup order for customer tracking (by public order number).
+	 *
+	 * @param string $order_number Customer input.
+	 * @return array|null
+	 */
+	public static function get_order_for_tracking( $order_number ) {
+		$id = self::parse_order_number_input( $order_number );
+		if ( ! $id ) {
+			return null;
+		}
+		$row = self::get_order( $id );
+		if ( ! $row ) {
+			return null;
+		}
+		if ( in_array( $row['status'] ?? '', array( 'pending', 'paypal_created', 'failed' ), true ) ) {
+			return null;
+		}
+		return $row;
 	}
 
 	/**
@@ -582,13 +628,175 @@ class PCKZ_Commerce {
 	public static function workflow_statuses() {
 		return array(
 			'pending'        => __( 'Zahlung ausstehend', 'pckz-canonical-engine' ),
-			'paid'           => __( 'Bezahlt', 'pckz-canonical-engine' ),
+			'paid'           => __( 'Zahlung erhalten', 'pckz-canonical-engine' ),
 			'in_progress'    => __( 'In Bearbeitung', 'pckz-canonical-engine' ),
 			'production'     => __( 'Produktion', 'pckz-canonical-engine' ),
 			'ready_to_ship'  => __( 'Versandbereit', 'pckz-canonical-engine' ),
 			'shipped'        => __( 'Versendet', 'pckz-canonical-engine' ),
 			'completed'      => __( 'Abgeschlossen', 'pckz-canonical-engine' ),
 			'cancelled'      => __( 'Storniert', 'pckz-canonical-engine' ),
+		);
+	}
+
+	/**
+	 * Customer-facing tracking statuses (after payment).
+	 *
+	 * @return array<string,string>
+	 */
+	public static function customer_tracking_statuses() {
+		return array(
+			'paid'          => __( 'Zahlung erhalten', 'pckz-canonical-engine' ),
+			'in_progress'   => __( 'In Bearbeitung', 'pckz-canonical-engine' ),
+			'production'    => __( 'Produktion', 'pckz-canonical-engine' ),
+			'ready_to_ship' => __( 'Versandbereit', 'pckz-canonical-engine' ),
+			'shipped'       => __( 'Versendet', 'pckz-canonical-engine' ),
+			'completed'     => __( 'Abgeschlossen', 'pckz-canonical-engine' ),
+			'cancelled'     => __( 'Storniert', 'pckz-canonical-engine' ),
+		);
+	}
+
+	/**
+	 * Public order number shown to customers (e.g. PCKZ-000042).
+	 *
+	 * @param int $order_id Internal ID.
+	 * @return string
+	 */
+	public static function format_order_number( $order_id ) {
+		return 'PCKZ-' . str_pad( (string) max( 1, absint( $order_id ) ), 6, '0', STR_PAD_LEFT );
+	}
+
+	/**
+	 * Parse order number from customer input.
+	 *
+	 * @param string $input Customer input.
+	 * @return int Zero if invalid.
+	 */
+	public static function parse_order_number_input( $input ) {
+		$input = strtoupper( trim( (string) $input ) );
+		if ( preg_match( '/^PCKZ-(\d+)$/', $input, $m ) ) {
+			return absint( $m[1] );
+		}
+		if ( ctype_digit( $input ) ) {
+			return absint( $input );
+		}
+		return 0;
+	}
+
+	/**
+	 * Label for customer tracking page.
+	 *
+	 * @param string $status Stored status.
+	 * @return string
+	 */
+	public static function customer_status_label( $status ) {
+		$status = sanitize_key( (string) $status );
+		$labels = self::customer_tracking_statuses();
+		if ( isset( $labels[ $status ] ) ) {
+			return $labels[ $status ];
+		}
+		if ( in_array( $status, array( 'pending', 'paypal_created' ), true ) ) {
+			return __( 'Zahlung ausstehend', 'pckz-canonical-engine' );
+		}
+		if ( in_array( $status, array( 'captured' ), true ) ) {
+			return $labels['paid'];
+		}
+		return self::status_label( $status );
+	}
+
+	/**
+	 * Find a published page URL that embeds the product creator shortcode.
+	 *
+	 * @param int $product_id Creator product post ID.
+	 * @return string Empty if not found.
+	 */
+	public static function find_creator_page_url_for_product( $product_id = 0 ) {
+		$product_id = absint( $product_id );
+		$pages      = get_posts(
+			array(
+				'post_type'      => 'page',
+				'post_status'    => 'publish',
+				'posts_per_page' => 100,
+			)
+		);
+		foreach ( $pages as $page ) {
+			$content = (string) $page->post_content;
+			$has     = has_shortcode( $content, 'product_creator' ) || has_shortcode( $content, 'pckzce_creator' );
+			if ( ! $has ) {
+				continue;
+			}
+			if ( $product_id && preg_match( '/\[product_creator[^\]]*id\s*=\s*["\']?(\d+)/i', $content, $m ) ) {
+				if ( absint( $m[1] ) !== $product_id ) {
+					continue;
+				}
+			}
+			$url = get_permalink( $page );
+			if ( $url ) {
+				return $url;
+			}
+		}
+		$default_page = absint( PCKZ_Settings::get( 'creator_page_id', 0 ) );
+		if ( $default_page ) {
+			$url = get_permalink( $default_page );
+			return $url ? $url : '';
+		}
+		return '';
+	}
+
+	/**
+	 * URL where the customer configures / pays (konfigurator page).
+	 *
+	 * @param int $product_id Product ID.
+	 * @return string
+	 */
+	public static function resolve_creator_page_url( $product_id = 0 ) {
+		$page_id = absint( PCKZ_Settings::get( 'creator_page_id', 0 ) );
+		if ( $page_id ) {
+			$url = get_permalink( $page_id );
+			if ( $url ) {
+				return $url;
+			}
+		}
+		$found = self::find_creator_page_url_for_product( $product_id );
+		if ( $found ) {
+			return $found;
+		}
+		$configured = (string) PCKZ_Settings::get( 'paypal_success_url', '' );
+		if ( $configured && self::url_contains_creator_shortcode_page( $configured ) ) {
+			return $configured;
+		}
+		return $configured ? $configured : home_url( '/' );
+	}
+
+	/**
+	 * @param string $url URL.
+	 * @return bool
+	 */
+	private static function url_contains_creator_shortcode_page( $url ) {
+		$post_id = url_to_postid( $url );
+		if ( ! $post_id ) {
+			return false;
+		}
+		$content = (string) get_post_field( 'post_content', $post_id );
+		return false !== strpos( $content, 'product_creator' ) || false !== strpos( $content, 'pckzce_creator' );
+	}
+
+	/**
+	 * Redirect target after successful PayPal capture (configurator + success flag).
+	 *
+	 * @param array $commerce_order Commerce row.
+	 * @return string
+	 */
+	public static function resolve_post_payment_redirect( $commerce_order ) {
+		$base = ! empty( $commerce_order['return_url'] )
+			? (string) $commerce_order['return_url']
+			: self::resolve_creator_page_url( (int) ( $commerce_order['product_id'] ?? 0 ) );
+		$base = remove_query_arg( array( 'pckz_paypal', 'token', 'PayerID' ), $base );
+		return add_query_arg(
+			array(
+				'pckz_paid'  => '1',
+				'pckz_order' => (int) ( $commerce_order['id'] ?? 0 ),
+			),
+			$base
 		);
 	}
 
@@ -890,16 +1098,16 @@ class PCKZ_Commerce {
 	 * @return string
 	 */
 	public static function paypal_return_url( $commerce_order_id ) {
-		$url = (string) PCKZ_Settings::get( 'paypal_success_url', '' );
-		if ( ! $url ) {
-			$url = home_url( '/' );
-		}
+		$order = self::get_order( $commerce_order_id );
+		$base  = $order && ! empty( $order['return_url'] )
+			? (string) $order['return_url']
+			: self::resolve_creator_page_url( (int) ( $order['product_id'] ?? 0 ) );
 		return add_query_arg(
 			array(
 				'pckz_paypal' => 'return',
 				'pckz_order'  => absint( $commerce_order_id ),
 			),
-			$url
+			$base
 		);
 	}
 

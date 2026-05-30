@@ -743,6 +743,14 @@ class PCKZ_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Produktpreis ist nicht konfiguriert. Bitte kontaktieren Sie uns.', 'pckz-canonical-engine' ) ), 400 );
 		}
 
+		$page_url = isset( $_POST['page_url'] ) ? esc_url_raw( wp_unslash( $_POST['page_url'] ) ) : '';
+		if ( ! $page_url ) {
+			$page_url = wp_get_referer() ?: '';
+		}
+		if ( $page_url ) {
+			$page_url = remove_query_arg( array( 'pckz_paypal', 'pckz_paid', 'token', 'PayerID' ), $page_url );
+		}
+
 		$commerce_id = PCKZ_Commerce::insert_order(
 			array(
 				'design_id'        => $design_id,
@@ -754,6 +762,7 @@ class PCKZ_Ajax {
 				'amount'           => $amount,
 				'currency'         => $currency,
 				'status'           => 'pending',
+				'return_url'       => $page_url,
 			)
 		);
 

@@ -107,16 +107,11 @@ class PCKZ_Public {
 		$commerce['paypal_capture_id'] = $capture['capture_id'] ?? '';
 		$result = PCKZ_Commerce::finalize_paid_order( $commerce );
 
-		$success = (string) PCKZ_Settings::get( 'paypal_success_url', '' );
-		$redirect = $success ? $success : home_url( '/' );
-		$redirect = add_query_arg(
-			array(
-				'pckz_paid'    => '1',
-				'pckz_order'   => (int) ( $result['commerce_id'] ?? $commerce['id'] ),
-				'wc_order'     => (int) ( $result['wc_order_id'] ?? 0 ),
-			),
-			$redirect
-		);
+		$commerce['id'] = (int) ( $result['commerce_id'] ?? $commerce['id'] );
+		$redirect       = PCKZ_Commerce::resolve_post_payment_redirect( $commerce );
+		if ( ! empty( $result['wc_order_id'] ) ) {
+			$redirect = add_query_arg( 'wc_order', (int) $result['wc_order_id'], $redirect );
+		}
 		wp_safe_redirect( $redirect );
 		exit;
 	}

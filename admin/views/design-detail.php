@@ -82,7 +82,7 @@ $address_parts  = array_filter(
 );
 $customer_address = implode( ', ', $address_parts );
 
-$order_number = $commerce ? ( '#' . (int) $commerce['id'] ) : '—';
+$order_number = $commerce ? PCKZ_Commerce::format_order_number( (int) $commerce['id'] ) : '—';
 $order_date   = $commerce['created_at'] ?? ( $design['created_at'] ?? '' );
 $pay_status   = $commerce && class_exists( 'PCKZ_Commerce' )
 	? PCKZ_Commerce::status_label( $commerce['status'] ?? 'pending' )
