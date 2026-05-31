@@ -629,3 +629,204 @@
 	flex-wrap: wrap;
 	gap: 10px;
 }
+
+/* Licensing dashboard redesign */
+.pckz-license-dashboard {
+	max-width: 1320px;
+}
+
+.pckz-license-hero {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 18px 20px;
+	background: #fff;
+	border: 1px solid #d0d7de;
+	border-radius: 12px;
+	margin: 12px 0 18px;
+}
+
+.pckz-license-hero h1 {
+	margin: 0 0 6px;
+	font-size: 24px;
+	line-height: 1.2;
+}
+
+.pckz-license-hero p {
+	margin: 0;
+	color: #59636e;
+	max-width: 840px;
+}
+
+.pckz-license-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 24px;
+	padding: 2px 10px;
+	border-radius: 999px;
+	border: 1px solid #d0d7de;
+	background: #f6f8fa;
+	color: #24292f;
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.pckz-license-badge.is-success {
+	background: #dafbe1;
+	border-color: #a5d6af;
+	color: #1f6b35;
+}
+
+.pckz-license-badge.is-warning {
+	background: #fff8c5;
+	border-color: #eac54f;
+	color: #6f4e00;
+}
+
+.pckz-license-badge.is-danger {
+	background: #ffebe9;
+	border-color: #ffb4aa;
+	color: #a40e26;
+}
+
+.pckz-license-badge.is-muted {
+	background: #f6f8fa;
+	border-color: #d0d7de;
+	color: #57606a;
+}
+
+.pckz-license-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 14px;
+	margin-bottom: 16px;
+}
+
+.pckz-license-stat {
+	background: #fff;
+	border: 1px solid #d0d7de;
+	border-radius: 10px;
+	padding: 14px 16px;
+}
+
+.pckz-license-stat h3 {
+	margin: 0;
+	font-size: 13px;
+	color: #57606a;
+	font-weight: 600;
+}
+
+.pckz-license-stat p {
+	margin: 6px 0 2px;
+	font-size: 28px;
+	font-weight: 700;
+	line-height: 1.1;
+	color: #24292f;
+}
+
+.pckz-license-stat small {
+	color: #57606a;
+}
+
+.pckz-license-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(260px, 1fr));
+	gap: 14px;
+	margin-bottom: 14px;
+}
+
+.pckz-license-client-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 14px;
+}
+
+.pckz-license-card {
+	background: #fff;
+	border: 1px solid #d0d7de;
+	border-radius: 10px;
+	padding: 16px;
+}
+
+.pckz-license-card h2 {
+	margin: 0 0 14px;
+	font-size: 16px;
+}
+
+.pckz-license-card .description {
+	color: #57606a;
+	font-size: 12px;
+}
+
+.pckz-license-value {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 600;
+	color: #24292f;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.pckz-license-card--full {
+	margin-bottom: 14px;
+}
+
+.pckz-license-table-wrap {
+	overflow-x: auto;
+}
+
+.pckz-inline-form {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.pckz-license-filter {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.pckz-license-errors {
+	margin: 0;
+	padding-left: 18px;
+}
+
+.pckz-license-errors li {
+	display: grid;
+	grid-template-columns: minmax(120px, 1fr) minmax(140px, 2fr) minmax(220px, 4fr) minmax(140px, 1fr);
+	gap: 10px;
+	margin-bottom: 8px;
+	align-items: center;
+}
+
+.pckz-license-errors em {
+	color: #57606a;
+	font-size: 12px;
+}
+
+@media (max-width: 1120px) {
+	.pckz-license-grid {
+		grid-template-columns: repeat(2, minmax(240px, 1fr));
+	}
+}
+
+@media (max-width: 782px) {
+	.pckz-license-hero {
+		flex-direction: column;
+	}
+
+	.pckz-license-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.pckz-license-errors li {
+		grid-template-columns: 1fr;
+	}
+}

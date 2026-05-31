@@ -15,6 +15,8 @@ class PCKZ_Licensing {
 	const OPTION_CLIENT_STATE   = 'pckzce_license_state';
 	const OPTION_INSTALL_SECRET = 'pckzce_license_install_secret';
 	const OPTION_RELEASE_META   = 'pckzce_master_release_meta';
+	const OPTION_CLIENT_PACKAGE_HASH = 'pckzce_client_package_hash';
+	const OPTION_CLIENT_BOUND_DOMAINS = 'pckzce_client_bound_domains';
 	const OPTION_REPLAY_PREFIX  = 'pckzce_license_replay_';
 	const HEARTBEAT_HOOK        = 'pckzce_license_heartbeat';
 
@@ -34,6 +36,7 @@ class PCKZ_Licensing {
 		add_action( 'admin_post_pckzce_update_installation_status', array( $this, 'handle_update_installation_status' ) );
 		add_action( 'admin_post_pckzce_save_release_meta', array( $this, 'handle_save_release_meta' ) );
 		add_action( 'admin_post_pckzce_save_license_detail', array( $this, 'handle_save_license_detail' ) );
+		add_action( 'admin_post_pckzce_generate_customer_package', array( $this, 'handle_generate_customer_package' ) );
 
 		add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'inject_plugin_update' ) );
 		add_filter( 'plugins_api', array( $this, 'inject_plugin_info' ), 10, 3 );
@@ -119,6 +122,7 @@ class PCKZ_Licensing {
 	 */
 	public function bootstrap() {
 		$this->ensure_install_uuid();
+		$this->apply_embedded_client_package_config();
 		$this->schedule_heartbeat();
 	}
 
@@ -126,10 +130,13 @@ class PCKZ_Licensing {
 	 * Register master-control admin page.
 	 */
 	public function register_admin_menu() {
+		$master_mode = self::is_master_mode();
+		$page_title = $master_mode ? __( 'Master Control', 'pckz-canonical-engine' ) : __( 'License Dashboard', 'pckz-canonical-engine' );
+		$menu_title = $master_mode ? __( 'Master Control', 'pckz-canonical-engine' ) : __( 'License Dashboard', 'pckz-canonical-engine' );
 		add_submenu_page(
 			'pckz-canonical-engine',
-			__( 'License Server', 'pckz-canonical-engine' ),
-			__( 'License Server', 'pckz-canonical-engine' ),
+			$page_title,
+			$menu_title,
 			'manage_options',
 			'pckz-license-server',
 			array( $this, 'render_admin_page' )
@@ -165,25 +172,38 @@ class PCKZ_Licensing {
 		$settings     = PCKZ_Settings::get_all();
 		$master_mode  = ! empty( $settings['licensing_master_mode'] );
 		$generated    = get_transient( 'pckzce_last_created_license' );
+		$package_notice = get_transient( 'pckzce_customer_package_notice' );
+		$package_error  = get_transient( 'pckzce_customer_package_error' );
 		$release_meta = get_option(
 			self::OPTION_RELEASE_META,
 			array(
-				'version'          => '',
-				'package_url'      => '',
-				'changelog'        => '',
-				'requires'         => '6.0',
-				'requires_php'     => '7.4',
-				'tested'           => '',
-				'min_client_build' => '',
+				'version'             => '',
+				'package_url'         => '',
+				'changelog'           => '',
+				'requires'            => '6.0',
+				'requires_php'        => '7.4',
+				'tested'              => '',
+				'min_client_build'    => '',
 				'allow_remote_export' => false,
 			)
 		);
 		$client_state = self::get_client_state();
+		$client_summary = $this->client_dashboard_summary( $settings, $client_state );
 
 		global $wpdb;
-		$licenses = array();
-		$installs = array();
-		$downloads = array();
+		$licenses       = array();
+		$installs       = array();
+		$downloads      = array();
+		$recent_errors  = array();
+		$stats          = array(
+			'licenses_total'        => 0,
+			'licenses_active'       => 0,
+			'installations_total'   => 0,
+			'installations_active'  => 0,
+			'installations_blocked' => 0,
+			'downloads_total'       => 0,
+			'downloads_24h'         => 0,
+		);
 		if ( $master_mode ) {
 			$licenses = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'pckz_license_keys ORDER BY id DESC LIMIT 300', ARRAY_A );
 			$where    = '1=1';
@@ -205,182 +225,442 @@ class PCKZ_Licensing {
 			}
 			$installs = $wpdb->get_results( $sql, ARRAY_A );
 			$downloads = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'pckz_license_downloads ORDER BY id DESC LIMIT 300', ARRAY_A );
+			$recent_errors = $wpdb->get_results( 'SELECT domain, install_uuid, last_error, updated_at FROM ' . $wpdb->prefix . "pckz_license_installations WHERE last_error <> '' ORDER BY updated_at DESC LIMIT 50", ARRAY_A );
+
+			$stats['licenses_total'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'pckz_license_keys' );
+			$stats['licenses_active'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'pckz_license_keys WHERE status = %s', 'active' ) );
+			$stats['installations_total'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'pckz_license_installations' );
+			$stats['installations_active'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'pckz_license_installations WHERE status = %s', 'active' ) );
+			$stats['installations_blocked'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'pckz_license_installations WHERE status = %s', 'blocked' ) );
+			$stats['downloads_total'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'pckz_license_downloads' );
+			$stats['downloads_24h'] = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'pckz_license_downloads WHERE created_at >= %s',
+					gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS )
+				)
+			);
 		}
-		?>
-		<div class="wrap pckz-admin-wrap">
-			<h1><?php esc_html_e( 'PAX License Server', 'pckz-canonical-engine' ); ?></h1>
-			<?php if ( ! $master_mode ) : ?>
-				<div class="notice notice-warning"><p><?php esc_html_e( 'Master mode is disabled. Enable "Master control mode" in Settings to run paxdesign.at license APIs and controls from this installation.', 'pckz-canonical-engine' ); ?></p></div>
-			<?php endif; ?>
-			<?php if ( $generated ) : ?>
-				<div class="notice notice-success is-dismissible"><p><strong><?php esc_html_e( 'New license key:', 'pckz-canonical-engine' ); ?></strong> <code><?php echo esc_html( $generated ); ?></code></p></div>
-				<?php delete_transient( 'pckzce_last_created_license' ); ?>
-			<?php endif; ?>
-			<p>
-				<strong><?php esc_html_e( 'Client status:', 'pckz-canonical-engine' ); ?></strong>
-				<?php echo esc_html( (string) ( $client_state['status'] ?? 'unknown' ) ); ?>
-				<?php if ( ! empty( $client_state['reason'] ) ) : ?>
-					— <?php echo esc_html( (string) $client_state['reason'] ); ?>
-				<?php endif; ?>
-			</p>
+		$customer_packages = self::list_customer_packages();
+		include PCKZCE_PLUGIN_DIR . 'admin/views/licensing-dashboard.php';
+		if ( $generated ) {
+			delete_transient( 'pckzce_last_created_license' );
+		}
+		if ( $package_notice ) {
+			delete_transient( 'pckzce_customer_package_notice' );
+		}
+		if ( $package_error ) {
+			delete_transient( 'pckzce_customer_package_error' );
+		}
+	}
 
-			<div class="pckz-card" style="margin-top:16px;">
-				<h2><?php esc_html_e( 'Release / Update Metadata', 'pckz-canonical-engine' ); ?></h2>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<?php wp_nonce_field( 'pckzce_save_release_meta', 'pckzce_release_nonce' ); ?>
-					<input type="hidden" name="action" value="pckzce_save_release_meta">
-					<table class="form-table" role="presentation">
-						<tr><th scope="row"><label for="pckzce-release-version"><?php esc_html_e( 'Latest version', 'pckz-canonical-engine' ); ?></label></th><td><input id="pckzce-release-version" type="text" class="regular-text" name="version" value="<?php echo esc_attr( $release_meta['version'] ?? '' ); ?>"></td></tr>
-						<tr><th scope="row"><label for="pckzce-release-package"><?php esc_html_e( 'Protected package URL', 'pckz-canonical-engine' ); ?></label></th><td><input id="pckzce-release-package" type="url" class="large-text" name="package_url" value="<?php echo esc_attr( $release_meta['package_url'] ?? '' ); ?>"></td></tr>
-						<tr><th scope="row"><label for="pckzce-release-changelog"><?php esc_html_e( 'Changelog', 'pckz-canonical-engine' ); ?></label></th><td><textarea id="pckzce-release-changelog" class="large-text" rows="6" name="changelog"><?php echo esc_textarea( $release_meta['changelog'] ?? '' ); ?></textarea></td></tr>
-						<tr><th scope="row"><label for="pckzce-release-tested"><?php esc_html_e( 'Tested up to (WP)', 'pckz-canonical-engine' ); ?></label></th><td><input id="pckzce-release-tested" type="text" class="regular-text" name="tested" value="<?php echo esc_attr( $release_meta['tested'] ?? '' ); ?>"></td></tr>
-						<tr><th scope="row"><label for="pckzce-release-requires"><?php esc_html_e( 'Requires WP', 'pckz-canonical-engine' ); ?></label></th><td><input id="pckzce-release-requires" type="text" class="small-text" name="requires" value="<?php echo esc_attr( $release_meta['requires'] ?? '6.0' ); ?>"></td></tr>
-						<tr><th scope="row"><label for="pckzce-release-requires-php"><?php esc_html_e( 'Requires PHP', 'pckz-canonical-engine' ); ?></label></th><td><input id="pckzce-release-requires-php" type="text" class="small-text" name="requires_php" value="<?php echo esc_attr( $release_meta['requires_php'] ?? '7.4' ); ?>"></td></tr>
-						<tr><th scope="row"><label for="pckzce-release-min-build"><?php esc_html_e( 'Minimum required client build', 'pckz-canonical-engine' ); ?></label></th><td><input id="pckzce-release-min-build" type="text" class="regular-text" name="min_client_build" value="<?php echo esc_attr( $release_meta['min_client_build'] ?? '' ); ?>"><p class="description"><?php esc_html_e( 'Optional. If set, clients below this build can be denied protected features.', 'pckz-canonical-engine' ); ?></p></td></tr>
-						<tr>
-							<th scope="row"><?php esc_html_e( 'Allow remote export generation', 'pckz-canonical-engine' ); ?></th>
-							<td>
-								<label>
-									<input type="checkbox" name="allow_remote_export" value="1" <?php checked( ! empty( $release_meta['allow_remote_export'] ) ); ?>>
-									<?php esc_html_e( 'Enable `/client/export-generate` for licensed remote export mode.', 'pckz-canonical-engine' ); ?>
-								</label>
-							</td>
-						</tr>
-					</table>
-					<?php submit_button( __( 'Save release metadata', 'pckz-canonical-engine' ) ); ?>
-				</form>
-			</div>
+	/**
+	 * Build summary payload for the restricted client dashboard.
+	 *
+	 * @param array $settings     Saved plugin settings.
+	 * @param array $client_state Cached client entitlement state.
+	 * @return array
+	 */
+	private function client_dashboard_summary( $settings, $client_state ) {
+		$status       = sanitize_key( (string) ( $client_state['status'] ?? 'unknown' ) );
+		$reason       = sanitize_text_field( (string) ( $client_state['reason'] ?? '' ) );
+		$authorized   = ! empty( $client_state['authorized'] );
+		$checked_at   = (int) ( $client_state['checked_at'] ?? 0 );
+		$connected_to = self::normalize_master_url( (string) ( $client_state['master_url'] ?? $settings['licensing_master_url'] ?? '' ) );
+		$permissions  = is_array( $client_state['permissions'] ?? null ) ? $client_state['permissions'] : array();
 
-			<div class="pckz-card" style="margin-top:16px;">
-				<h2><?php esc_html_e( 'Create License Key', 'pckz-canonical-engine' ); ?></h2>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<?php wp_nonce_field( 'pckzce_create_license', 'pckzce_license_nonce' ); ?>
-					<input type="hidden" name="action" value="pckzce_create_license">
-					<table class="form-table" role="presentation">
-						<tr><th scope="row"><label for="pckzce-license-label"><?php esc_html_e( 'Label', 'pckz-canonical-engine' ); ?></label></th><td><input id="pckzce-license-label" type="text" class="regular-text" name="label" value=""></td></tr>
-						<tr><th scope="row"><label for="pckzce-license-domains"><?php esc_html_e( 'Allowed domains', 'pckz-canonical-engine' ); ?></label></th><td><textarea id="pckzce-license-domains" class="large-text" rows="4" name="domains"></textarea><p class="description"><?php esc_html_e( 'One per line. Example: client-domain.com', 'pckz-canonical-engine' ); ?></p></td></tr>
-						<tr><th scope="row"><label for="pckzce-license-max"><?php esc_html_e( 'Max installations', 'pckz-canonical-engine' ); ?></label></th><td><input id="pckzce-license-max" type="number" min="1" class="small-text" name="max_installs" value="1"></td></tr>
-						<tr><th scope="row"><?php esc_html_e( 'Permissions', 'pckz-canonical-engine' ); ?></th><td>
-							<label><input type="checkbox" name="perm_export" value="1" checked> <?php esc_html_e( 'Allow protected export', 'pckz-canonical-engine' ); ?></label><br>
-							<label><input type="checkbox" name="perm_updates" value="1" checked> <?php esc_html_e( 'Allow updates/downloads', 'pckz-canonical-engine' ); ?></label>
-						</td></tr>
-					</table>
-					<?php submit_button( __( 'Create license key', 'pckz-canonical-engine' ) ); ?>
-				</form>
-			</div>
+		$license_status = 'unknown';
+		if ( $authorized ) {
+			$license_status = 'active';
+		} elseif ( false !== strpos( strtolower( $reason ), 'expired' ) ) {
+			$license_status = 'expired';
+		} elseif ( false !== strpos( strtolower( $reason ), 'revoked' ) || false !== strpos( strtolower( $reason ), 'blocked' ) ) {
+			$license_status = 'blocked';
+		} elseif ( in_array( $status, array( 'denied', 'network_error', 'unconfigured' ), true ) ) {
+			$license_status = $status;
+		}
 
-			<?php if ( $master_mode ) : ?>
-				<div class="pckz-card" style="margin-top:16px;">
-					<h2><?php esc_html_e( 'Licenses', 'pckz-canonical-engine' ); ?></h2>
-					<table class="widefat striped">
-						<thead><tr><th>ID</th><th><?php esc_html_e( 'License', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Status', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Domains', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Permissions', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Actions', 'pckz-canonical-engine' ); ?></th></tr></thead>
-						<tbody>
-						<?php foreach ( $licenses as $license ) : ?>
-							<?php $domains = self::decode_json_array( $license['domains'] ); ?>
-							<?php $perm = self::decode_json_assoc( $license['permissions'], array( 'export' => true, 'updates' => true ) ); ?>
-							<tr>
-								<td><?php echo esc_html( (string) $license['id'] ); ?></td>
-								<td>
-									<strong><?php echo esc_html( $license['label'] ? $license['label'] : __( '(no label)', 'pckz-canonical-engine' ) ); ?></strong><br>
-									<code><?php echo esc_html( self::mask_key( $license['license_key'] ) ); ?></code><br>
-									<small><?php esc_html_e( 'Max installs:', 'pckz-canonical-engine' ); ?> <?php echo esc_html( (string) ( $license['max_installs'] ?? 1 ) ); ?><?php if ( ! empty( $license['expires_at'] ) ) : ?> · <?php esc_html_e( 'Expires:', 'pckz-canonical-engine' ); ?> <?php echo esc_html( (string) $license['expires_at'] ); ?><?php endif; ?></small>
-								</td>
-								<td><?php echo esc_html( $license['status'] ); ?></td>
-								<td><code style="white-space:pre-wrap;"><?php echo esc_html( implode( "\n", $domains ) ); ?></code></td>
-								<td><?php echo ! empty( $perm['export'] ) ? esc_html__( 'Export', 'pckz-canonical-engine' ) : esc_html__( 'No export', 'pckz-canonical-engine' ); ?> · <?php echo ! empty( $perm['updates'] ) ? esc_html__( 'Updates', 'pckz-canonical-engine' ) : esc_html__( 'No updates', 'pckz-canonical-engine' ); ?></td>
-								<td>
-									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:block;margin-bottom:8px;">
-										<?php wp_nonce_field( 'pckzce_save_license_detail', 'pckzce_license_detail_nonce' ); ?>
-										<input type="hidden" name="action" value="pckzce_save_license_detail">
-										<input type="hidden" name="license_id" value="<?php echo esc_attr( (string) $license['id'] ); ?>">
-										<input type="text" name="label" value="<?php echo esc_attr( $license['label'] ); ?>" placeholder="<?php esc_attr_e( 'Label', 'pckz-canonical-engine' ); ?>" style="width:120px;">
-										<input type="number" min="1" name="max_installs" value="<?php echo esc_attr( (string) ( $license['max_installs'] ?? 1 ) ); ?>" style="width:70px;">
-										<input type="datetime-local" name="expires_at" value="<?php echo esc_attr( ! empty( $license['expires_at'] ) ? gmdate( 'Y-m-d\TH:i', strtotime( $license['expires_at'] ) ) : '' ); ?>">
-										<br><textarea name="domains" rows="3" style="width:220px;margin-top:6px;"><?php echo esc_textarea( implode( "\n", $domains ) ); ?></textarea>
-										<br>
-										<label><input type="checkbox" name="perm_export" value="1" <?php checked( ! empty( $perm['export'] ) ); ?>><?php esc_html_e( 'Export', 'pckz-canonical-engine' ); ?></label>
-										<label><input type="checkbox" name="perm_updates" value="1" <?php checked( ! empty( $perm['updates'] ) ); ?>><?php esc_html_e( 'Updates', 'pckz-canonical-engine' ); ?></label>
-										<?php submit_button( __( 'Save', 'pckz-canonical-engine' ), 'secondary', 'submit', false ); ?>
-									</form>
-									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;">
-										<?php wp_nonce_field( 'pckzce_update_license_status', 'pckzce_license_status_nonce' ); ?>
-										<input type="hidden" name="action" value="pckzce_update_license_status">
-										<input type="hidden" name="license_id" value="<?php echo esc_attr( (string) $license['id'] ); ?>">
-										<input type="hidden" name="new_status" value="<?php echo esc_attr( 'active' === $license['status'] ? 'revoked' : 'active' ); ?>">
-										<button type="submit" class="button button-secondary"><?php echo esc_html( 'active' === $license['status'] ? __( 'Revoke', 'pckz-canonical-engine' ) : __( 'Activate', 'pckz-canonical-engine' ) ); ?></button>
-									</form>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-						</tbody>
-					</table>
-				</div>
+		$license_type = __( 'Restricted', 'pckz-canonical-engine' );
+		if ( ! empty( $permissions['export'] ) && ! empty( $permissions['updates'] ) ) {
+			$license_type = __( 'Full Access', 'pckz-canonical-engine' );
+		} elseif ( ! empty( $permissions['export'] ) ) {
+			$license_type = __( 'Export Access', 'pckz-canonical-engine' );
+		} elseif ( ! empty( $permissions['updates'] ) ) {
+			$license_type = __( 'Updates Access', 'pckz-canonical-engine' );
+		}
 
-				<div class="pckz-card" style="margin-top:16px;">
-					<h2><?php esc_html_e( 'Active Installations', 'pckz-canonical-engine' ); ?></h2>
-					<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-						<input type="hidden" name="page" value="pckz-license-server">
-						<input type="text" name="pckz_install_s" value="<?php echo esc_attr( sanitize_text_field( wp_unslash( $_GET['pckz_install_s'] ?? '' ) ) ); ?>" placeholder="<?php esc_attr_e( 'Search domain / UUID', 'pckz-canonical-engine' ); ?>">
-						<select name="pckz_install_status">
-							<option value=""><?php esc_html_e( 'All statuses', 'pckz-canonical-engine' ); ?></option>
-							<option value="active" <?php selected( sanitize_key( wp_unslash( $_GET['pckz_install_status'] ?? '' ) ), 'active' ); ?>><?php esc_html_e( 'Active', 'pckz-canonical-engine' ); ?></option>
-							<option value="blocked" <?php selected( sanitize_key( wp_unslash( $_GET['pckz_install_status'] ?? '' ) ), 'blocked' ); ?>><?php esc_html_e( 'Blocked', 'pckz-canonical-engine' ); ?></option>
-						</select>
-						<?php submit_button( __( 'Filter', 'pckz-canonical-engine' ), 'secondary', '', false ); ?>
-					</form>
-					<table class="widefat striped">
-						<thead><tr><th>ID</th><th><?php esc_html_e( 'License ID', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Domain / Install', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Version', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Integrity', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Check-in', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Status', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Actions', 'pckz-canonical-engine' ); ?></th></tr></thead>
-						<tbody>
-						<?php foreach ( $installs as $install ) : ?>
-							<tr>
-								<td><?php echo esc_html( (string) $install['id'] ); ?></td>
-								<td><?php echo esc_html( (string) $install['license_id'] ); ?></td>
-								<td><?php echo esc_html( $install['domain'] ); ?><br><code><?php echo esc_html( $install['install_uuid'] ); ?></code></td>
-								<td><?php echo esc_html( $install['plugin_version'] ); ?><br><small><?php echo esc_html( (string) ( $install['plugin_build'] ?? '' ) ); ?></small></td>
-								<td>
-									<code><?php echo esc_html( ! empty( $install['integrity_hash'] ) ? substr( (string) $install['integrity_hash'], 0, 18 ) . '…' : '-' ); ?></code>
-									<?php $signals = self::decode_json_array( (string) ( $install['tamper_signals'] ?? '' ) ); ?>
-									<?php if ( ! empty( $signals ) ) : ?>
-										<br><small><?php echo esc_html( implode( ', ', $signals ) ); ?></small>
-									<?php endif; ?>
-								</td>
-								<td><?php echo esc_html( $install['last_check_in'] ); ?><br><small><?php esc_html_e( 'Heartbeats:', 'pckz-canonical-engine' ); ?> <?php echo esc_html( (string) ( $install['heartbeat_count'] ?? 0 ) ); ?></small></td>
-								<td><?php echo esc_html( $install['status'] ); ?></td>
-								<td>
-									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;">
-										<?php wp_nonce_field( 'pckzce_update_installation_status', 'pckzce_install_status_nonce' ); ?>
-										<input type="hidden" name="action" value="pckzce_update_installation_status">
-										<input type="hidden" name="installation_id" value="<?php echo esc_attr( (string) $install['id'] ); ?>">
-										<input type="hidden" name="new_status" value="<?php echo esc_attr( 'active' === $install['status'] ? 'blocked' : 'active' ); ?>">
-										<button type="submit" class="button button-secondary"><?php echo esc_html( 'active' === $install['status'] ? __( 'Block', 'pckz-canonical-engine' ) : __( 'Unblock', 'pckz-canonical-engine' ) ); ?></button>
-									</form>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-						</tbody>
-					</table>
-				</div>
-				<div class="pckz-card" style="margin-top:16px;">
-					<h2><?php esc_html_e( 'Protected Package Downloads', 'pckz-canonical-engine' ); ?></h2>
-					<table class="widefat striped">
-						<thead><tr><th>ID</th><th><?php esc_html_e( 'License ID', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Domain', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Install UUID', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Requested version', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Created', 'pckz-canonical-engine' ); ?></th></tr></thead>
-						<tbody>
-						<?php foreach ( $downloads as $download ) : ?>
-							<tr>
-								<td><?php echo esc_html( (string) $download['id'] ); ?></td>
-								<td><?php echo esc_html( (string) $download['license_id'] ); ?></td>
-								<td><?php echo esc_html( (string) $download['domain'] ); ?></td>
-								<td><code><?php echo esc_html( (string) $download['install_uuid'] ); ?></code></td>
-								<td><?php echo esc_html( (string) $download['requested_version'] ); ?></td>
-								<td><?php echo esc_html( (string) $download['created_at'] ); ?></td>
-							</tr>
-						<?php endforeach; ?>
-						</tbody>
-					</table>
-				</div>
-			<?php endif; ?>
-		</div>
-		<?php
+		$update_label  = __( 'Unknown', 'pckz-canonical-engine' );
+		$update_status = 'unknown';
+		if ( empty( $permissions['updates'] ) ) {
+			$update_label  = __( 'Not permitted by license', 'pckz-canonical-engine' );
+			$update_status = 'blocked';
+		} else {
+			$remote_meta = $this->fetch_remote_update_meta();
+			if ( ! empty( $remote_meta['update_available'] ) ) {
+				$version      = sanitize_text_field( (string) ( $remote_meta['version'] ?? '' ) );
+				$update_label = $version ? sprintf( __( 'Update available: %s', 'pckz-canonical-engine' ), $version ) : __( 'Update available', 'pckz-canonical-engine' );
+				$update_status = 'available';
+			} elseif ( ! empty( $remote_meta['ok'] ) || ! empty( $remote_meta['version'] ) ) {
+				$update_label  = __( 'Up to date', 'pckz-canonical-engine' );
+				$update_status = 'ok';
+			}
+		}
+
+		return array(
+			'license_status'      => $license_status,
+			'license_reason'      => $reason,
+			'connected_server'    => $connected_to ? $connected_to : __( 'Not configured', 'pckz-canonical-engine' ),
+			'domain'              => self::normalized_domain(),
+			'license_type'        => $license_type,
+			'installed_version'   => PCKZCE_VERSION,
+			'installed_build'     => defined( 'PCKZCE_BUILD' ) ? PCKZCE_BUILD : PCKZCE_VERSION,
+			'last_check_in_time'  => $checked_at ? gmdate( 'Y-m-d H:i:s', $checked_at ) . ' UTC' : __( 'Never', 'pckz-canonical-engine' ),
+			'last_check_in_human' => $checked_at ? sprintf( __( '%s ago', 'pckz-canonical-engine' ), human_time_diff( $checked_at, time() ) ) : __( 'No heartbeat yet', 'pckz-canonical-engine' ),
+			'update_status'       => $update_status,
+			'update_label'        => $update_label,
+			'license_hint'        => sanitize_text_field( (string) ( $client_state['license_hint'] ?? '' ) ),
+			'install_uuid'        => self::get_install_uuid(),
+		);
+	}
+
+	/**
+	 * Build customer-bound package from master dashboard.
+	 */
+	public function handle_generate_customer_package() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'pckz-canonical-engine' ) );
+		}
+		check_admin_referer( 'pckzce_generate_customer_package', 'pckzce_package_nonce' );
+		if ( ! self::is_master_mode() ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=pckz-license-server' ) );
+			exit;
+		}
+
+		global $wpdb;
+		$license_id = absint( $_POST['license_id'] ?? 0 );
+		$license    = $wpdb->get_row(
+			$wpdb->prepare( 'SELECT * FROM ' . $wpdb->prefix . 'pckz_license_keys WHERE id = %d LIMIT 1', $license_id ),
+			ARRAY_A
+		);
+		if ( ! $license ) {
+			set_transient( 'pckzce_customer_package_error', __( 'Please choose a valid license before generating a package.', 'pckz-canonical-engine' ), 10 * MINUTE_IN_SECONDS );
+			wp_safe_redirect( admin_url( 'admin.php?page=pckz-license-server' ) );
+			exit;
+		}
+
+		$domains = self::parse_domains( wp_unslash( $_POST['domains'] ?? '' ) );
+		if ( empty( $domains ) ) {
+			$domains = self::decode_json_array( (string) ( $license['domains'] ?? '' ) );
+		}
+		if ( empty( $domains ) ) {
+			set_transient( 'pckzce_customer_package_error', __( 'At least one allowed domain is required.', 'pckz-canonical-engine' ), 10 * MINUTE_IN_SECONDS );
+			wp_safe_redirect( admin_url( 'admin.php?page=pckz-license-server' ) );
+			exit;
+		}
+
+		$stored_permissions = self::decode_json_assoc( (string) ( $license['permissions'] ?? '' ), array( 'export' => true, 'updates' => true ) );
+		$has_export_field   = array_key_exists( 'perm_export', $_POST );
+		$has_update_field   = array_key_exists( 'perm_updates', $_POST );
+		$permissions = array(
+			'export'  => $has_export_field ? ! empty( $_POST['perm_export'] ) : ! empty( $stored_permissions['export'] ),
+			'updates' => $has_update_field ? ! empty( $_POST['perm_updates'] ) : ! empty( $stored_permissions['updates'] ),
+		);
+
+		$settings    = PCKZ_Settings::get_all();
+		$master_url  = self::normalize_master_url( (string) ( $settings['licensing_master_url'] ?? home_url() ) );
+		$license_key = sanitize_text_field( (string) ( $license['license_key'] ?? '' ) );
+
+		$config_payload = array(
+			'master_url'                        => $master_url,
+			'license_key'                       => $license_key,
+			'domains'                           => array_values( $domains ),
+			'permissions'                       => $permissions,
+			'licensing_master_mode'             => false,
+			'licensing_enforce'                 => true,
+			'licensing_grace_minutes'           => max( 5, min( 1440, absint( $_POST['grace_minutes'] ?? 120 ) ) ),
+			'licensing_require_signed_requests' => true,
+			'licensing_export_authorize'        => ! empty( $_POST['export_authorize'] ),
+			'licensing_export_remote_mode'      => ! empty( $_POST['export_remote_mode'] ),
+			'licensing_export_remote_strict'    => ! empty( $_POST['export_remote_strict'] ),
+			'generated_at'                      => gmdate( 'c' ),
+		);
+		$binding_payload = array(
+			'issued_at'         => gmdate( 'c' ),
+			'master_url'        => $master_url,
+			'license_key_mask'  => self::mask_key( $license_key ),
+			'domains'           => array_values( $domains ),
+			'permissions'       => $permissions,
+			'license_label'     => sanitize_text_field( (string) ( $license['label'] ?? '' ) ),
+			'license_id'        => (int) ( $license['id'] ?? 0 ),
+			'workflow'          => 'master-generated-customer-package',
+			'generated_by_user' => sanitize_user( wp_get_current_user()->user_login ),
+		);
+
+		$storage = self::customer_package_storage();
+		if ( is_wp_error( $storage ) ) {
+			set_transient( 'pckzce_customer_package_error', $storage->get_error_message(), 10 * MINUTE_IN_SECONDS );
+			wp_safe_redirect( admin_url( 'admin.php?page=pckz-license-server' ) );
+			exit;
+		}
+
+		$label_slug   = sanitize_title( (string) ( $license['label'] ?? '' ) );
+		$domain_slug  = sanitize_title( str_replace( '.', '-', (string) $domains[0] ) );
+		$slug         = trim( $label_slug . '-' . $domain_slug, '-' );
+		$slug         = $slug ? $slug : 'license-' . (int) $license['id'];
+		$package_name = 'pckz-canonical-engine-client-' . $slug . '-' . gmdate( 'Ymd-His' ) . '.zip';
+		$package_path = trailingslashit( $storage['dir'] ) . $package_name;
+
+		$generated = self::build_customer_package_zip( $package_path, $config_payload, $binding_payload );
+		if ( is_wp_error( $generated ) ) {
+			set_transient( 'pckzce_customer_package_error', $generated->get_error_message(), 10 * MINUTE_IN_SECONDS );
+			wp_safe_redirect( admin_url( 'admin.php?page=pckz-license-server' ) );
+			exit;
+		}
+
+		set_transient(
+			'pckzce_customer_package_notice',
+			array(
+				'filename' => $package_name,
+				'url'      => trailingslashit( $storage['url'] ) . rawurlencode( $package_name ),
+				'size'     => (int) @filesize( $package_path ),
+			),
+			10 * MINUTE_IN_SECONDS
+		);
+		wp_safe_redirect( admin_url( 'admin.php?page=pckz-license-server' ) );
+		exit;
+	}
+
+	/**
+	 * Resolve customer package storage directory.
+	 *
+	 * @return array|WP_Error
+	 */
+	private static function customer_package_storage() {
+		$uploads = wp_upload_dir();
+		if ( ! empty( $uploads['error'] ) ) {
+			return new WP_Error( 'upload_error', sanitize_text_field( (string) $uploads['error'] ) );
+		}
+		$dir = trailingslashit( $uploads['basedir'] ) . 'pckz-customer-packages';
+		if ( ! is_dir( $dir ) && ! wp_mkdir_p( $dir ) ) {
+			return new WP_Error( 'mkdir_failed', __( 'Could not create customer package directory.', 'pckz-canonical-engine' ) );
+		}
+		return array(
+			'dir' => $dir,
+			'url' => trailingslashit( $uploads['baseurl'] ) . 'pckz-customer-packages',
+		);
+	}
+
+	/**
+	 * Build and write a customer ZIP package.
+	 *
+	 * @param string $destination_zip Destination zip path.
+	 * @param array  $config_payload  Embedded client config payload.
+	 * @param array  $binding_payload Embedded license binding payload.
+	 * @return true|WP_Error
+	 */
+	private static function build_customer_package_zip( $destination_zip, $config_payload, $binding_payload ) {
+		$plugin_root = untrailingslashit( PCKZCE_PLUGIN_DIR );
+		$plugin_slug = basename( $plugin_root );
+		$temp_base   = trailingslashit( get_temp_dir() ) . 'pckz-customer-' . wp_generate_uuid4();
+		$temp_root   = trailingslashit( $temp_base ) . $plugin_slug;
+
+		if ( ! wp_mkdir_p( $temp_root ) ) {
+			return new WP_Error( 'temp_dir_failed', __( 'Could not create temporary package workspace.', 'pckz-canonical-engine' ) );
+		}
+
+		$copied = self::copy_directory_recursive(
+			$plugin_root,
+			$temp_root,
+			array(
+				'.git',
+				'.github',
+				'.cursor',
+				'node_modules',
+				'release-packages',
+				'dist',
+				'vendor/bin',
+			)
+		);
+		if ( is_wp_error( $copied ) ) {
+			self::delete_directory_recursive( $temp_base );
+			return $copied;
+		}
+
+		$config_file  = trailingslashit( $temp_root ) . 'CLIENT_LICENSE_CONFIG.json';
+		$binding_file = trailingslashit( $temp_root ) . 'LICENSE_BINDING.json';
+		$config_json  = wp_json_encode( $config_payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		$binding_json = wp_json_encode( $binding_payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		if ( ! is_string( $config_json ) || ! is_string( $binding_json ) ) {
+			self::delete_directory_recursive( $temp_base );
+			return new WP_Error( 'json_encode_failed', __( 'Could not encode customer package metadata.', 'pckz-canonical-engine' ) );
+		}
+		if ( false === @file_put_contents( $config_file, $config_json ) || false === @file_put_contents( $binding_file, $binding_json ) ) {
+			self::delete_directory_recursive( $temp_base );
+			return new WP_Error( 'metadata_write_failed', __( 'Could not write customer package metadata files.', 'pckz-canonical-engine' ) );
+		}
+
+		$zip_ok = self::zip_directory( $temp_base, $destination_zip );
+		self::delete_directory_recursive( $temp_base );
+		return $zip_ok;
+	}
+
+	/**
+	 * Recursively copy directory content while excluding selected paths.
+	 *
+	 * @param string $source  Source absolute path.
+	 * @param string $target  Target absolute path.
+	 * @param array  $exclude Relative path prefixes to skip.
+	 * @return true|WP_Error
+	 */
+	private static function copy_directory_recursive( $source, $target, $exclude = array() ) {
+		$source = untrailingslashit( (string) $source );
+		$target = untrailingslashit( (string) $target );
+		$iter   = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator( $source, FilesystemIterator::SKIP_DOTS ),
+			RecursiveIteratorIterator::SELF_FIRST
+		);
+
+		foreach ( $iter as $item ) {
+			$path     = $item->getPathname();
+			$relative = ltrim( str_replace( $source, '', $path ), DIRECTORY_SEPARATOR );
+			if ( '' === $relative ) {
+				continue;
+			}
+			$relative_normalized = str_replace( '\\', '/', $relative );
+			$skip = false;
+			foreach ( $exclude as $skip_path ) {
+				$prefix = trim( str_replace( '\\', '/', (string) $skip_path ), '/' );
+				if ( '' !== $prefix && ( 0 === strpos( $relative_normalized, $prefix . '/' ) || $relative_normalized === $prefix ) ) {
+					$skip = true;
+					break;
+				}
+			}
+			if ( $skip ) {
+				continue;
+			}
+			$dest = $target . DIRECTORY_SEPARATOR . $relative;
+			if ( $item->isDir() ) {
+				if ( ! is_dir( $dest ) && ! wp_mkdir_p( $dest ) ) {
+					return new WP_Error( 'copy_dir_failed', __( 'Could not create a directory while building customer package.', 'pckz-canonical-engine' ) );
+				}
+			} elseif ( ! copy( $path, $dest ) ) {
+				return new WP_Error( 'copy_file_failed', sprintf( __( 'Could not copy file while building package: %s', 'pckz-canonical-engine' ), $relative_normalized ) );
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Archive a directory to zip.
+	 *
+	 * @param string $source_root Source directory.
+	 * @param string $zip_path    Zip path.
+	 * @return true|WP_Error
+	 */
+	private static function zip_directory( $source_root, $zip_path ) {
+		if ( class_exists( 'ZipArchive' ) ) {
+			$zip = new ZipArchive();
+			$open = $zip->open( $zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+			if ( true !== $open ) {
+				return new WP_Error( 'zip_open_failed', __( 'Could not open destination ZIP archive.', 'pckz-canonical-engine' ) );
+			}
+			$iter = new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator( $source_root, FilesystemIterator::SKIP_DOTS ),
+				RecursiveIteratorIterator::LEAVES_ONLY
+			);
+			foreach ( $iter as $file_info ) {
+				$path = $file_info->getPathname();
+				$rel  = ltrim( str_replace( $source_root, '', $path ), DIRECTORY_SEPARATOR );
+				if ( '' !== $rel ) {
+					$zip->addFile( $path, $rel );
+				}
+			}
+			$zip->close();
+			return true;
+		}
+
+		$zip_bin = trim( (string) shell_exec( 'command -v zip' ) );
+		if ( '' === $zip_bin ) {
+			return new WP_Error( 'zip_binary_missing', __( 'ZipArchive and system zip utility are unavailable on this server.', 'pckz-canonical-engine' ) );
+		}
+		$command = sprintf(
+			'cd %s && %s -qr %s .',
+			escapeshellarg( $source_root ),
+			escapeshellarg( $zip_bin ),
+			escapeshellarg( $zip_path )
+		);
+		$output = array();
+		$code   = 0;
+		exec( $command, $output, $code );
+		if ( 0 !== (int) $code ) {
+			return new WP_Error( 'zip_command_failed', __( 'Could not create package using system zip utility.', 'pckz-canonical-engine' ) );
+		}
+		return true;
+	}
+
+	/**
+	 * Delete directory recursively.
+	 *
+	 * @param string $directory Absolute directory path.
+	 */
+	private static function delete_directory_recursive( $directory ) {
+		if ( ! is_dir( $directory ) ) {
+			return;
+		}
+		$iter = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator( $directory, FilesystemIterator::SKIP_DOTS ),
+			RecursiveIteratorIterator::CHILD_FIRST
+		);
+		foreach ( $iter as $file_info ) {
+			if ( $file_info->isDir() ) {
+				@rmdir( $file_info->getPathname() );
+			} else {
+				@unlink( $file_info->getPathname() );
+			}
+		}
+		@rmdir( $directory );
+	}
+
+	/**
+	 * List generated customer packages for master dashboard.
+	 *
+	 * @return array
+	 */
+	private static function list_customer_packages() {
+		$storage = self::customer_package_storage();
+		if ( is_wp_error( $storage ) ) {
+			return array();
+		}
+
+		$entries = @scandir( $storage['dir'] );
+		if ( ! is_array( $entries ) ) {
+			return array();
+		}
+		$packages = array();
+		foreach ( $entries as $entry ) {
+			if ( '.' === $entry || '..' === $entry || ! preg_match( '/\.zip$/i', $entry ) ) {
+				continue;
+			}
+			$path = trailingslashit( $storage['dir'] ) . $entry;
+			if ( ! is_file( $path ) ) {
+				continue;
+			}
+			$packages[] = array(
+				'filename' => $entry,
+				'path'     => $path,
+				'url'      => trailingslashit( $storage['url'] ) . rawurlencode( $entry ),
+				'size'     => (int) @filesize( $path ),
+				'modified' => (int) @filemtime( $path ),
+			);
+		}
+
+		usort(
+			$packages,
+			static function ( $a, $b ) {
+				return (int) $b['modified'] <=> (int) $a['modified'];
+			}
+		);
+
+		return array_slice( $packages, 0, 50 );
 	}
 
 	/**
@@ -508,6 +788,10 @@ class PCKZ_Licensing {
 			wp_die( esc_html__( 'Unauthorized', 'pckz-canonical-engine' ) );
 		}
 		check_admin_referer( 'pckzce_save_release_meta', 'pckzce_release_nonce' );
+		if ( ! self::is_master_mode() ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=pckz-license-server' ) );
+			exit;
+		}
 		$meta = array(
 			'version'          => sanitize_text_field( wp_unslash( $_POST['version'] ?? '' ) ),
 			'package_url'      => esc_url_raw( wp_unslash( $_POST['package_url'] ?? '' ) ),
@@ -1325,6 +1609,16 @@ class PCKZ_Licensing {
 		if ( empty( $settings['licensing_enforce'] ) ) {
 			return true;
 		}
+		$bound_domains = get_option( self::OPTION_CLIENT_BOUND_DOMAINS, array() );
+		if ( is_array( $bound_domains ) && ! empty( $bound_domains ) && ! self::domain_allowed( self::normalized_domain(), $bound_domains ) ) {
+			$state = self::get_client_state();
+			$state['authorized'] = false;
+			$state['status']     = 'denied';
+			$state['reason']     = __( 'Current domain is not permitted for this customer package.', 'pckz-canonical-engine' );
+			$state['checked_at'] = time();
+			update_option( self::OPTION_CLIENT_STATE, $state, false );
+			return false;
+		}
 		$state = self::refresh_entitlement( false );
 		if ( ! empty( $state['authorized'] ) ) {
 			$perms = is_array( $state['permissions'] ?? null ) ? $state['permissions'] : array();
@@ -1737,6 +2031,97 @@ class PCKZ_Licensing {
 			),
 			'install_secret' => (string) ( $install['install_secret'] ?? '' ),
 		);
+	}
+
+	/**
+	 * Apply embedded customer package configuration once per package hash.
+	 */
+	private function apply_embedded_client_package_config() {
+		$config_file  = trailingslashit( PCKZCE_PLUGIN_DIR ) . 'CLIENT_LICENSE_CONFIG.json';
+		$binding_file = trailingslashit( PCKZCE_PLUGIN_DIR ) . 'LICENSE_BINDING.json';
+		if ( ! file_exists( $config_file ) && ! file_exists( $binding_file ) ) {
+			return;
+		}
+
+		$config_raw  = file_exists( $config_file ) ? (string) @file_get_contents( $config_file ) : '';
+		$binding_raw = file_exists( $binding_file ) ? (string) @file_get_contents( $binding_file ) : '';
+		$hash_seed   = $config_raw . "\n" . $binding_raw;
+		if ( '' === trim( $hash_seed ) ) {
+			return;
+		}
+		$current_hash = hash( 'sha256', $hash_seed );
+		$applied_hash = (string) get_option( self::OPTION_CLIENT_PACKAGE_HASH, '' );
+		if ( $applied_hash && hash_equals( $applied_hash, $current_hash ) ) {
+			return;
+		}
+
+		$config  = json_decode( $config_raw, true );
+		$binding = json_decode( $binding_raw, true );
+		$config  = is_array( $config ) ? $config : array();
+		$binding = is_array( $binding ) ? $binding : array();
+		if ( empty( $config ) && empty( $binding ) ) {
+			return;
+		}
+
+		$settings = PCKZ_Settings::get_all();
+		$changed  = false;
+
+		$master_url = self::normalize_master_url( (string) ( $config['master_url'] ?? $binding['master_url'] ?? '' ) );
+		if ( $master_url && $master_url !== (string) $settings['licensing_master_url'] ) {
+			$settings['licensing_master_url'] = $master_url;
+			$changed = true;
+		}
+		$license_key = sanitize_text_field( (string) ( $config['license_key'] ?? '' ) );
+		if ( $license_key && $license_key !== (string) $settings['licensing_key'] ) {
+			$settings['licensing_key'] = $license_key;
+			$changed = true;
+		}
+
+		if ( ! empty( $settings['licensing_master_mode'] ) ) {
+			$settings['licensing_master_mode'] = false;
+			$changed = true;
+		}
+
+		if ( array_key_exists( 'licensing_enforce', $config ) ) {
+			$settings['licensing_enforce'] = ! empty( $config['licensing_enforce'] );
+			$changed = true;
+		}
+		if ( array_key_exists( 'licensing_grace_minutes', $config ) ) {
+			$settings['licensing_grace_minutes'] = max( 5, min( 1440, absint( $config['licensing_grace_minutes'] ) ) );
+			$changed = true;
+		}
+		if ( array_key_exists( 'licensing_require_signed_requests', $config ) ) {
+			$settings['licensing_require_signed_requests'] = ! empty( $config['licensing_require_signed_requests'] );
+			$changed = true;
+		}
+		if ( array_key_exists( 'licensing_export_authorize', $config ) ) {
+			$settings['licensing_export_authorize'] = ! empty( $config['licensing_export_authorize'] );
+			$changed = true;
+		}
+		if ( array_key_exists( 'licensing_export_remote_mode', $config ) ) {
+			$settings['licensing_export_remote_mode'] = ! empty( $config['licensing_export_remote_mode'] );
+			$changed = true;
+		}
+		if ( array_key_exists( 'licensing_export_remote_strict', $config ) ) {
+			$settings['licensing_export_remote_strict'] = ! empty( $config['licensing_export_remote_strict'] );
+			$changed = true;
+		}
+
+		$bound_domains = array();
+		if ( ! empty( $config['domains'] ) && is_array( $config['domains'] ) ) {
+			$bound_domains = array_map( array( __CLASS__, 'normalize_domain_value' ), $config['domains'] );
+		} elseif ( ! empty( $binding['domains'] ) && is_array( $binding['domains'] ) ) {
+			$bound_domains = array_map( array( __CLASS__, 'normalize_domain_value' ), $binding['domains'] );
+		}
+		$bound_domains = array_values( array_filter( array_unique( $bound_domains ) ) );
+		if ( ! empty( $bound_domains ) ) {
+			update_option( self::OPTION_CLIENT_BOUND_DOMAINS, $bound_domains, false );
+		}
+
+		if ( $changed ) {
+			update_option( PCKZ_Settings::OPTION_KEY, $settings, false );
+		}
+		update_option( self::OPTION_CLIENT_PACKAGE_HASH, $current_hash, false );
 	}
 
 	/**
