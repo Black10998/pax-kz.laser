@@ -92,6 +92,11 @@ $status_label = static function ( $status ) {
 	<?php endif; ?>
 
 	<?php if ( ! $master_mode ) : ?>
+		<?php if ( ! empty( $client_notice ) && is_array( $client_notice ) && ! empty( $client_notice['message'] ) ) : ?>
+			<div class="notice <?php echo esc_attr( $client_notice['type'] ?? 'notice-success' ); ?> is-dismissible">
+				<p><?php echo esc_html( (string) $client_notice['message'] ); ?></p>
+			</div>
+		<?php endif; ?>
 		<div class="pckz-license-client-cards">
 			<article class="pckz-license-card">
 				<h2><?php esc_html_e( 'License Status', 'pckz-canonical-engine' ); ?></h2>
@@ -157,6 +162,26 @@ $status_label = static function ( $status ) {
 				</dl>
 				<?php if ( ! empty( $client_summary['update_detail'] ) ) : ?>
 					<p class="description pckz-update-detail"><?php echo esc_html( $client_summary['update_detail'] ); ?></p>
+				<?php endif; ?>
+				<?php if ( ! empty( $client_summary['can_update_now'] ) ) : ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-update-now-form">
+						<?php wp_nonce_field( 'pckzce_run_plugin_update', 'pckzce_update_nonce' ); ?>
+						<input type="hidden" name="action" value="pckzce_run_plugin_update">
+						<button type="submit" class="button button-primary button-hero pckz-update-now-btn" data-pckz-confirm="<?php esc_attr_e( 'Install the latest protected update from the master server now? Your site will download and update the plugin automatically.', 'pckz-canonical-engine' ); ?>">
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: %s: version number */
+									__( 'Update Now to %s', 'pckz-canonical-engine' ),
+									$client_summary['latest_version'] ?? ''
+								)
+							);
+							?>
+						</button>
+					</form>
+					<p class="description pckz-update-now-note">
+						<?php esc_html_e( 'You can also update from Plugins → Installed Plugins when an update is available.', 'pckz-canonical-engine' ); ?>
+					</p>
 				<?php endif; ?>
 			</article>
 		</div>

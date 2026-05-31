@@ -90,7 +90,7 @@
 		}
 	}
 
-	const licenseDashboard = $('.pckz-license-dashboard--master');
+	const licenseDashboard = $('.pckz-license-dashboard--master, .pckz-license-dashboard--client');
 	if (licenseDashboard.length) {
 		licenseDashboard.on('submit', 'form', function (event) {
 			const form = $(this);

@@ -1072,6 +1072,20 @@
 	margin-top: 10px;
 }
 
+.pckz-update-now-form {
+	margin-top: 14px;
+}
+
+.pckz-update-now-btn {
+	width: 100%;
+	max-width: 320px;
+	justify-content: center;
+}
+
+.pckz-update-now-note {
+	margin-top: 8px;
+}
+
 .pckz-license-card--release {
 	grid-column: 1 / -1;
 }
