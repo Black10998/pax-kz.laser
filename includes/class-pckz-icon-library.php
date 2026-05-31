@@ -271,6 +271,27 @@ class PCKZ_Icon_Library {
 	}
 
 	/**
+	 * Customer-facing icon picker choices (live catalog, not stored product snapshot).
+	 *
+	 * @return array<int,array{value:string,label:string,img:string}>
+	 */
+	public static function get_customer_icon_choices() {
+		if ( ! class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			return array();
+		}
+		$choices = array();
+		foreach ( PCKZ_Ledos_Preview::icon_catalog( true ) as $slug => $data ) {
+			$thumb = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
+			$choices[] = array(
+				'value' => $slug,
+				'label' => $data['label'] ?? ( class_exists( 'PCKZ_Icons' ) ? PCKZ_Icons::label_for_slug( $slug ) : $slug ),
+				'img'   => $thumb ? esc_url_raw( $thumb ) : '',
+			);
+		}
+		return $choices;
+	}
+
+	/**
 	 * Filter catalog entries for customer UI.
 	 *
 	 * @param array<string,array> $items Icon catalog.

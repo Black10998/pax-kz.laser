@@ -318,9 +318,6 @@
 			if (role !== 'icon-left' && role !== 'icon-right') {
 				return null;
 			}
-			if (!this.isOutlierIconSymbol(symbol)) {
-				return null;
-			}
 			return {
 				targetCoverage: 0.82,
 				minAdjust: 1.0,
@@ -396,9 +393,6 @@
 			if (!obj || !box || (role !== 'icon-left' && role !== 'icon-right')) {
 				return;
 			}
-			if (!this.isOutlierIconSymbol(obj.pckzSymbol || '')) {
-				return;
-			}
 			if (typeof obj.getBoundingRect !== 'function') {
 				return;
 			}
@@ -467,7 +461,11 @@
 							return;
 						}
 						let group = fabric.util.groupSVGElements(objects, options);
-						const drawBounds = this.computeSvgObjectsBounds(objects);
+						if (typeof group.setCoords === 'function') {
+							group.setCoords();
+						}
+						const drawBounds =
+							this.computeSvgObjectsBounds([group]) || this.computeSvgObjectsBounds(objects);
 						if (drawBounds) {
 							group.pckzSvgDrawBounds = drawBounds;
 							group.pckzSvgViewport = this.resolveSvgViewport(options || {}, drawBounds);
@@ -557,6 +555,14 @@
 		visualCenterY(obj, role) {
 			if (!obj) {
 				return null;
+			}
+			if (role === 'icon-left' || role === 'icon-right') {
+				if (typeof obj.getBoundingRect === 'function') {
+					const b = obj.getBoundingRect(true, true);
+					if (b && isFinite(b.top) && isFinite(b.height)) {
+						return b.top + b.height / 2;
+					}
+				}
 			}
 			const bounds = typeof obj.getBoundingRect === 'function' ? obj.getBoundingRect(true, true) : null;
 			const visual = this.resolvedPlacementVisual(obj, role || obj.pckzRole || '', bounds);

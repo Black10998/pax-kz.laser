@@ -18,6 +18,7 @@ $payment_provider_label = class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::activ
 $payment_button_label   = class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_button_label() : __( 'Jetzt mit PayPal bezahlen', 'pckz-canonical-engine' );
 $payment_hint           = class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_hint() : __( 'Sie werden sicher zu PayPal weitergeleitet. Nach erfolgreicher Zahlung erhalten Sie eine Bestellbestätigung per E-Mail.', 'pckz-canonical-engine' );
 $customer_options  = $config['customer_options'] ?? array();
+$icon_choices      = class_exists( 'PCKZ_Icon_Library' ) ? PCKZ_Icon_Library::get_customer_icon_choices() : array();
 $benefits          = $config['benefits'] ?? array();
 $fonts             = PCKZ_Settings::get_fonts();
 $colors            = PCKZ_Settings::get_gray_palette();
