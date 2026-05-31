@@ -10,15 +10,18 @@
 defined( 'ABSPATH' ) || exit;
 
 $disabled_lookup = array_fill_keys( $disabled, true );
+$hero_title       = __( 'Icon Library', 'pckz-canonical-engine' );
+$hero_description = __( 'Upload SVG icons, rename labels, and control customer visibility. Bundled icons cannot be deleted.', 'pckz-canonical-engine' );
+$hero_badge       = __( 'Icons', 'pckz-canonical-engine' );
 ?>
 <div class="wrap pckz-admin-wrap pckz-icon-library-admin">
-	<h1><?php esc_html_e( 'Icon Library', 'pckz-canonical-engine' ); ?></h1>
-	<p class="description">
-		<?php esc_html_e( 'Upload SVG icons, rename labels, and control customer visibility. Bundled icons cannot be deleted.', 'pckz-canonical-engine' ); ?>
-	</p>
+	<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/page-hero.php'; ?>
 
-	<div class="pckz-library-upload-card">
-		<h2><?php esc_html_e( 'Upload icon (SVG)', 'pckz-canonical-engine' ); ?></h2>
+	<div class="pckz-panel">
+		<header class="pckz-panel__header">
+			<h2><?php esc_html_e( 'Upload icon (SVG)', 'pckz-canonical-engine' ); ?></h2>
+		</header>
+		<div class="pckz-panel__body">
 		<form method="post" enctype="multipart/form-data">
 			<?php wp_nonce_field( 'pckz_icon_library_upload', 'pckz_icon_library_upload_nonce' ); ?>
 			<input type="hidden" name="pckz_icon_library_upload" value="1">
@@ -34,8 +37,14 @@ $disabled_lookup = array_fill_keys( $disabled, true );
 			</table>
 			<?php submit_button( __( 'Upload icon', 'pckz-canonical-engine' ), 'secondary' ); ?>
 		</form>
+		</div>
 	</div>
 
+	<div class="pckz-panel">
+		<header class="pckz-panel__header">
+			<h2><?php esc_html_e( 'Icon inventory', 'pckz-canonical-engine' ); ?></h2>
+		</header>
+		<div class="pckz-panel__body">
 	<form method="post" action="">
 		<?php wp_nonce_field( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ); ?>
 		<input type="hidden" name="pckz_icon_library_save" value="1">
@@ -104,6 +113,8 @@ $disabled_lookup = array_fill_keys( $disabled, true );
 
 		<?php submit_button( __( 'Save icon library', 'pckz-canonical-engine' ) ); ?>
 	</form>
+		</div>
+	</div>
 </div>
 <script>
 (function () {

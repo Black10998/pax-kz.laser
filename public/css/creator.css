@@ -1561,6 +1561,20 @@ select.pckz-field__control {
 	line-height: 1.4;
 }
 
+.pckz-checkout__payment-admin-hint {
+	margin-top: 12px;
+	padding: 12px 14px;
+	border: 1px solid rgba(255, 193, 7, 0.45);
+	border-radius: 8px;
+	background: rgba(255, 243, 205, 0.35);
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.pckz-checkout__payment-admin-hint ul {
+	margin: 8px 0 0 18px;
+}
+
 .pckz-btn--checkout-primary {
 	min-height: 52px;
 	font-size: 16px;

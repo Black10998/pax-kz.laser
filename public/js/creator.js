@@ -1327,7 +1327,7 @@
 			}, 400);
 		}
 
-		setCheckoutButtonsEnabled(enabled) {
+		setCheckoutButtonsEnabled(enabled, hintMessage) {
 			const buttons = this.root.querySelectorAll(
 				'[data-action="paypal-checkout"], [data-action="add-to-cart"], [data-action="submit-design"]'
 			);
@@ -1338,7 +1338,14 @@
 			});
 			const hint = this.root.querySelector('[data-export-ready-hint]');
 			if (hint) {
-				hint.classList.toggle('pckz-hidden', !!enabled);
+				if (enabled) {
+					hint.classList.add('pckz-hidden');
+				} else {
+					hint.classList.remove('pckz-hidden');
+					if (hintMessage) {
+						hint.textContent = hintMessage;
+					}
+				}
 			}
 		}
 
@@ -1471,19 +1478,25 @@
 		}
 
 		async refreshExportReadyState() {
+			const waitingPreview = I18N.exportWaitingPreview || 'Zahlung wird freigegeben, sobald die Vorschau vollständig geladen ist.';
+			const waitingText = I18N.exportWaitingText || 'Bitte geben Sie einen Text ein — danach wird die Zahlung freigegeben.';
+			const validating = I18N.exportValidating || 'Exportdaten werden geprüft — bitte kurz warten.';
+			const defaultHint = I18N.exportReadyHint || 'Zahlung wird freigegeben, sobald die Vorschau und Exportdaten bereit sind.';
+
 			if (!this.bgLoaded || !this.previewEngine) {
 				this.exportReady = false;
 				this.root.__pckzExportReady = false;
-				this.setCheckoutButtonsEnabled(false);
+				this.setCheckoutButtonsEnabled(false, waitingPreview);
 				return;
 			}
 			const text = (this.selections.custom_text || '').trim();
 			if (!text) {
 				this.exportReady = false;
 				this.root.__pckzExportReady = false;
-				this.setCheckoutButtonsEnabled(false);
+				this.setCheckoutButtonsEnabled(false, waitingText);
 				return;
 			}
+			this.setCheckoutButtonsEnabled(false, validating);
 			try {
 				await this.waitForAssetsReady();
 				const fontFamily = this.selections.font_family || 'Russo One';
@@ -1493,20 +1506,27 @@
 				this.exportReady = ok;
 				this.root.__pckzExportReady = ok;
 				this._lastExportDebug = validated.res?.data?.export_debug || null;
-				this.setCheckoutButtonsEnabled(ok);
-				if (!ok && validated.res) {
-					const lines = this.formatExportDebugLines(validated.res);
-					if (lines.length) {
+				if (ok) {
+					this.setCheckoutButtonsEnabled(true);
+					this.clearValidationErrors();
+				} else {
+					const lines = validated.res ? this.formatExportDebugLines(validated.res) : [];
+					const failHint = lines.length
+						? lines[0]
+						: I18N.exportNotReady || defaultHint;
+					this.setCheckoutButtonsEnabled(false, failHint);
+					if (validated.res && lines.length) {
 						this.showValidationErrors(validated.res, lines[0]);
 					}
-				} else if (ok) {
-					this.clearValidationErrors();
 				}
 			} catch (err) {
 				this.exportReady = false;
 				this.root.__pckzExportReady = false;
 				this._lastExportDebug = null;
-				this.setCheckoutButtonsEnabled(false);
+				this.setCheckoutButtonsEnabled(
+					false,
+					err?.message || I18N.exportNotReady || defaultHint
+				);
 			}
 		}
 

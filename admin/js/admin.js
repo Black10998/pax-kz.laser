@@ -49,6 +49,47 @@
 		updatePricingPreview();
 	}
 
+	}
+
+	const settingsWrap = $('.pckz-settings-wrap');
+	if (settingsWrap.length) {
+		const sectionLinks = settingsWrap.find('[data-pckz-settings-section]');
+		const panels = settingsWrap.find('.pckz-panel[id^="pckz-section-"]');
+		const activateSection = function (slug) {
+			if (!slug) {
+				return;
+			}
+			sectionLinks.removeClass('is-active');
+			sectionLinks.filter('[data-pckz-settings-section="' + slug + '"]').addClass('is-active');
+		};
+		const hashSection = function () {
+			const hash = String(window.location.hash || '').replace('#pckz-section-', '');
+			if (hash) {
+				activateSection(hash);
+			}
+		};
+		hashSection();
+		$(window).on('hashchange', hashSection);
+		if ('IntersectionObserver' in window && panels.length) {
+			const observer = new IntersectionObserver(
+				function (entries) {
+					entries.forEach(function (entry) {
+						if (entry.isIntersecting) {
+							const id = String(entry.target.id || '').replace('pckz-section-', '');
+							if (id) {
+								activateSection(id);
+							}
+						}
+					});
+				},
+				{ rootMargin: '-20% 0px -60% 0px', threshold: 0.01 }
+			);
+			panels.each(function () {
+				observer.observe(this);
+			});
+		}
+	}
+
 	const licenseDashboard = $('.pckz-license-dashboard--master');
 	if (licenseDashboard.length) {
 		licenseDashboard.on('submit', 'form', function (event) {

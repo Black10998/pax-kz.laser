@@ -87,6 +87,75 @@ class PCKZ_Commerce {
 	}
 
 	/**
+	 * Human-readable PayPal / checkout configuration diagnostics for admin and frontend hints.
+	 *
+	 * @return array{ready:bool,issues:string[],notes:string[],mode:string,provider:string,button_visible:bool}
+	 */
+	public static function payment_configuration_diagnostics() {
+		$issues = array();
+		$notes  = array(
+			__( 'PayPal checkout works on localhost and does not require a public HTTPS domain. This plugin uses server-side PayPal REST orders and redirects the browser to PayPal — not embedded PayPal Smart Buttons.', 'pckz-canonical-engine' ),
+			__( 'The payment button stays disabled until custom text is entered and export validation succeeds. Wait for the preview to finish loading.', 'pckz-canonical-engine' ),
+		);
+		$provider = self::active_payment_provider();
+		$creds    = self::paypal_credentials();
+		$mode     = (string) ( $creds['mode'] ?? 'sandbox' );
+		$mode_label = 'sandbox' === $mode ? __( 'Sandbox (test mode)', 'pckz-canonical-engine' ) : __( 'Live', 'pckz-canonical-engine' );
+
+		if ( 'stripe' === $provider ) {
+			$settings = PCKZ_Settings::get_all();
+			if ( empty( $settings['payments_enable_stripe'] ) ) {
+				$issues[] = __( 'Stripe is selected as primary provider but Stripe checkout is not enabled.', 'pckz-canonical-engine' );
+			} elseif ( empty( $settings['payments_stripe_secret_key'] ) ) {
+				$issues[] = __( 'Stripe secret key is missing.', 'pckz-canonical-engine' );
+			}
+		} else {
+			if ( ! PCKZ_Settings::get( 'paypal_enabled', false ) ) {
+				$issues[] = __( 'PayPal is not enabled. Turn on “Require PayPal payment before order completion” in Settings → PayPal.', 'pckz-canonical-engine' );
+			}
+			if ( empty( $creds['client_id'] ) ) {
+				$issues[] = sprintf(
+					/* translators: %s: sandbox or live */
+					__( 'Missing PayPal %s Client ID for the active mode.', 'pckz-canonical-engine' ),
+					$mode_label
+				);
+			}
+			if ( empty( $creds['secret'] ) ) {
+				$issues[] = sprintf(
+					/* translators: %s: sandbox or live */
+					__( 'Missing PayPal %s Secret for the active mode.', 'pckz-canonical-engine' ),
+					$mode_label
+				);
+			}
+			if ( PCKZ_Settings::get( 'paypal_test_mode', true ) ) {
+				$live_id = trim( (string) PCKZ_Settings::get( 'paypal_live_client_id', '' ) );
+				$live_secret = trim( (string) PCKZ_Settings::get( 'paypal_live_secret', '' ) );
+				$sandbox_id = trim( (string) PCKZ_Settings::get( 'paypal_sandbox_client_id', '' ) );
+				$sandbox_secret = trim( (string) PCKZ_Settings::get( 'paypal_sandbox_secret', '' ) );
+				if ( ( $live_id || $live_secret ) && ( ! $sandbox_id || ! $sandbox_secret ) ) {
+					$issues[] = __( 'Test mode is ON but only Live credentials are filled. Add Sandbox Client ID and Secret, or turn off test mode to use Live credentials.', 'pckz-canonical-engine' );
+				}
+			}
+		}
+
+		$price_base = (float) PCKZ_Settings::get( 'price_base', 0 );
+		if ( $price_base <= 0 ) {
+			$issues[] = __( 'Product price is zero. Set a base price under Settings → Pricing so PayPal can create an order.', 'pckz-canonical-engine' );
+		}
+
+		$ready = empty( $issues ) && self::payment_checkout_enabled();
+
+		return array(
+			'ready'          => $ready,
+			'issues'         => $issues,
+			'notes'          => $notes,
+			'mode'           => $mode,
+			'provider'       => $provider,
+			'button_visible' => self::payment_checkout_enabled(),
+		);
+	}
+
+	/**
 	 * Supported checkout currencies (PayPal-compatible).
 	 *
 	 * @return array<string, array{symbol:string,label:string}>
@@ -1829,6 +1898,7 @@ class PCKZ_Commerce {
 			'paymentProviderLabel' => class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_label() : 'PayPal',
 			'paymentButtonLabel'   => class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_button_label() : __( 'Jetzt mit PayPal bezahlen', 'pckz-canonical-engine' ),
 			'paymentHint'          => class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_hint() : __( 'Sie werden sicher zu PayPal weitergeleitet. Nach erfolgreicher Zahlung erhalten Sie eine Bestellbestätigung per E-Mail.', 'pckz-canonical-engine' ),
+			'paymentDiagnostics'   => self::payment_configuration_diagnostics(),
 			'requireEmail'         => true,
 			'successUrl'           => (string) PCKZ_Settings::get( 'paypal_success_url', '' ),
 			'cancelUrl'            => (string) PCKZ_Settings::get( 'paypal_cancel_url', '' ),

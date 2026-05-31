@@ -11,15 +11,18 @@
 defined( 'ABSPATH' ) || exit;
 
 $disabled_lookup = array_fill_keys( $disabled, true );
+$hero_title       = __( 'Font Library', 'pckz-canonical-engine' );
+$hero_description = __( 'Manage fonts for the customer configurator. Built-in Google Fonts cannot be deleted—only hidden. Upload WOFF2, WOFF, TTF, or OTF for custom fonts.', 'pckz-canonical-engine' );
+$hero_badge       = __( 'Fonts', 'pckz-canonical-engine' );
 ?>
 <div class="wrap pckz-admin-wrap pckz-font-library-admin">
-	<h1><?php esc_html_e( 'Font Library', 'pckz-canonical-engine' ); ?></h1>
-	<p class="description">
-		<?php esc_html_e( 'Manage fonts for the customer configurator. Built-in Google Fonts cannot be deleted—only hidden. Upload WOFF2, WOFF, TTF, or OTF for custom fonts.', 'pckz-canonical-engine' ); ?>
-	</p>
+	<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/page-hero.php'; ?>
 
-	<div class="pckz-library-upload-card">
-		<h2><?php esc_html_e( 'Upload font', 'pckz-canonical-engine' ); ?></h2>
+	<div class="pckz-panel">
+		<header class="pckz-panel__header">
+			<h2><?php esc_html_e( 'Upload font', 'pckz-canonical-engine' ); ?></h2>
+		</header>
+		<div class="pckz-panel__body">
 		<form method="post" enctype="multipart/form-data">
 			<?php wp_nonce_field( 'pckz_font_library_upload', 'pckz_font_library_upload_nonce' ); ?>
 			<input type="hidden" name="pckz_font_library_upload" value="1">
@@ -42,8 +45,15 @@ $disabled_lookup = array_fill_keys( $disabled, true );
 			</table>
 			<?php submit_button( __( 'Upload font', 'pckz-canonical-engine' ), 'secondary' ); ?>
 		</form>
+		</div>
 	</div>
 
+	<div class="pckz-panel">
+		<header class="pckz-panel__header">
+			<h2><?php esc_html_e( 'Font inventory', 'pckz-canonical-engine' ); ?></h2>
+			<p><?php esc_html_e( 'Enable or disable fonts shown to customers in the configurator.', 'pckz-canonical-engine' ); ?></p>
+		</header>
+		<div class="pckz-panel__body">
 	<form method="post" action="">
 		<?php wp_nonce_field( 'pckz_font_library_save', 'pckz_font_library_nonce' ); ?>
 		<input type="hidden" name="pckz_font_library_save" value="1">
@@ -111,6 +121,8 @@ $disabled_lookup = array_fill_keys( $disabled, true );
 
 		<?php submit_button( __( 'Save font library', 'pckz-canonical-engine' ) ); ?>
 	</form>
+		</div>
+	</div>
 </div>
 <script>
 (function () {

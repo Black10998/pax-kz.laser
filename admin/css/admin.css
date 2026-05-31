@@ -1,5 +1,282 @@
 .pckz-admin-wrap {
-	max-width: 1100px;
+	max-width: 1200px;
+}
+
+/* --- Design system tokens --- */
+.pckz-admin-wrap {
+	--pckz-admin-bg: #f6f8fa;
+	--pckz-admin-surface: #ffffff;
+	--pckz-admin-border: #d0d7de;
+	--pckz-admin-text: #24292f;
+	--pckz-admin-muted: #57606a;
+	--pckz-admin-brand: #0969da;
+	--pckz-admin-brand-soft: #ddf4ff;
+	--pckz-admin-success: #1a7f37;
+	--pckz-admin-success-soft: #dafbe1;
+	--pckz-admin-warning: #9a6700;
+	--pckz-admin-warning-soft: #fff8c5;
+	--pckz-admin-danger: #cf222e;
+	--pckz-admin-danger-soft: #ffebe9;
+	--pckz-admin-radius: 10px;
+	--pckz-admin-shadow: 0 1px 2px rgba(27, 31, 36, 0.06);
+}
+
+/* --- Page hero --- */
+.pckz-page-hero {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	margin: 8px 0 20px;
+	padding: 20px 22px;
+	border: 1px solid var(--pckz-admin-border);
+	border-radius: var(--pckz-admin-radius);
+	background: linear-gradient(180deg, #ffffff 0%, #f6f8fa 100%);
+	box-shadow: var(--pckz-admin-shadow);
+}
+
+.pckz-page-hero h1 {
+	margin: 0 0 6px;
+	padding: 0;
+	font-size: 24px;
+	line-height: 1.25;
+	color: var(--pckz-admin-text);
+}
+
+.pckz-page-hero p {
+	margin: 0;
+	max-width: 760px;
+	color: var(--pckz-admin-muted);
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.pckz-page-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 6px 12px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.pckz-page-badge.is-success {
+	background: var(--pckz-admin-success-soft);
+	color: var(--pckz-admin-success);
+}
+
+.pckz-page-badge.is-warning {
+	background: var(--pckz-admin-warning-soft);
+	color: var(--pckz-admin-warning);
+}
+
+.pckz-page-badge.is-danger {
+	background: var(--pckz-admin-danger-soft);
+	color: var(--pckz-admin-danger);
+}
+
+.pckz-page-badge.is-muted {
+	background: #eaeef2;
+	color: var(--pckz-admin-muted);
+}
+
+/* --- Panel component --- */
+.pckz-panel {
+	margin-bottom: 18px;
+	border: 1px solid var(--pckz-admin-border);
+	border-radius: var(--pckz-admin-radius);
+	background: var(--pckz-admin-surface);
+	box-shadow: var(--pckz-admin-shadow);
+	overflow: hidden;
+}
+
+.pckz-panel__header {
+	padding: 16px 20px 12px;
+	border-bottom: 1px solid var(--pckz-admin-border);
+	background: #fafbfc;
+}
+
+.pckz-panel__header h2,
+.pckz-panel__header h3 {
+	margin: 0 0 4px;
+	padding: 0;
+	font-size: 16px;
+	color: var(--pckz-admin-text);
+}
+
+.pckz-panel__header p {
+	margin: 0;
+	color: var(--pckz-admin-muted);
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.pckz-panel__body {
+	padding: 16px 20px 20px;
+}
+
+.pckz-panel__body .form-table {
+	margin-top: 0;
+}
+
+.pckz-panel__body .form-table th {
+	padding-left: 0;
+	width: 220px;
+	font-weight: 600;
+	color: var(--pckz-admin-text);
+}
+
+.pckz-panel__body .form-table td {
+	padding-right: 0;
+}
+
+.pckz-panel__footer {
+	padding: 12px 20px 16px;
+	border-top: 1px solid var(--pckz-admin-border);
+	background: #fafbfc;
+}
+
+/* --- Field grid inside panels --- */
+.pckz-field-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 14px 18px;
+}
+
+.pckz-field-grid label strong {
+	display: block;
+	margin-bottom: 6px;
+}
+
+.pckz-field-grid .description {
+	margin-top: 6px;
+}
+
+/* --- Status callouts --- */
+.pckz-admin-callout {
+	margin: 0 0 14px;
+	padding: 12px 14px;
+	border: 1px solid var(--pckz-admin-border);
+	border-radius: 8px;
+	background: #fafbfc;
+}
+
+.pckz-admin-callout.is-success {
+	border-color: #4ac26b;
+	background: var(--pckz-admin-success-soft);
+}
+
+.pckz-admin-callout.is-warning {
+	border-color: #d4a72c;
+	background: var(--pckz-admin-warning-soft);
+}
+
+.pckz-admin-callout.is-danger {
+	border-color: #ff8182;
+	background: var(--pckz-admin-danger-soft);
+}
+
+.pckz-admin-callout ul {
+	margin: 8px 0 0 18px;
+}
+
+.pckz-admin-callout li {
+	margin-bottom: 4px;
+}
+
+/* --- Settings shell --- */
+.pckz-settings-wrap .pckz-settings-shell {
+	display: grid;
+	grid-template-columns: 240px minmax(0, 1fr);
+	gap: 18px;
+	align-items: start;
+}
+
+.pckz-settings-nav {
+	position: sticky;
+	top: 32px;
+	padding: 14px;
+	border: 1px solid var(--pckz-admin-border);
+	border-radius: var(--pckz-admin-radius);
+	background: var(--pckz-admin-surface);
+	box-shadow: var(--pckz-admin-shadow);
+}
+
+.pckz-settings-nav ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.pckz-settings-nav__link {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	margin-bottom: 4px;
+	border-radius: 8px;
+	color: var(--pckz-admin-text);
+	text-decoration: none;
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.pckz-settings-nav__link .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+	color: var(--pckz-admin-muted);
+}
+
+.pckz-settings-nav__link:hover,
+.pckz-settings-nav__link:focus {
+	background: #f6f8fa;
+	color: var(--pckz-admin-brand);
+}
+
+.pckz-settings-nav__link.is-active {
+	background: var(--pckz-admin-brand-soft);
+	color: var(--pckz-admin-brand);
+}
+
+.pckz-settings-nav__link.is-active .dashicons {
+	color: var(--pckz-admin-brand);
+}
+
+.pckz-settings-nav__tip {
+	margin: 12px 0 0;
+	padding-top: 12px;
+	border-top: 1px solid var(--pckz-admin-border);
+	color: var(--pckz-admin-muted);
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+.pckz-settings-form .pckz-settings-save-bar {
+	position: sticky;
+	bottom: 0;
+	z-index: 5;
+	margin-top: 8px;
+	padding: 14px 18px;
+	border: 1px solid var(--pckz-admin-border);
+	border-radius: var(--pckz-admin-radius);
+	background: rgba(255, 255, 255, 0.96);
+	box-shadow: 0 -4px 16px rgba(27, 31, 36, 0.08);
+}
+
+.pckz-settings-form .pckz-settings-save-bar .button-primary {
+	min-height: 40px;
+	padding-left: 24px;
+	padding-right: 24px;
+	font-size: 14px;
+}
+
+.pckz-library-upload-card,
+.pckz-card {
+	border-color: var(--pckz-admin-border);
+	border-radius: var(--pckz-admin-radius);
+	box-shadow: var(--pckz-admin-shadow);
 }
 
 .pckz-library-upload-card {
@@ -1094,7 +1371,29 @@
 	}
 }
 
+.pckz-panel--wide {
+	grid-column: 1 / -1;
+}
+
+.pckz-dashboard-grid .pckz-panel {
+	margin-bottom: 0;
+}
+
+@media (max-width: 960px) {
+	.pckz-settings-wrap .pckz-settings-shell {
+		grid-template-columns: 1fr;
+	}
+
+	.pckz-settings-nav {
+		position: static;
+	}
+}
+
 @media (max-width: 782px) {
+	.pckz-page-hero {
+		flex-direction: column;
+	}
+
 	.pckz-license-hero {
 		flex-direction: column;
 	}

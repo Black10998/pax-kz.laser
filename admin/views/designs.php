@@ -6,11 +6,15 @@
  */
 
 defined( 'ABSPATH' ) || exit;
+
+$hero_title       = __( 'Saved Designs', 'pckz-canonical-engine' );
+$hero_description = __( 'Open any design to download the full LightBurn production package (exact mm coordinates, SVG references, and production JSON).', 'pckz-canonical-engine' );
 ?>
 <div class="wrap pckz-admin-wrap">
-	<h1><?php esc_html_e( 'Saved Designs', 'pckz-canonical-engine' ); ?></h1>
-	<p class="description"><?php esc_html_e( 'Open any design to download the full LightBurn production package (exact mm coordinates, SVG references, and production JSON).', 'pckz-canonical-engine' ); ?></p>
+	<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/page-hero.php'; ?>
 
+	<div class="pckz-panel">
+		<div class="pckz-panel__body">
 	<?php if ( empty( $designs ) ) : ?>
 		<p><?php esc_html_e( 'No designs saved yet. Designs appear when customers use the creator and click Save Design.', 'pckz-canonical-engine' ); ?></p>
 	<?php else : ?>
@@ -57,4 +61,6 @@ defined( 'ABSPATH' ) || exit;
 			</tbody>
 		</table>
 	<?php endif; ?>
+		</div>
+	</div>
 </div>

@@ -17,9 +17,11 @@ defined( 'ABSPATH' ) || exit;
 $list_url = admin_url( 'admin.php?page=pckz-orders' );
 $status_updated = isset( $_GET['pckz_status_updated'] ) && '1' === (string) $_GET['pckz_status_updated'];
 $notes_updated    = isset( $_GET['pckz_notes_updated'] ) && '1' === (string) $_GET['pckz_notes_updated'];
+$hero_title       = __( 'Orders', 'pckz-canonical-engine' );
+$hero_description = __( 'Review customer orders, production files, and fulfillment status.', 'pckz-canonical-engine' );
 ?>
 <div class="wrap pckz-admin-wrap">
-	<h1><?php esc_html_e( 'Orders', 'pckz-canonical-engine' ); ?></h1>
+	<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/page-hero.php'; ?>
 
 	<?php if ( $status_updated ) : ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Bestellstatus wurde gespeichert.', 'pckz-canonical-engine' ); ?></p></div>

@@ -18,6 +18,8 @@ $payment_provider = isset( $payment_provider ) ? sanitize_key( $payment_provider
 $payment_provider_label = isset( $payment_provider_label ) ? (string) $payment_provider_label : ( class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_label() : 'PayPal' );
 $payment_button_label = isset( $payment_button_label ) ? (string) $payment_button_label : ( class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_button_label() : __( 'Jetzt mit PayPal bezahlen', 'pckz-canonical-engine' ) );
 $payment_hint = isset( $payment_hint ) ? (string) $payment_hint : ( class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_hint() : __( 'Sie werden sicher zu PayPal weitergeleitet. Nach erfolgreicher Zahlung erhalten Sie eine Bestellbestätigung per E-Mail.', 'pckz-canonical-engine' ) );
+$payment_diagnostics = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::payment_configuration_diagnostics() : array();
+$is_admin_viewer     = current_user_can( 'manage_options' );
 ?>
 <section class="pckz-checkout__payment" aria-labelledby="pckz-payment-heading">
 	<h3 id="pckz-payment-heading" class="pckz-checkout__payment-heading">Zahlung</h3>
@@ -56,6 +58,26 @@ $payment_hint = isset( $payment_hint ) ? (string) $payment_hint : ( class_exists
 			<p class="pckz-checkout__paypal-hint"><?php echo esc_html( $payment_hint ); ?></p>
 		</div>
 	<?php else : ?>
-		<p class="pckz-checkout__payment-lead"><?php esc_html_e( 'Es ist derzeit kein aktiver Zahlungsanbieter konfiguriert. Bitte kontaktieren Sie den Shop-Betreiber.', 'pckz-canonical-engine' ); ?></p>
+		<div class="pckz-checkout__payment-unavailable">
+			<p class="pckz-checkout__payment-lead">
+				<strong><?php esc_html_e( 'Online-Zahlung ist derzeit nicht verfügbar.', 'pckz-canonical-engine' ); ?></strong>
+				<?php esc_html_e( 'Bitte kontaktieren Sie den Shop-Betreiber.', 'pckz-canonical-engine' ); ?>
+			</p>
+			<?php if ( $is_admin_viewer && ! empty( $payment_diagnostics['issues'] ) ) : ?>
+				<div class="pckz-checkout__payment-admin-hint" role="note">
+					<p><strong><?php esc_html_e( 'Administrator-Hinweis:', 'pckz-canonical-engine' ); ?></strong></p>
+					<ul>
+						<?php foreach ( (array) $payment_diagnostics['issues'] as $issue ) : ?>
+							<li><?php echo esc_html( (string) $issue ); ?></li>
+						<?php endforeach; ?>
+					</ul>
+					<p class="description">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=pckz-settings&section=paypal' ) ); ?>">
+							<?php esc_html_e( 'PayPal-Einstellungen öffnen', 'pckz-canonical-engine' ); ?>
+						</a>
+					</p>
+				</div>
+			<?php endif; ?>
+		</div>
 	<?php endif; ?>
 </section>
