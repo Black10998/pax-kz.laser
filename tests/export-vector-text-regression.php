@@ -48,6 +48,8 @@ foreach (
 		'wp_mkdir_p'            => fn( $t ) => is_dir( $t ) || mkdir( $t, 0777, true ),
 		'wp_unique_filename'    => fn( $d, $f ) => $f,
 		'wp_generate_uuid4'     => fn() => bin2hex( random_bytes( 16 ) ),
+		'get_option'            => fn( $k, $d = array() ) => $d,
+		'update_option'         => fn( $k, $v ) => true,
 		'get_transient'         => fn() => false,
 		'set_transient'         => fn() => true,
 	) as $n => $fn

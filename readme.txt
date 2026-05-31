@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.22.0
+Stable tag: 2.23.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,27 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.23.0 =
+
+* Final integration phase for master-control architecture:
+  * Added master REST control endpoints (health, licenses, installations, download logs, release validation) secured by `X-PCKZ-Master-Key` and master mode checks.
+  * Added protected package download telemetry table and admin visibility of download events.
+  * Revocation propagation now blocks linked installations immediately on revoke/disable actions.
+* Stripe payment integration (provider-aware checkout):
+  * Implemented live Stripe Checkout Session creation flow (one-time payments) with secure provider abstraction.
+  * Added Stripe webhook verification (signed payload/tolerance) and paid-session finalization into existing order pipeline.
+  * Added Stripe return/cancel handling in frontend redirect flow with compatibility-safe fallback to existing behavior.
+  * Added provider-aware checkout labels/messages while preserving existing customer flow.
+* Remote export protection hardening:
+  * Added strict-vs-fallback control for remote export mode (`licensing_export_remote_strict`).
+  * When strict mode is enabled, remote export failures block export; otherwise local export fallback remains available.
+* Protected customer distribution workflow:
+  * Added `tools/build-customer-protected-package.php` to build domain/license-bound customer ZIPs with signed `LICENSE_BINDING.json`.
+* Testing and validation:
+  * Added `tests/stripe-provider-smoke.php` (Stripe checkout contract + provider routing).
+  * Added `tests/master-control-integration-smoke.php` (master key auth, release validation, revocation propagation).
+* Compatibility: core configurator output and export parity remain unchanged under default settings; enforcement/protection modes remain opt-in until explicitly activated.
 
 = 2.22.0 =
 

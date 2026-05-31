@@ -36,6 +36,7 @@ Protected distribution workflow helpers:
 
 ```bash
 php tools/build-protected-release.php --version=2.22.0 --build=2.22.0.custom --output=dist
+php tools/build-customer-protected-package.php --source=dist/pckz-canonical-engine-2.22.0-protected.zip --license=PCKZCE-XXXX --domain=client.example.com --output=dist/customers
 php tools/verify-release-manifest.php dist/unpacked/RELEASE_MANIFEST.json
 ```
 
