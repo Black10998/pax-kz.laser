@@ -811,6 +811,172 @@
 	font-size: 12px;
 }
 
+.pckz-license-help-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 12px;
+	margin-top: 12px;
+}
+
+.pckz-license-help-item {
+	padding: 12px;
+	border: 1px solid #eaeef2;
+	border-radius: 8px;
+	background: #f6f8fa;
+}
+
+.pckz-license-help-item p {
+	margin: 8px 0 0;
+	font-size: 13px;
+	color: #57606a;
+	line-height: 1.45;
+}
+
+.pckz-license-tip {
+	margin: 14px 0 0;
+	padding: 12px 14px;
+	border-left: 4px solid #0969da;
+	background: #f6f8fa;
+	border-radius: 0 8px 8px 0;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.pckz-license-bulk-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 12px;
+	padding: 10px 12px;
+	background: #f6f8fa;
+	border: 1px solid #d0d7de;
+	border-radius: 8px;
+}
+
+.pckz-license-table .check-column {
+	width: 36px;
+}
+
+.pckz-license-table code {
+	font-size: 12px;
+	word-break: break-all;
+}
+
+.pckz-code-copy {
+	cursor: pointer;
+	position: relative;
+}
+
+.pckz-code-copy.is-copied::after {
+	content: 'Copied';
+	position: absolute;
+	top: -18px;
+	left: 0;
+	font-size: 10px;
+	color: #1f6b35;
+	font-weight: 600;
+}
+
+.pckz-code-copy--uuid {
+	display: inline-block;
+	max-width: 180px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	vertical-align: bottom;
+}
+
+.pckz-code-truncate {
+	display: inline-block;
+	max-width: 320px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pckz-install-counter {
+	font-weight: 600;
+	color: #24292f;
+}
+
+.pckz-install-counter.is-at-limit,
+.pckz-row-warning .pckz-install-counter {
+	color: #a40e26;
+}
+
+.pckz-perm-chip {
+	display: inline-flex;
+	align-items: center;
+	margin: 0 4px 4px 0;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: #ddf4ff;
+	color: #0969da;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.pckz-license-actions {
+	min-width: 220px;
+}
+
+.pckz-license-details summary {
+	cursor: pointer;
+	list-style: none;
+}
+
+.pckz-license-details summary::-webkit-details-marker {
+	display: none;
+}
+
+.pckz-license-details__body {
+	margin-top: 10px;
+	padding: 12px;
+	border: 1px solid #d0d7de;
+	border-radius: 8px;
+	background: #f6f8fa;
+	min-width: 280px;
+}
+
+.pckz-license-edit-form p {
+	margin: 0 0 10px;
+}
+
+.pckz-license-quick-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid #d0d7de;
+}
+
+.pckz-install-version {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.pckz-install-error {
+	color: #a40e26;
+	font-size: 12px;
+}
+
+.pckz-btn-danger {
+	border-color: #cf222e !important;
+	color: #a40e26 !important;
+}
+
+.pckz-btn-danger:hover {
+	background: #ffebe9 !important;
+	color: #82071e !important;
+}
+
+.pckz-license-card--errors {
+	border-color: #ffb4aa;
+}
+
 @media (max-width: 1120px) {
 	.pckz-license-grid {
 		grid-template-columns: repeat(2, minmax(240px, 1fr));

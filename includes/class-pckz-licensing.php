@@ -39,6 +39,11 @@ class PCKZ_Licensing {
 			add_action( 'admin_post_pckzce_save_release_meta', array( $this, 'handle_save_release_meta' ) );
 			add_action( 'admin_post_pckzce_save_license_detail', array( $this, 'handle_save_license_detail' ) );
 			add_action( 'admin_post_pckzce_generate_customer_package', array( $this, 'handle_generate_customer_package' ) );
+			add_action( 'admin_post_pckzce_reset_license', array( $this, 'handle_reset_license' ) );
+			add_action( 'admin_post_pckzce_clear_license_installations', array( $this, 'handle_clear_license_installations' ) );
+			add_action( 'admin_post_pckzce_delete_installation', array( $this, 'handle_delete_installation' ) );
+			add_action( 'admin_post_pckzce_bulk_installations', array( $this, 'handle_bulk_installations' ) );
+			add_action( 'admin_post_pckzce_bulk_licenses', array( $this, 'handle_bulk_licenses' ) );
 		}
 
 		add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'inject_plugin_update' ) );
@@ -255,6 +260,7 @@ class PCKZ_Licensing {
 		$generated    = get_transient( 'pckzce_last_created_license' );
 		$package_notice = get_transient( 'pckzce_customer_package_notice' );
 		$package_error  = get_transient( 'pckzce_customer_package_error' );
+		$admin_notice   = get_transient( 'pckzce_master_admin_notice' );
 		$release_meta = get_option(
 			self::OPTION_RELEASE_META,
 			array(
@@ -285,12 +291,51 @@ class PCKZ_Licensing {
 			'downloads_total'       => 0,
 			'downloads_24h'         => 0,
 		);
+		$license_install_stats = array();
+		$license_map           = array();
 		if ( $master_mode ) {
 			$licenses = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'pckz_license_keys ORDER BY id DESC LIMIT 300', ARRAY_A );
+			foreach ( $licenses as $license_row ) {
+				$license_id = (int) ( $license_row['id'] ?? 0 );
+				if ( ! $license_id ) {
+					continue;
+				}
+				$license_map[ $license_id ] = $license_row;
+			}
+			if ( ! empty( $license_map ) ) {
+				$license_ids = implode( ',', array_map( 'absint', array_keys( $license_map ) ) );
+				$counts      = $wpdb->get_results(
+					"SELECT license_id, status, COUNT(*) AS total FROM {$wpdb->prefix}pckz_license_installations WHERE license_id IN ({$license_ids}) GROUP BY license_id, status",
+					ARRAY_A
+				);
+				foreach ( array_keys( $license_map ) as $license_id ) {
+					$license_install_stats[ $license_id ] = array(
+						'active'  => 0,
+						'blocked' => 0,
+						'total'   => 0,
+						'max'     => max( 1, (int) ( $license_map[ $license_id ]['max_installs'] ?? 1 ) ),
+					);
+				}
+				foreach ( $counts as $count_row ) {
+					$license_id = (int) ( $count_row['license_id'] ?? 0 );
+					$status     = sanitize_key( (string) ( $count_row['status'] ?? '' ) );
+					$total      = (int) ( $count_row['total'] ?? 0 );
+					if ( ! isset( $license_install_stats[ $license_id ] ) ) {
+						continue;
+					}
+					$license_install_stats[ $license_id ]['total'] += $total;
+					if ( 'active' === $status ) {
+						$license_install_stats[ $license_id ]['active'] = $total;
+					} elseif ( 'blocked' === $status ) {
+						$license_install_stats[ $license_id ]['blocked'] = $total;
+					}
+				}
+			}
 			$where    = '1=1';
 			$params   = array();
 			$search   = isset( $_GET['pckz_install_s'] ) ? sanitize_text_field( wp_unslash( $_GET['pckz_install_s'] ) ) : '';
 			$status   = isset( $_GET['pckz_install_status'] ) ? sanitize_key( wp_unslash( $_GET['pckz_install_status'] ) ) : '';
+			$filter_license = isset( $_GET['pckz_license_id'] ) ? absint( $_GET['pckz_license_id'] ) : 0;
 			if ( $search ) {
 				$where    .= ' AND (domain LIKE %s OR install_uuid LIKE %s)';
 				$params[] = '%' . $wpdb->esc_like( $search ) . '%';
@@ -299,6 +344,10 @@ class PCKZ_Licensing {
 			if ( in_array( $status, array( 'active', 'blocked' ), true ) ) {
 				$where    .= ' AND status = %s';
 				$params[] = $status;
+			}
+			if ( $filter_license ) {
+				$where    .= ' AND license_id = %d';
+				$params[] = $filter_license;
 			}
 			$sql = 'SELECT * FROM ' . $wpdb->prefix . 'pckz_license_installations WHERE ' . $where . ' ORDER BY updated_at DESC LIMIT 1000';
 			if ( ! empty( $params ) ) {
@@ -331,6 +380,9 @@ class PCKZ_Licensing {
 		}
 		if ( $package_error ) {
 			delete_transient( 'pckzce_customer_package_error' );
+		}
+		if ( $admin_notice ) {
+			delete_transient( 'pckzce_master_admin_notice' );
 		}
 	}
 
@@ -861,6 +913,304 @@ class PCKZ_Licensing {
 	}
 
 	/**
+	 * Store a one-time admin notice for Master Control.
+	 *
+	 * @param string $message Message.
+	 * @param string $type    notice-success|notice-error|notice-warning.
+	 */
+	private static function set_master_admin_notice( $message, $type = 'notice-success' ) {
+		set_transient(
+			'pckzce_master_admin_notice',
+			array(
+				'message' => (string) $message,
+				'type'    => in_array( $type, array( 'notice-success', 'notice-error', 'notice-warning' ), true ) ? $type : 'notice-success',
+			),
+			2 * MINUTE_IN_SECONDS
+		);
+	}
+
+	/**
+	 * Redirect back to Master Control preserving list filters.
+	 */
+	private static function redirect_master_control() {
+		$args = array( 'page' => 'pckz-license-server' );
+		if ( ! empty( $_POST['redirect_search'] ) ) {
+			$args['pckz_install_s'] = sanitize_text_field( wp_unslash( $_POST['redirect_search'] ) );
+		}
+		if ( ! empty( $_POST['redirect_status'] ) ) {
+			$args['pckz_install_status'] = sanitize_key( wp_unslash( $_POST['redirect_status'] ) );
+		}
+		if ( ! empty( $_POST['redirect_license_id'] ) ) {
+			$args['pckz_license_id'] = absint( $_POST['redirect_license_id'] );
+		}
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	/**
+	 * Reset license to active and unblock all linked installations.
+	 */
+	public function handle_reset_license() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'pckz-canonical-engine' ) );
+		}
+		check_admin_referer( 'pckzce_reset_license', 'pckzce_reset_license_nonce' );
+		if ( ! self::is_master_mode() ) {
+			self::redirect_master_control();
+		}
+		global $wpdb;
+		$id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
+		if ( ! $id ) {
+			self::set_master_admin_notice( __( 'No license selected for reset.', 'pckz-canonical-engine' ), 'notice-error' );
+			self::redirect_master_control();
+		}
+		$now = current_time( 'mysql' );
+		$wpdb->update(
+			$wpdb->prefix . 'pckz_license_keys',
+			array(
+				'status'     => 'active',
+				'updated_at' => $now,
+			),
+			array( 'id' => $id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+		$wpdb->update(
+			$wpdb->prefix . 'pckz_license_installations',
+			array(
+				'status'     => 'active',
+				'last_error' => '',
+				'updated_at' => $now,
+			),
+			array( 'license_id' => $id ),
+			array( '%s', '%s', '%s' ),
+			array( '%d' )
+		);
+		self::set_master_admin_notice(
+			sprintf(
+				/* translators: %d: license ID */
+				__( 'License #%d reset to Active. All linked installations were unblocked and error flags cleared.', 'pckz-canonical-engine' ),
+				$id
+			)
+		);
+		self::redirect_master_control();
+	}
+
+	/**
+	 * Delete all installation records for a license (reset installation counter).
+	 */
+	public function handle_clear_license_installations() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'pckz-canonical-engine' ) );
+		}
+		check_admin_referer( 'pckzce_clear_license_installations', 'pckzce_clear_installs_nonce' );
+		if ( ! self::is_master_mode() ) {
+			self::redirect_master_control();
+		}
+		global $wpdb;
+		$id = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
+		if ( ! $id ) {
+			self::set_master_admin_notice( __( 'No license selected.', 'pckz-canonical-engine' ), 'notice-error' );
+			self::redirect_master_control();
+		}
+		$deleted = (int) $wpdb->query(
+			$wpdb->prepare(
+				'DELETE FROM ' . $wpdb->prefix . 'pckz_license_installations WHERE license_id = %d',
+				$id
+			)
+		);
+		self::set_master_admin_notice(
+			sprintf(
+				/* translators: 1: license ID, 2: number removed */
+				__( 'Cleared %2$d installation record(s) for license #%1$d. The customer site can register again on next check-in.', 'pckz-canonical-engine' ),
+				$id,
+				$deleted
+			)
+		);
+		self::redirect_master_control();
+	}
+
+	/**
+	 * Delete a single installation record by ID.
+	 */
+	public function handle_delete_installation() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'pckz-canonical-engine' ) );
+		}
+		check_admin_referer( 'pckzce_delete_installation', 'pckzce_delete_install_nonce' );
+		if ( ! self::is_master_mode() ) {
+			self::redirect_master_control();
+		}
+		global $wpdb;
+		$id = isset( $_POST['installation_id'] ) ? absint( $_POST['installation_id'] ) : 0;
+		if ( ! $id ) {
+			self::set_master_admin_notice( __( 'No installation selected.', 'pckz-canonical-engine' ), 'notice-error' );
+			self::redirect_master_control();
+		}
+		$row = $wpdb->get_row(
+			$wpdb->prepare( 'SELECT domain, install_uuid FROM ' . $wpdb->prefix . 'pckz_license_installations WHERE id = %d LIMIT 1', $id ),
+			ARRAY_A
+		);
+		$wpdb->delete( $wpdb->prefix . 'pckz_license_installations', array( 'id' => $id ), array( '%d' ) );
+		if ( $row ) {
+			self::set_master_admin_notice(
+				sprintf(
+					/* translators: 1: domain, 2: UUID */
+					__( 'Removed installation %1$s (%2$s).', 'pckz-canonical-engine' ),
+					(string) ( $row['domain'] ?? '' ),
+					(string) ( $row['install_uuid'] ?? '' )
+				)
+			);
+		} else {
+			self::set_master_admin_notice( __( 'Installation record removed.', 'pckz-canonical-engine' ) );
+		}
+		self::redirect_master_control();
+	}
+
+	/**
+	 * Bulk installation management.
+	 */
+	public function handle_bulk_installations() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'pckz-canonical-engine' ) );
+		}
+		check_admin_referer( 'pckzce_bulk_installations', 'pckzce_bulk_installs_nonce' );
+		if ( ! self::is_master_mode() ) {
+			self::redirect_master_control();
+		}
+		global $wpdb;
+		$action = sanitize_key( wp_unslash( $_POST['bulk_action'] ?? '' ) );
+		$ids    = isset( $_POST['installation_ids'] ) ? array_map( 'absint', (array) wp_unslash( $_POST['installation_ids'] ) ) : array();
+		$ids    = array_values( array_filter( $ids ) );
+		if ( empty( $ids ) || ! in_array( $action, array( 'delete', 'activate', 'block' ), true ) ) {
+			self::set_master_admin_notice( __( 'Choose installations and a bulk action first.', 'pckz-canonical-engine' ), 'notice-warning' );
+			self::redirect_master_control();
+		}
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$now          = current_time( 'mysql' );
+		if ( 'delete' === $action ) {
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $wpdb->prefix . 'pckz_license_installations WHERE id IN (' . $placeholders . ')', ...$ids ) );
+			self::set_master_admin_notice(
+				sprintf(
+					/* translators: %d: count */
+					__( 'Removed %d installation record(s).', 'pckz-canonical-engine' ),
+					count( $ids )
+				)
+			);
+		} else {
+			$new_status = 'activate' === $action ? 'active' : 'blocked';
+			$wpdb->query(
+				$wpdb->prepare(
+					'UPDATE ' . $wpdb->prefix . 'pckz_license_installations SET status = %s, updated_at = %s WHERE id IN (' . $placeholders . ')',
+					$new_status,
+					$now,
+					...$ids
+				)
+			);
+			self::set_master_admin_notice(
+				sprintf(
+					/* translators: 1: count, 2: status */
+					__( 'Updated %1$d installation record(s) to %2$s.', 'pckz-canonical-engine' ),
+					count( $ids ),
+					$action
+				)
+			);
+		}
+		self::redirect_master_control();
+	}
+
+	/**
+	 * Bulk license management.
+	 */
+	public function handle_bulk_licenses() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'pckz-canonical-engine' ) );
+		}
+		check_admin_referer( 'pckzce_bulk_licenses', 'pckzce_bulk_licenses_nonce' );
+		if ( ! self::is_master_mode() ) {
+			self::redirect_master_control();
+		}
+		global $wpdb;
+		$action = sanitize_key( wp_unslash( $_POST['bulk_action'] ?? '' ) );
+		$ids    = isset( $_POST['license_ids'] ) ? array_map( 'absint', (array) wp_unslash( $_POST['license_ids'] ) ) : array();
+		$ids    = array_values( array_filter( $ids ) );
+		if ( empty( $ids ) || ! in_array( $action, array( 'activate', 'revoke', 'disable', 'reset', 'clear_installs' ), true ) ) {
+			self::set_master_admin_notice( __( 'Choose licenses and a bulk action first.', 'pckz-canonical-engine' ), 'notice-warning' );
+			self::redirect_master_control();
+		}
+		$now           = current_time( 'mysql' );
+		$placeholders  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$affected      = count( $ids );
+		if ( 'clear_installs' === $action ) {
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $wpdb->prefix . 'pckz_license_installations WHERE license_id IN (' . $placeholders . ')', ...$ids ) );
+			self::set_master_admin_notice(
+				sprintf(
+					/* translators: %d: license count */
+					__( 'Cleared installation records for %d license(s).', 'pckz-canonical-engine' ),
+					$affected
+				)
+			);
+			self::redirect_master_control();
+		}
+		if ( 'reset' === $action ) {
+			$wpdb->query(
+				$wpdb->prepare(
+					'UPDATE ' . $wpdb->prefix . 'pckz_license_keys SET status = %s, updated_at = %s WHERE id IN (' . $placeholders . ')',
+					'active',
+					$now,
+					...$ids
+				)
+			);
+			$wpdb->query(
+				$wpdb->prepare(
+					'UPDATE ' . $wpdb->prefix . 'pckz_license_installations SET status = %s, last_error = %s, updated_at = %s WHERE license_id IN (' . $placeholders . ')',
+					'active',
+					'',
+					$now,
+					...$ids
+				)
+			);
+			self::set_master_admin_notice(
+				sprintf(
+					/* translators: %d: license count */
+					__( 'Reset %d license(s) to Active and unblocked their installations.', 'pckz-canonical-engine' ),
+					$affected
+				)
+			);
+			self::redirect_master_control();
+		}
+		$new_status = 'activate' === $action ? 'active' : ( 'disable' === $action ? 'disabled' : 'revoked' );
+		$wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . $wpdb->prefix . 'pckz_license_keys SET status = %s, updated_at = %s WHERE id IN (' . $placeholders . ')',
+				$new_status,
+				$now,
+				...$ids
+			)
+		);
+		if ( in_array( $new_status, array( 'revoked', 'disabled' ), true ) ) {
+			$wpdb->query(
+				$wpdb->prepare(
+					'UPDATE ' . $wpdb->prefix . 'pckz_license_installations SET status = %s, last_error = %s, updated_at = %s WHERE license_id IN (' . $placeholders . ')',
+					'blocked',
+					'license_' . $new_status,
+					$now,
+					...$ids
+				)
+			);
+		}
+		self::set_master_admin_notice(
+			sprintf(
+				/* translators: 1: count, 2: status */
+				__( 'Updated %1$d license(s) to %2$s.', 'pckz-canonical-engine' ),
+				$affected,
+				$new_status
+			)
+		);
+		self::redirect_master_control();
+	}
+
+	/**
 	 * Save update/release metadata.
 	 */
 	public function handle_save_release_meta() {
@@ -932,8 +1282,8 @@ class PCKZ_Licensing {
 			array( '%s', '%d', '%s', '%s', '%s', '%s' ),
 			array( '%d' )
 		);
-		wp_safe_redirect( admin_url( 'admin.php?page=pckz-license-server' ) );
-		exit;
+		self::set_master_admin_notice( __( 'License details saved.', 'pckz-canonical-engine' ) );
+		self::redirect_master_control();
 	}
 
 	/**

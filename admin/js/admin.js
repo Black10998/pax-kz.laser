@@ -48,4 +48,51 @@
 		});
 		updatePricingPreview();
 	}
+
+	const licenseDashboard = $('.pckz-license-dashboard--master');
+	if (licenseDashboard.length) {
+		licenseDashboard.on('submit', 'form', function (event) {
+			const form = $(this);
+			const trigger = $(document.activeElement);
+			const confirmMessage =
+				trigger.data('pckzConfirm') ||
+				form.find('[data-pckz-confirm]').first().data('pckzConfirm') ||
+				form.data('pckzConfirm');
+			if (confirmMessage && !window.confirm(String(confirmMessage))) {
+				event.preventDefault();
+			}
+		});
+
+		licenseDashboard.on('click', '[data-pckz-select-all]', function () {
+			const target = String($(this).data('pckzSelectAll') || '');
+			const checked = $(this).prop('checked');
+			if ('license' === target) {
+				licenseDashboard.find('.pckz-bulk-license-checkbox').prop('checked', checked);
+			} else if ('installation' === target) {
+				licenseDashboard.find('.pckz-bulk-install-checkbox').prop('checked', checked);
+			}
+		});
+
+		licenseDashboard.on('click', '.pckz-code-copy', function () {
+			const el = $(this);
+			const value = String(el.data('copy') || el.text() || '').trim();
+			if (!value) {
+				return;
+			}
+			const copied = function () {
+				el.addClass('is-copied');
+				window.setTimeout(function () {
+					el.removeClass('is-copied');
+				}, 1200);
+			};
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText(value).then(copied).catch(function () {
+					window.prompt('Copy to clipboard:', value);
+				});
+			} else {
+				window.prompt('Copy to clipboard:', value);
+				copied();
+			}
+		});
+	}
 })(jQuery);
