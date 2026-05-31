@@ -286,6 +286,15 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><?php esc_html_e( 'Strict remote export enforcement', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_export_remote_strict]" value="1" <?php checked( ! empty( $settings['licensing_export_remote_strict'] ) ); ?>>
+						<?php esc_html_e( 'If enabled, export fails when remote export generation is unavailable. If disabled, local export fallback is allowed.', 'pckz-canonical-engine' ); ?>
+					</label>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><?php esc_html_e( 'Strict integrity policy', 'pckz-canonical-engine' ); ?></th>
 				<td>
 					<label>
@@ -306,6 +315,13 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><?php esc_html_e( 'Master API key', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<input type="text" class="large-text code" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_master_api_key]" value="<?php echo esc_attr( $settings['licensing_master_api_key'] ?? '' ); ?>">
+					<p class="description"><?php esc_html_e( 'Use this key in `X-PCKZ-Master-Key` header for remote master-control REST endpoints.', 'pckz-canonical-engine' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row" colspan="2"><h2 class="title"><?php esc_html_e( 'Payment architecture (future-ready)', 'pckz-canonical-engine' ); ?></h2></th>
 			</tr>
 			<tr>
@@ -323,7 +339,16 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 				<td>
 					<label>
 						<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[payments_enable_stripe]" value="1" <?php checked( ! empty( $settings['payments_enable_stripe'] ) ); ?>>
-						<?php esc_html_e( 'Enable Stripe service scaffolding (no checkout flow changes are applied automatically).', 'pckz-canonical-engine' ); ?>
+						<?php esc_html_e( 'Enable Stripe checkout + webhook processing for production payment flow.', 'pckz-canonical-engine' ); ?>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Stripe test mode', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[payments_stripe_test_mode]" value="1" <?php checked( ! empty( $settings['payments_stripe_test_mode'] ) ); ?>>
+						<?php esc_html_e( 'Use Stripe test keys and test checkout mode.', 'pckz-canonical-engine' ); ?>
 					</label>
 				</td>
 			</tr>
@@ -338,6 +363,24 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Stripe webhook secret', 'pckz-canonical-engine' ); ?></th>
 				<td><input type="password" class="large-text" autocomplete="new-password" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[payments_stripe_webhook_secret]" value="<?php echo esc_attr( $settings['payments_stripe_webhook_secret'] ?? '' ); ?>"></td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Stripe success URL', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<input type="url" class="large-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[payments_stripe_success_url]" value="<?php echo esc_attr( $settings['payments_stripe_success_url'] ?? '' ); ?>">
+					<p class="description"><?php esc_html_e( 'Optional. If empty, the configurator page URL is used.', 'pckz-canonical-engine' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Stripe cancel URL', 'pckz-canonical-engine' ); ?></th>
+				<td>
+					<input type="url" class="large-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[payments_stripe_cancel_url]" value="<?php echo esc_attr( $settings['payments_stripe_cancel_url'] ?? '' ); ?>">
+					<p class="description"><?php esc_html_e( 'Optional. If empty, the configurator page URL is used.', 'pckz-canonical-engine' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Stripe webhook tolerance (seconds)', 'pckz-canonical-engine' ); ?></th>
+				<td><input type="number" min="60" max="1800" class="small-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[payments_stripe_webhook_tolerance]" value="<?php echo esc_attr( (string) ( $settings['payments_stripe_webhook_tolerance'] ?? 300 ) ); ?>"></td>
 			</tr>
 			<tr>
 				<th scope="row" colspan="2"><h2 class="title"><?php esc_html_e( 'Checkout customer message', 'pckz-canonical-engine' ); ?></h2></th>

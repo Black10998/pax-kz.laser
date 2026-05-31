@@ -11,8 +11,12 @@ $config            = PCKZ_Post_Type::get_product_config( $product_id );
 $pricing           = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::get_frontend_pricing( $product_id ) : array();
 $show_header_price = ! empty( $pricing['show'] ) && (float) ( $pricing['unit_price'] ?? 0 ) > 0;
 $header_price      = $show_header_price ? ( $pricing['formatted_unit'] ?? '' ) : '';
-$paypal_enabled    = class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::paypal_enabled();
-$paypal_only       = class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::checkout_paypal_only();
+$payment_enabled   = class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::payment_checkout_enabled();
+$payment_only      = class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::checkout_paypal_only();
+$payment_provider  = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::active_payment_provider() : 'paypal';
+$payment_provider_label = class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_label() : 'PayPal';
+$payment_button_label   = class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_button_label() : __( 'Jetzt mit PayPal bezahlen', 'pckz-canonical-engine' );
+$payment_hint           = class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_hint() : __( 'Sie werden sicher zu PayPal weitergeleitet. Nach erfolgreicher Zahlung erhalten Sie eine Bestellbestätigung per E-Mail.', 'pckz-canonical-engine' );
 $customer_options  = $config['customer_options'] ?? array();
 $benefits          = $config['benefits'] ?? array();
 $fonts             = PCKZ_Settings::get_fonts();
@@ -24,7 +28,7 @@ $use_cloudlift     = ! empty( $config['use_cloudlift_layout'] );
 $payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz_paid'];
 ?>
 <div
-	class="pckz-product<?php echo $use_cloudlift ? ' pckz-product--cloudlift' : ''; ?><?php echo $paypal_only ? ' pckz-product--paypal-only' : ''; ?>"
+	class="pckz-product<?php echo $use_cloudlift ? ' pckz-product--cloudlift' : ''; ?><?php echo $payment_only ? ' pckz-product--paypal-only' : ''; ?>"
 	id="pckz-creator-<?php echo esc_attr( (string) $product_id ); ?>"
 	data-product-id="<?php echo esc_attr( (string) $product_id ); ?>"
 	lang="de"

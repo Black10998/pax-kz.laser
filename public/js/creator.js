@@ -1941,7 +1941,7 @@
 			const label = btn.querySelector('.pckz-btn__text');
 			if (label && !loading) {
 				if (btn.dataset.action === 'paypal-checkout') {
-					label.textContent = 'Jetzt mit PayPal bezahlen';
+					label.textContent = COMMERCE.paymentButtonLabel || 'Jetzt mit PayPal bezahlen';
 				} else if (btn.dataset.action === 'add-to-cart') {
 					label.textContent = 'Zur Kasse – Bestellung abschließen';
 				} else {
@@ -1950,7 +1950,7 @@
 			} else if (label && loading) {
 				label.textContent =
 					btn.dataset.action === 'paypal-checkout'
-						? I18N.paypalRedirect || I18N.preparingCheckout
+						? I18N.paymentRedirect || I18N.paypalRedirect || I18N.preparingCheckout
 						: I18N.addingToCart || I18N.preparingCheckout;
 			}
 		}
@@ -1978,19 +1978,20 @@
 			}
 			this.collectCheckoutFields();
 			this.setSubmitLoading(true, 'paypal-checkout');
-			this.setPaymentStatus(I18N.paypalRedirect || I18N.preparingCheckout, false);
-			this.toast(I18N.preparingCheckout || I18N.paypalRedirect);
+			this.setPaymentStatus(I18N.paymentRedirect || I18N.paypalRedirect || I18N.preparingCheckout, false);
+			this.toast(I18N.preparingCheckout || I18N.paymentRedirect || I18N.paypalRedirect);
 
 			this.saveDesign()
 				.then(() => this.exportPng())
 				.then(() => {
 					const qty = parseInt(this.root.querySelector('[data-field="quantity"]')?.value, 10) || 1;
 					const body = new FormData();
-					body.append('action', 'pckzce_create_paypal_order');
+					body.append('action', 'pckzce_create_payment_order');
 					body.append('nonce', pckzceConfig.nonce);
 					body.append('product_id', this.productId);
 					body.append('design_id', this.designId);
 					body.append('quantity', qty);
+					body.append('payment_provider', COMMERCE.paymentProvider || 'paypal');
 					body.append(
 						'page_url',
 						window.location.href.split('#')[0].split('?')[0] || window.location.href
@@ -2000,7 +2001,7 @@
 				})
 				.then((res) => {
 					if (res && res.success && res.data?.approve_url) {
-						this.setPaymentStatus(I18N.paypalRedirect, false);
+						this.setPaymentStatus(I18N.paymentRedirect || I18N.paypalRedirect, false);
 						window.location.href = res.data.approve_url;
 						return;
 					}

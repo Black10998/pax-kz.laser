@@ -175,6 +175,28 @@ class PCKZ_Assets {
 			self::version( 'public/js/creator.js' ),
 			true
 		);
+		$commerce_config = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::config_for_js( $product_id ) : array();
+		$payment_provider_label = sanitize_text_field( (string) ( $commerce_config['paymentProviderLabel'] ?? 'PayPal' ) );
+		$payment_redirect_label = sprintf(
+			/* translators: %s: payment provider name */
+			__( 'Weiterleitung zu %s…', 'pckz-canonical-engine' ),
+			$payment_provider_label
+		);
+		$payment_error_label = sprintf(
+			/* translators: %s: payment provider name */
+			__( '%s-Zahlung konnte nicht gestartet werden.', 'pckz-canonical-engine' ),
+			$payment_provider_label
+		);
+		$payment_required_label = sprintf(
+			/* translators: %s: payment provider name */
+			__( 'Bitte schließen Sie die Zahlung über %s ab, um die Bestellung abzuschließen.', 'pckz-canonical-engine' ),
+			$payment_provider_label
+		);
+		$preparing_checkout_label = sprintf(
+			/* translators: %s: payment provider name */
+			__( 'Bestellung wird vorbereitet – Sie werden zu %s weitergeleitet…', 'pckz-canonical-engine' ),
+			$payment_provider_label
+		);
 
 		wp_localize_script(
 			'pckzce-creator',
@@ -233,11 +255,12 @@ class PCKZ_Assets {
 					'validationFailedTitle' => 'Export-Validierung fehlgeschlagen',
 					'validationFailed'      => 'Bitte prüfen Sie die markierten Hinweise.',
 					'saveFailed'            => 'Speichern fehlgeschlagen. Bitte versuchen Sie es erneut.',
-					'paypalRedirect'        => 'Weiterleitung zu PayPal…',
+					'paypalRedirect'        => $payment_redirect_label,
+					'paymentRedirect'       => $payment_redirect_label,
 					'paymentSuccess'        => 'Vielen Dank. Ihre Zahlung wurde erfolgreich abgeschlossen. Ihre Bestellung wurde erfolgreich übermittelt.',
-					'paypalError'           => 'PayPal-Zahlung konnte nicht gestartet werden.',
-					'paymentRequired'       => 'Bitte schließen Sie die Zahlung über PayPal ab, um die Bestellung abzuschließen.',
-					'preparingCheckout'     => 'Bestellung wird vorbereitet – Sie werden zu PayPal weitergeleitet…',
+					'paypalError'           => $payment_error_label,
+					'paymentRequired'       => $payment_required_label,
+					'preparingCheckout'     => $preparing_checkout_label,
 					'checkoutIncomplete'    => 'Bitte füllen Sie alle Pflichtfelder in der Kasse aus.',
 					'requireFirstName'      => 'Bitte geben Sie Ihren Vornamen ein.',
 					'requireLastName'       => 'Bitte geben Sie Ihren Nachnamen ein.',
@@ -249,7 +272,7 @@ class PCKZ_Assets {
 					'requireCountry'        => 'Bitte wählen Sie Ihr Land.',
 					'totalLabel'            => 'Gesamtbetrag',
 				),
-				'commerce'     => class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::config_for_js( $product_id ) : array(),
+				'commerce'     => $commerce_config,
 				'wooActive'    => class_exists( 'WooCommerce' ) && ! empty( $settings['enable_woocommerce'] ),
 				'wooProductId' => (int) ( $config['woo_product_id'] ?? 0 ),
 				'pluginSlug'  => 'pckz-canonical-engine',

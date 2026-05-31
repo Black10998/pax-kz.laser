@@ -33,6 +33,7 @@ class PCKZ_Commerce {
 			quantity int unsigned NOT NULL DEFAULT 1,
 			amount decimal(12,2) NOT NULL DEFAULT 0,
 			currency varchar(10) NOT NULL DEFAULT 'EUR',
+			payment_provider varchar(32) NOT NULL DEFAULT 'paypal',
 			paypal_order_id varchar(64) NOT NULL DEFAULT '',
 			paypal_capture_id varchar(64) NOT NULL DEFAULT '',
 			status varchar(32) NOT NULL DEFAULT 'pending',
@@ -43,6 +44,7 @@ class PCKZ_Commerce {
 			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
 			KEY design_id (design_id),
+			KEY payment_provider (payment_provider),
 			KEY paypal_order_id (paypal_order_id),
 			KEY status (status),
 			KEY customer_email (customer_email)
@@ -440,6 +442,32 @@ class PCKZ_Commerce {
 	 * @return bool
 	 */
 	public static function checkout_paypal_only() {
+		return self::payment_checkout_enabled();
+	}
+
+	/**
+	 * Active payment provider slug.
+	 *
+	 * @return string
+	 */
+	public static function active_payment_provider() {
+		if ( class_exists( 'PCKZ_Payments' ) ) {
+			return PCKZ_Payments::active_provider_slug();
+		}
+		return self::paypal_enabled() ? 'paypal' : 'paypal';
+	}
+
+	/**
+	 * Whether any payment-provider checkout is currently enabled.
+	 *
+	 * @return bool
+	 */
+	public static function payment_checkout_enabled() {
+		$provider = self::active_payment_provider();
+		if ( 'stripe' === $provider ) {
+			$settings = PCKZ_Settings::get_all();
+			return ! empty( $settings['payments_enable_stripe'] ) && ! empty( $settings['payments_stripe_secret_key'] );
+		}
 		return self::paypal_enabled();
 	}
 
@@ -481,12 +509,13 @@ class PCKZ_Commerce {
 				'quantity'        => max( 1, absint( $data['quantity'] ?? 1 ) ),
 				'amount'          => (float) ( $data['amount'] ?? 0 ),
 				'currency'        => sanitize_text_field( $data['currency'] ?? 'EUR' ),
+				'payment_provider'=> sanitize_key( $data['payment_provider'] ?? self::active_payment_provider() ),
 				'paypal_order_id' => sanitize_text_field( $data['paypal_order_id'] ?? '' ),
 				'status'          => sanitize_key( $data['status'] ?? 'pending' ),
 				'return_url'      => $return_url,
 				'admin_notes'     => sanitize_textarea_field( $data['admin_notes'] ?? '' ),
 			),
-			array( '%d', '%d', '%s', '%s', '%s', '%d', '%f', '%s', '%s', '%s', '%s', '%s' )
+			array( '%d', '%d', '%s', '%s', '%s', '%d', '%f', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 		return (int) $wpdb->insert_id;
 	}
@@ -522,6 +551,27 @@ class PCKZ_Commerce {
 			$wpdb->prepare(
 				"SELECT * FROM {$table} WHERE paypal_order_id = %s LIMIT 1",
 				sanitize_text_field( $paypal_order_id )
+			),
+			ARRAY_A
+		);
+		return $row ?: null;
+	}
+
+	/**
+	 * Lookup order by external payment reference and provider.
+	 *
+	 * @param string $payment_order_id External provider order/session ID.
+	 * @param string $provider         Provider slug.
+	 * @return array|null
+	 */
+	public static function get_order_by_payment_reference( $payment_order_id, $provider = 'paypal' ) {
+		global $wpdb;
+		$table = $wpdb->prefix . self::TABLE_ORDERS;
+		$row   = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE paypal_order_id = %s AND payment_provider = %s ORDER BY id DESC LIMIT 1",
+				sanitize_text_field( $payment_order_id ),
+				sanitize_key( $provider )
 			),
 			ARRAY_A
 		);
@@ -614,7 +664,7 @@ class PCKZ_Commerce {
 		if ( ! $row ) {
 			return null;
 		}
-		if ( in_array( $row['status'] ?? '', array( 'pending', 'paypal_created', 'failed' ), true ) ) {
+		if ( in_array( $row['status'] ?? '', array( 'pending', 'paypal_created', 'stripe_created', 'failed' ), true ) ) {
 			return null;
 		}
 		return $row;
@@ -665,6 +715,7 @@ class PCKZ_Commerce {
 		$status = sanitize_key( (string) $status );
 		$legacy = array(
 			'paypal_created' => 'pending',
+			'stripe_created' => 'pending',
 			'captured'       => 'paid',
 		);
 		return $legacy[ $status ] ?? $status;
@@ -858,7 +909,7 @@ class PCKZ_Commerce {
 		if ( isset( $labels[ $status ] ) ) {
 			return $labels[ $status ];
 		}
-		if ( in_array( $status, array( 'pending', 'paypal_created' ), true ) ) {
+		if ( in_array( $status, array( 'pending', 'paypal_created', 'stripe_created' ), true ) ) {
 			return __( 'Zahlung ausstehend', 'pckz-canonical-engine' );
 		}
 		if ( in_array( $status, array( 'captured' ), true ) ) {
@@ -1160,7 +1211,7 @@ class PCKZ_Commerce {
 		$base = ! empty( $commerce_order['return_url'] )
 			? (string) $commerce_order['return_url']
 			: self::resolve_creator_page_url( (int) ( $commerce_order['product_id'] ?? 0 ) );
-		$base = remove_query_arg( array( 'pckz_paypal', 'token', 'PayerID' ), $base );
+		$base = remove_query_arg( array( 'pckz_paypal', 'pckz_payment', 'token', 'PayerID', 'session_id' ), $base );
 		return add_query_arg(
 			array(
 				'pckz_paid'  => '1',
@@ -1184,6 +1235,7 @@ class PCKZ_Commerce {
 		}
 		$legacy = array(
 			'paypal_created' => $labels['pending'],
+			'stripe_created' => $labels['pending'],
 			'captured'       => $labels['paid'],
 			'failed'         => __( 'Zahlung fehlgeschlagen', 'pckz-canonical-engine' ),
 		);
@@ -1537,6 +1589,10 @@ class PCKZ_Commerce {
 		);
 
 		$wc_order_id = 0;
+		$payment_provider = sanitize_key( (string) ( $commerce_order['payment_provider'] ?? 'paypal' ) );
+		if ( ! in_array( $payment_provider, array( 'paypal', 'stripe' ), true ) ) {
+			$payment_provider = 'paypal';
+		}
 		if ( class_exists( 'WooCommerce' ) && $woo_id && function_exists( 'wc_create_order' ) ) {
 			$order = wc_create_order();
 			if ( $order instanceof WC_Order ) {
@@ -1547,12 +1603,17 @@ class PCKZ_Commerce {
 					$item    = $item_id ? $order->get_item( $item_id ) : null;
 				}
 				self::apply_customer_details_to_wc_order( $order, $details );
-				$order->set_status( 'processing', __( 'PayPal-Zahlung bestätigt.', 'pckz-canonical-engine' ) );
-				$order->set_payment_method( 'pckz_paypal' );
-				$order->set_payment_method_title( 'PayPal' );
+				$order->set_status( 'processing', __( 'Zahlung bestätigt.', 'pckz-canonical-engine' ) );
+				$order->set_payment_method( 'stripe' === $payment_provider ? 'pckz_stripe' : 'pckz_paypal' );
+				$order->set_payment_method_title( 'stripe' === $payment_provider ? 'Stripe' : 'PayPal' );
 				$order->set_total( (float) ( $commerce_order['amount'] ?? 0 ) );
 				$order->update_meta_data( '_pckz_paypal_capture_id', $commerce_order['paypal_capture_id'] ?? '' );
 				$order->update_meta_data( '_pckz_paypal_order_id', $commerce_order['paypal_order_id'] ?? '' );
+				$order->update_meta_data( '_pckz_payment_provider', $payment_provider );
+				if ( 'stripe' === $payment_provider ) {
+					$order->update_meta_data( '_pckz_stripe_session_id', $commerce_order['paypal_order_id'] ?? '' );
+					$order->update_meta_data( '_pckz_stripe_payment_intent', $commerce_order['paypal_capture_id'] ?? '' );
+				}
 				$order->update_meta_data( '_pckz_customer_email', $commerce_order['customer_email'] ?? '' );
 				$order->update_meta_data( '_pckz_customer_wishes', $commerce_order['customer_note'] ?? '' );
 				$order->update_meta_data( '_pckz_customer_details', self::encode_customer_details( $details ) );
@@ -1762,8 +1823,12 @@ class PCKZ_Commerce {
 			'currencies'           => $currencies,
 			'defaultCurrency'      => $default_code,
 			'allowCurrencySwitch'  => self::currency_switch_enabled(),
-			'paypalEnabled'        => self::paypal_enabled(),
-			'checkoutPaypalOnly'   => self::checkout_paypal_only(),
+			'paypalEnabled'        => self::payment_checkout_enabled(),
+			'checkoutPaypalOnly'   => self::payment_checkout_enabled(),
+			'paymentProvider'      => self::active_payment_provider(),
+			'paymentProviderLabel' => class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_label() : 'PayPal',
+			'paymentButtonLabel'   => class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_button_label() : __( 'Jetzt mit PayPal bezahlen', 'pckz-canonical-engine' ),
+			'paymentHint'          => class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_hint() : __( 'Sie werden sicher zu PayPal weitergeleitet. Nach erfolgreicher Zahlung erhalten Sie eine Bestellbestätigung per E-Mail.', 'pckz-canonical-engine' ),
 			'requireEmail'         => true,
 			'successUrl'           => (string) PCKZ_Settings::get( 'paypal_success_url', '' ),
 			'cancelUrl'            => (string) PCKZ_Settings::get( 'paypal_cancel_url', '' ),

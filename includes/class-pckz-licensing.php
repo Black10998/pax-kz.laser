@@ -49,6 +49,7 @@ class PCKZ_Licensing {
 
 		$licenses = $wpdb->prefix . 'pckz_license_keys';
 		$installs = $wpdb->prefix . 'pckz_license_installations';
+		$downloads = $wpdb->prefix . 'pckz_license_downloads';
 
 		$sql_licenses = "CREATE TABLE {$licenses} (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -90,9 +91,27 @@ class PCKZ_Licensing {
 			KEY license_id (license_id),
 			KEY domain (domain)
 		) {$charset};";
+		$sql_downloads = "CREATE TABLE {$downloads} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			license_id BIGINT UNSIGNED NOT NULL,
+			installation_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			domain VARCHAR(191) NOT NULL,
+			install_uuid VARCHAR(96) NOT NULL,
+			requested_version VARCHAR(64) NOT NULL DEFAULT '',
+			package_url TEXT NULL,
+			last_ip VARCHAR(64) NOT NULL DEFAULT '',
+			last_user_agent VARCHAR(255) NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			KEY license_id (license_id),
+			KEY installation_id (installation_id),
+			KEY domain (domain),
+			KEY created_at (created_at)
+		) {$charset};";
 
 		dbDelta( $sql_licenses );
 		dbDelta( $sql_installs );
+		dbDelta( $sql_downloads );
 	}
 
 	/**
@@ -164,6 +183,7 @@ class PCKZ_Licensing {
 		global $wpdb;
 		$licenses = array();
 		$installs = array();
+		$downloads = array();
 		if ( $master_mode ) {
 			$licenses = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'pckz_license_keys ORDER BY id DESC LIMIT 300', ARRAY_A );
 			$where    = '1=1';
@@ -184,6 +204,7 @@ class PCKZ_Licensing {
 				$sql = $wpdb->prepare( $sql, ...$params );
 			}
 			$installs = $wpdb->get_results( $sql, ARRAY_A );
+			$downloads = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'pckz_license_downloads ORDER BY id DESC LIMIT 300', ARRAY_A );
 		}
 		?>
 		<div class="wrap pckz-admin-wrap">
@@ -339,6 +360,24 @@ class PCKZ_Licensing {
 						</tbody>
 					</table>
 				</div>
+				<div class="pckz-card" style="margin-top:16px;">
+					<h2><?php esc_html_e( 'Protected Package Downloads', 'pckz-canonical-engine' ); ?></h2>
+					<table class="widefat striped">
+						<thead><tr><th>ID</th><th><?php esc_html_e( 'License ID', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Domain', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Install UUID', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Requested version', 'pckz-canonical-engine' ); ?></th><th><?php esc_html_e( 'Created', 'pckz-canonical-engine' ); ?></th></tr></thead>
+						<tbody>
+						<?php foreach ( $downloads as $download ) : ?>
+							<tr>
+								<td><?php echo esc_html( (string) $download['id'] ); ?></td>
+								<td><?php echo esc_html( (string) $download['license_id'] ); ?></td>
+								<td><?php echo esc_html( (string) $download['domain'] ); ?></td>
+								<td><code><?php echo esc_html( (string) $download['install_uuid'] ); ?></code></td>
+								<td><?php echo esc_html( (string) $download['requested_version'] ); ?></td>
+								<td><?php echo esc_html( (string) $download['created_at'] ); ?></td>
+							</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
 			<?php endif; ?>
 		</div>
 		<?php
@@ -401,16 +440,30 @@ class PCKZ_Licensing {
 		$id        = isset( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : 0;
 		$new_state = isset( $_POST['new_status'] ) ? sanitize_key( wp_unslash( $_POST['new_status'] ) ) : 'revoked';
 		if ( $id ) {
+			$new_state = in_array( $new_state, array( 'active', 'revoked', 'disabled' ), true ) ? $new_state : 'revoked';
 			$wpdb->update(
 				$wpdb->prefix . 'pckz_license_keys',
 				array(
-					'status'     => in_array( $new_state, array( 'active', 'revoked', 'disabled' ), true ) ? $new_state : 'revoked',
+					'status'     => $new_state,
 					'updated_at' => current_time( 'mysql' ),
 				),
 				array( 'id' => $id ),
 				array( '%s', '%s' ),
 				array( '%d' )
 			);
+			if ( in_array( $new_state, array( 'revoked', 'disabled' ), true ) ) {
+				$wpdb->update(
+					$wpdb->prefix . 'pckz_license_installations',
+					array(
+						'status'     => 'blocked',
+						'updated_at' => current_time( 'mysql' ),
+						'last_error' => 'license_' . $new_state,
+					),
+					array( 'license_id' => $id ),
+					array( '%s', '%s', '%s' ),
+					array( '%d' )
+				);
+			}
 		}
 		wp_safe_redirect( admin_url( 'admin.php?page=pckz-license-server' ) );
 		exit;
@@ -568,6 +621,60 @@ class PCKZ_Licensing {
 				'methods'             => 'POST',
 				'callback'            => array( $this, 'rest_client_export_generate' ),
 				'permission_callback' => '__return_true',
+			)
+		);
+		register_rest_route(
+			'pckzce-license/v1',
+			'/master/health',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'rest_master_health' ),
+				'permission_callback' => array( $this, 'rest_master_permission' ),
+			)
+		);
+		register_rest_route(
+			'pckzce-license/v1',
+			'/master/licenses',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'rest_master_list_licenses' ),
+				'permission_callback' => array( $this, 'rest_master_permission' ),
+			)
+		);
+		register_rest_route(
+			'pckzce-license/v1',
+			'/master/licenses/(?P<id>\d+)',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'rest_master_update_license' ),
+				'permission_callback' => array( $this, 'rest_master_permission' ),
+			)
+		);
+		register_rest_route(
+			'pckzce-license/v1',
+			'/master/installations',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'rest_master_list_installations' ),
+				'permission_callback' => array( $this, 'rest_master_permission' ),
+			)
+		);
+		register_rest_route(
+			'pckzce-license/v1',
+			'/master/downloads',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'rest_master_list_downloads' ),
+				'permission_callback' => array( $this, 'rest_master_permission' ),
+			)
+		);
+		register_rest_route(
+			'pckzce-license/v1',
+			'/master/validate-release',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'rest_master_validate_release' ),
+				'permission_callback' => array( $this, 'rest_master_permission' ),
 			)
 		);
 	}
@@ -730,6 +837,7 @@ class PCKZ_Licensing {
 		if ( ! $package ) {
 			return new WP_REST_Response( array( 'ok' => false, 'reason' => 'package_not_configured' ), 404 );
 		}
+		$this->record_download_event( $validated, $payload, $package );
 		wp_redirect( $package, 302 );
 		exit;
 	}
@@ -826,6 +934,271 @@ class PCKZ_Licensing {
 			return rest_ensure_response( array( 'ok' => false, 'reason' => $result->get_error_message() ) );
 		}
 		return rest_ensure_response( array( 'ok' => true, 'package' => $result ) );
+	}
+
+	/**
+	 * Permission callback for master-control API routes.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return bool
+	 */
+	public function rest_master_permission( WP_REST_Request $request ) {
+		if ( ! self::is_master_mode() ) {
+			return false;
+		}
+		if ( current_user_can( 'manage_options' ) ) {
+			return true;
+		}
+		$settings = PCKZ_Settings::get_all();
+		$master_key = trim( (string) ( $settings['licensing_master_api_key'] ?? '' ) );
+		if ( '' === $master_key ) {
+			return false;
+		}
+		$header_key = sanitize_text_field( (string) $request->get_header( 'x-pckz-master-key' ) );
+		return '' !== $header_key && hash_equals( $master_key, $header_key );
+	}
+
+	/**
+	 * Master API: health summary.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function rest_master_health() {
+		global $wpdb;
+		$licenses_table  = $wpdb->prefix . 'pckz_license_keys';
+		$installs_table  = $wpdb->prefix . 'pckz_license_installations';
+		$downloads_table = $wpdb->prefix . 'pckz_license_downloads';
+		$meta = get_option( self::OPTION_RELEASE_META, array() );
+		$summary = array(
+			'active_licenses'    => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$licenses_table} WHERE status = %s", 'active' ) ),
+			'revoked_licenses'   => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$licenses_table} WHERE status = %s", 'revoked' ) ),
+			'active_installations' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$installs_table} WHERE status = %s", 'active' ) ),
+			'blocked_installations' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$installs_table} WHERE status = %s", 'blocked' ) ),
+			'downloads_24h'      => (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM {$downloads_table} WHERE created_at >= %s",
+					gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS )
+				)
+			),
+			'latest_version'     => sanitize_text_field( (string) ( $meta['version'] ?? '' ) ),
+			'release_configured' => ! empty( $meta['version'] ) && ! empty( $meta['package_url'] ),
+			'allow_remote_export'=> ! empty( $meta['allow_remote_export'] ),
+			'server_time'        => time(),
+		);
+		return rest_ensure_response( array( 'ok' => true, 'summary' => $summary ) );
+	}
+
+	/**
+	 * Master API: list licenses.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public function rest_master_list_licenses( WP_REST_Request $request ) {
+		global $wpdb;
+		$status = sanitize_key( (string) $request->get_param( 'status' ) );
+		$search = sanitize_text_field( (string) $request->get_param( 'search' ) );
+		$limit  = max( 1, min( 1000, absint( $request->get_param( 'limit' ) ?: 200 ) ) );
+		$where  = '1=1';
+		$params = array();
+		if ( in_array( $status, array( 'active', 'revoked', 'disabled' ), true ) ) {
+			$where .= ' AND status = %s';
+			$params[] = $status;
+		}
+		if ( '' !== $search ) {
+			$where .= ' AND (label LIKE %s OR license_key LIKE %s)';
+			$params[] = '%' . $wpdb->esc_like( $search ) . '%';
+			$params[] = '%' . $wpdb->esc_like( $search ) . '%';
+		}
+		$sql = "SELECT * FROM {$wpdb->prefix}pckz_license_keys WHERE {$where} ORDER BY id DESC LIMIT %d";
+		$params[] = $limit;
+		$query = $wpdb->prepare( $sql, ...$params );
+		$rows = $wpdb->get_results( $query, ARRAY_A );
+		foreach ( $rows as &$row ) {
+			$row['license_key'] = self::mask_key( (string) ( $row['license_key'] ?? '' ) );
+			$row['domains'] = self::decode_json_array( (string) ( $row['domains'] ?? '' ) );
+			$row['permissions'] = self::decode_json_assoc( (string) ( $row['permissions'] ?? '' ), array( 'export' => true, 'updates' => true ) );
+		}
+		return rest_ensure_response( array( 'ok' => true, 'licenses' => $rows ) );
+	}
+
+	/**
+	 * Master API: update license attributes.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public function rest_master_update_license( WP_REST_Request $request ) {
+		global $wpdb;
+		$license_id = absint( $request->get_param( 'id' ) );
+		if ( ! $license_id ) {
+			return rest_ensure_response( array( 'ok' => false, 'reason' => 'missing_license_id' ) );
+		}
+		$payload = json_decode( (string) $request->get_body(), true );
+		if ( ! is_array( $payload ) ) {
+			$payload = array();
+		}
+		$update = array(
+			'updated_at' => current_time( 'mysql' ),
+		);
+		$format = array( '%s' );
+		if ( array_key_exists( 'label', $payload ) ) {
+			$update['label'] = sanitize_text_field( (string) $payload['label'] );
+			$format[] = '%s';
+		}
+		if ( array_key_exists( 'status', $payload ) ) {
+			$update['status'] = in_array( sanitize_key( (string) $payload['status'] ), array( 'active', 'revoked', 'disabled' ), true )
+				? sanitize_key( (string) $payload['status'] )
+				: 'revoked';
+			$format[] = '%s';
+		}
+		if ( array_key_exists( 'max_installs', $payload ) ) {
+			$update['max_installs'] = max( 1, absint( $payload['max_installs'] ) );
+			$format[] = '%d';
+		}
+		if ( array_key_exists( 'domains', $payload ) ) {
+			$domains = is_array( $payload['domains'] ) ? implode( "\n", $payload['domains'] ) : (string) $payload['domains'];
+			$update['domains'] = wp_json_encode( self::parse_domains( $domains ) );
+			$format[] = '%s';
+		}
+		if ( array_key_exists( 'permissions', $payload ) ) {
+			$perm_payload = is_array( $payload['permissions'] ) ? $payload['permissions'] : array();
+			$update['permissions'] = wp_json_encode(
+				array(
+					'export'  => ! empty( $perm_payload['export'] ),
+					'updates' => ! empty( $perm_payload['updates'] ),
+				)
+			);
+			$format[] = '%s';
+		}
+		if ( array_key_exists( 'expires_at', $payload ) ) {
+			$expires = sanitize_text_field( (string) $payload['expires_at'] );
+			$ts = $expires ? strtotime( $expires ) : 0;
+			$update['expires_at'] = $ts ? gmdate( 'Y-m-d H:i:s', $ts ) : null;
+			$format[] = '%s';
+		}
+		$wpdb->update(
+			$wpdb->prefix . 'pckz_license_keys',
+			$update,
+			array( 'id' => $license_id ),
+			$format,
+			array( '%d' )
+		);
+		if ( isset( $update['status'] ) && in_array( $update['status'], array( 'revoked', 'disabled' ), true ) ) {
+			$wpdb->update(
+				$wpdb->prefix . 'pckz_license_installations',
+				array(
+					'status'     => 'blocked',
+					'updated_at' => current_time( 'mysql' ),
+					'last_error' => 'license_' . $update['status'],
+				),
+				array( 'license_id' => $license_id ),
+				array( '%s', '%s', '%s' ),
+				array( '%d' )
+			);
+		}
+		return rest_ensure_response( array( 'ok' => true ) );
+	}
+
+	/**
+	 * Master API: list installations.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public function rest_master_list_installations( WP_REST_Request $request ) {
+		global $wpdb;
+		$status = sanitize_key( (string) $request->get_param( 'status' ) );
+		$search = sanitize_text_field( (string) $request->get_param( 'search' ) );
+		$limit  = max( 1, min( 2000, absint( $request->get_param( 'limit' ) ?: 500 ) ) );
+		$where  = '1=1';
+		$params = array();
+		if ( in_array( $status, array( 'active', 'blocked' ), true ) ) {
+			$where .= ' AND status = %s';
+			$params[] = $status;
+		}
+		if ( '' !== $search ) {
+			$where .= ' AND (domain LIKE %s OR install_uuid LIKE %s)';
+			$params[] = '%' . $wpdb->esc_like( $search ) . '%';
+			$params[] = '%' . $wpdb->esc_like( $search ) . '%';
+		}
+		$sql = "SELECT * FROM {$wpdb->prefix}pckz_license_installations WHERE {$where} ORDER BY updated_at DESC LIMIT %d";
+		$params[] = $limit;
+		$query = $wpdb->prepare( $sql, ...$params );
+		$rows = $wpdb->get_results( $query, ARRAY_A );
+		foreach ( $rows as &$row ) {
+			$row['tamper_signals'] = self::decode_json_array( (string) ( $row['tamper_signals'] ?? '' ) );
+		}
+		return rest_ensure_response( array( 'ok' => true, 'installations' => $rows ) );
+	}
+
+	/**
+	 * Master API: list protected package download events.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public function rest_master_list_downloads( WP_REST_Request $request ) {
+		global $wpdb;
+		$domain = self::normalize_domain_value( (string) $request->get_param( 'domain' ) );
+		$limit  = max( 1, min( 2000, absint( $request->get_param( 'limit' ) ?: 500 ) ) );
+		$where  = '1=1';
+		$params = array();
+		if ( '' !== $domain ) {
+			$where .= ' AND domain = %s';
+			$params[] = $domain;
+		}
+		$sql = "SELECT * FROM {$wpdb->prefix}pckz_license_downloads WHERE {$where} ORDER BY id DESC LIMIT %d";
+		$params[] = $limit;
+		$query = $wpdb->prepare( $sql, ...$params );
+		$rows = $wpdb->get_results( $query, ARRAY_A );
+		return rest_ensure_response( array( 'ok' => true, 'downloads' => $rows ) );
+	}
+
+	/**
+	 * Master API: validate update delivery configuration.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function rest_master_validate_release() {
+		$meta = get_option( self::OPTION_RELEASE_META, array() );
+		$package_url = esc_url_raw( (string) ( $meta['package_url'] ?? '' ) );
+		$result = array(
+			'version'           => sanitize_text_field( (string) ( $meta['version'] ?? '' ) ),
+			'package_url'       => $package_url,
+			'has_version'       => ! empty( $meta['version'] ),
+			'has_package_url'   => '' !== $package_url,
+			'package_reachable' => false,
+			'package_status'    => 0,
+			'errors'            => array(),
+		);
+		if ( '' === $package_url ) {
+			$result['errors'][] = 'package_url_missing';
+			return rest_ensure_response( array( 'ok' => false, 'validation' => $result ) );
+		}
+		$resp = wp_remote_get(
+			$package_url,
+			array(
+				'method'  => 'HEAD',
+				'timeout' => 12,
+			)
+		);
+		if ( is_wp_error( $resp ) ) {
+			$result['errors'][] = $resp->get_error_message();
+			return rest_ensure_response( array( 'ok' => false, 'validation' => $result ) );
+		}
+		$code = (int) wp_remote_retrieve_response_code( $resp );
+		$result['package_status'] = $code;
+		$result['package_reachable'] = $code >= 200 && $code < 400;
+		if ( ! $result['package_reachable'] ) {
+			$result['errors'][] = 'package_unreachable_' . $code;
+		}
+		return rest_ensure_response(
+			array(
+				'ok'         => $result['package_reachable'] && $result['has_version'],
+				'validation' => $result,
+			)
+		);
 	}
 
 	/**
@@ -1355,6 +1728,7 @@ class PCKZ_Licensing {
 
 		return array(
 			'license'       => $license,
+			'install'       => $install,
 			'domain'        => $domain,
 			'install_uuid'  => $install_uuid,
 			'permissions'   => self::decode_json_assoc(
@@ -1584,6 +1958,37 @@ class PCKZ_Licensing {
 			return str_repeat( '*', max( 4, $len ) );
 		}
 		return substr( $key, 0, 6 ) . '…' . substr( $key, -4 );
+	}
+
+	/**
+	 * Persist download telemetry for protected package requests.
+	 *
+	 * @param array  $validated  Validated payload state.
+	 * @param array  $payload    Download payload.
+	 * @param string $package_url Package URL.
+	 */
+	private function record_download_event( $validated, $payload, $package_url ) {
+		global $wpdb;
+		$license_id = (int) ( $validated['license']['id'] ?? 0 );
+		if ( $license_id <= 0 ) {
+			return;
+		}
+		$installation_id = (int) ( $validated['install']['id'] ?? 0 );
+		$wpdb->insert(
+			$wpdb->prefix . 'pckz_license_downloads',
+			array(
+				'license_id'         => $license_id,
+				'installation_id'    => $installation_id,
+				'domain'             => sanitize_text_field( (string) ( $validated['domain'] ?? $payload['domain'] ?? '' ) ),
+				'install_uuid'       => sanitize_text_field( (string) ( $validated['install_uuid'] ?? $payload['install_uuid'] ?? '' ) ),
+				'requested_version'  => sanitize_text_field( (string) ( $payload['current_version'] ?? '' ) ),
+				'package_url'        => esc_url_raw( (string) $package_url ),
+				'last_ip'            => self::request_ip(),
+				'last_user_agent'    => self::request_user_agent(),
+				'created_at'         => current_time( 'mysql' ),
+			),
+			array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+		);
 	}
 
 	/**
