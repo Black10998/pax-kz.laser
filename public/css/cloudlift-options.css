@@ -159,6 +159,12 @@
 	width: calc(100% + 10px);
 }
 
+.pckz-creator-wrapper .pckz-product--cloudlift .cl-po--swatch-container,
+.pckz-creator-wrapper .pckz-product--cloudlift .cl-po--swatch-group-items {
+	width: 100%;
+	max-width: 100%;
+}
+
 .pckz-product--cloudlift .cl-po--swatch-group-items {
 	display: flex;
 	flex-wrap: wrap;
