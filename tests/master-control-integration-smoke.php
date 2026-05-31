@@ -366,7 +366,6 @@ require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-settings.php';
 require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-licensing.php';
 
 $settings = PCKZ_Settings::default_options();
-$settings['licensing_master_mode'] = true;
 $settings['licensing_master_api_key'] = 'master-secret-key';
 update_option( PCKZ_Settings::OPTION_KEY, $settings );
 update_option(
@@ -384,6 +383,11 @@ update_option(
 );
 
 $licensing = new PCKZ_Licensing();
+
+if ( true !== PCKZ_Licensing::is_master_mode() ) {
+	fwrite( STDERR, "Master mode should be enabled automatically on paxdesign.at.\n" );
+	exit( 1 );
+}
 
 $allowed = $licensing->rest_master_permission(
 	new WP_REST_Request(

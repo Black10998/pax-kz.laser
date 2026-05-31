@@ -218,15 +218,13 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 			<tr>
 				<th scope="row" colspan="2"><h2 class="title"><?php esc_html_e( 'Licensing & Master Control', 'pckz-canonical-engine' ); ?></h2></th>
 			</tr>
-			<?php $is_master_install = class_exists( 'PCKZ_Licensing' ) ? PCKZ_Licensing::is_master_mode() : ! empty( $settings['licensing_master_mode'] ); ?>
+			<?php $is_master_install = class_exists( 'PCKZ_Licensing' ) && PCKZ_Licensing::is_master_mode(); ?>
 			<?php if ( $is_master_install ) : ?>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Master control mode', 'pckz-canonical-engine' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Master server identity', 'pckz-canonical-engine' ); ?></th>
 					<td>
-						<label>
-							<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_master_mode]" value="1" <?php checked( true ); ?>>
-							<?php esc_html_e( 'This installation acts as the central license server.', 'pckz-canonical-engine' ); ?>
-						</label>
+						<p><strong><?php esc_html_e( 'paxdesign.at', 'pckz-canonical-engine' ); ?></strong></p>
+						<p class="description"><?php esc_html_e( 'Master Control is automatically active on this host. It cannot be enabled or disabled from settings.', 'pckz-canonical-engine' ); ?></p>
 					</td>
 				</tr>
 				<tr>

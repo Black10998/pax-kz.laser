@@ -130,12 +130,9 @@ class PCKZ_Licensing {
 	}
 
 	/**
-	 * Force master mode off when host is not allowed.
+	 * Remove obsolete master-mode setting; host identity is authoritative.
 	 */
 	private function enforce_master_host_lock() {
-		if ( ! self::master_mode_enabled() || self::is_master_host_allowed() ) {
-			return;
-		}
 		$settings = PCKZ_Settings::get_all();
 		if ( empty( $settings['licensing_master_mode'] ) ) {
 			return;
@@ -167,9 +164,6 @@ class PCKZ_Licensing {
 	public function maybe_show_admin_notice() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
-		}
-		if ( self::master_mode_enabled() && ! self::is_master_host_allowed() ) {
-			echo '<div class="notice notice-error"><p><strong>PCKZ Master Control:</strong> ' . esc_html__( 'Master mode is restricted to paxdesign.at. This installation runs in client mode only.', 'pckz-canonical-engine' ) . '</p></div>';
 		}
 		$settings = PCKZ_Settings::get_all();
 		if ( empty( $settings['licensing_enforce'] ) ) {
@@ -395,7 +389,6 @@ class PCKZ_Licensing {
 			'license_key'                       => $license_key,
 			'domains'                           => array_values( $domains ),
 			'permissions'                       => $permissions,
-			'licensing_master_mode'             => false,
 			'licensing_enforce'                 => true,
 			'licensing_grace_minutes'           => max( 5, min( 1440, absint( $_POST['grace_minutes'] ?? 120 ) ) ),
 			'licensing_require_signed_requests' => true,
@@ -2101,11 +2094,6 @@ class PCKZ_Licensing {
 			$changed = true;
 		}
 
-		if ( ! empty( $settings['licensing_master_mode'] ) ) {
-			$settings['licensing_master_mode'] = false;
-			$changed = true;
-		}
-
 		if ( array_key_exists( 'licensing_enforce', $config ) ) {
 			$settings['licensing_enforce'] = ! empty( $config['licensing_enforce'] );
 			$changed = true;
@@ -2187,49 +2175,21 @@ class PCKZ_Licensing {
 	}
 
 	/**
-	 * Master-mode helper.
+	 * Master-mode helper. Identity is fixed by authorized host only.
 	 *
 	 * @return bool
 	 */
 	public static function is_master_mode() {
-		return self::master_mode_enabled() && self::is_master_host_allowed();
+		return self::is_master_host();
 	}
 
 	/**
-	 * Raw master-mode toggle from settings.
+	 * Whether this installation is the authorized master host.
 	 *
 	 * @return bool
 	 */
-	private static function master_mode_enabled() {
-		$settings = PCKZ_Settings::get_all();
-		return ! empty( $settings['licensing_master_mode'] );
-	}
-
-	/**
-	 * Whether current host is allowed to run master functionality.
-	 *
-	 * @return bool
-	 */
-	private static function is_master_host_allowed() {
-		$current = self::normalized_domain();
-		return self::domain_allowed( $current, self::master_allowed_domains() );
-	}
-
-	/**
-	 * Master-eligible domains (server-side hard gate).
-	 *
-	 * @return array
-	 */
-	private static function master_allowed_domains() {
-		$normalized = array();
-		foreach ( array( 'paxdesign.at' ) as $domain ) {
-			$value = self::normalize_domain_value( (string) $domain );
-			if ( '' !== $value ) {
-				$normalized[] = $value;
-			}
-		}
-		$normalized = array_values( array_unique( $normalized ) );
-		return ! empty( $normalized ) ? $normalized : array( 'paxdesign.at' );
+	private static function is_master_host() {
+		return 'paxdesign.at' === self::normalized_domain();
 	}
 
 	/**

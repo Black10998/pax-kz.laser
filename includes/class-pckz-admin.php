@@ -239,7 +239,7 @@ class PCKZ_Admin {
 			'paypal_success_url'   => esc_url_raw( $input['paypal_success_url'] ?? '' ),
 			'creator_page_id'      => absint( $input['creator_page_id'] ?? 0 ),
 			'paypal_cancel_url'    => esc_url_raw( $input['paypal_cancel_url'] ?? '' ),
-			'licensing_master_mode' => array_key_exists( 'licensing_master_mode', $input ) ? ! empty( $input['licensing_master_mode'] ) : ! empty( $current['licensing_master_mode'] ),
+			'licensing_master_mode' => false,
 			'licensing_master_url'  => array_key_exists( 'licensing_master_url', $input ) ? esc_url_raw( $input['licensing_master_url'] ) : esc_url_raw( (string) ( $current['licensing_master_url'] ?? 'https://paxdesign.at' ) ),
 			'licensing_key'         => array_key_exists( 'licensing_key', $input ) ? sanitize_text_field( $input['licensing_key'] ) : sanitize_text_field( (string) ( $current['licensing_key'] ?? '' ) ),
 			'licensing_install_uuid' => array_key_exists( 'licensing_install_uuid', $input ) ? sanitize_text_field( $input['licensing_install_uuid'] ) : sanitize_text_field( (string) ( $current['licensing_install_uuid'] ?? '' ) ),

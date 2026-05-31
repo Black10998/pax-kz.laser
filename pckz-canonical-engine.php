@@ -19,7 +19,7 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'PCKZCE_VERSION', '2.23.0' );
-define( 'PCKZCE_BUILD', '2.23.0.20260531-master-control-integration-finalization' );
+define( 'PCKZCE_BUILD', '2.23.0.20260531-host-locked-master-identity' );
 define( 'PCKZCE_PLUGIN_FILE', __FILE__ );
 define( 'PCKZCE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PCKZCE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

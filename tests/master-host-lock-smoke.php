@@ -161,7 +161,7 @@ update_option( PCKZ_Settings::OPTION_KEY, $settings );
 $licensing = new PCKZ_Licensing();
 
 if ( true === PCKZ_Licensing::is_master_mode() ) {
-	fwrite( STDERR, "Master mode should be disabled on non-paxdesign host.\n" );
+	fwrite( STDERR, "Master mode should be disabled on non-paxdesign host even when DB setting is tampered.\n" );
 	exit( 1 );
 }
 
