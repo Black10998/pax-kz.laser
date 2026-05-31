@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.23.0
+Stable tag: 2.23.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,10 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.23.1 =
+
+* Fixed critical fatal error when `options-form.php` was included more than once during Gutenberg/REST page saves (`Cannot redeclare pckz_icon_choice_img()`).
 
 = 2.23.0 =
 

@@ -17,17 +17,19 @@ $icon_registry = PCKZ_Icons::registry_for_js();
  * @param array  $icon_registry Icon registry.
  * @return string
  */
-function pckz_icon_choice_img( $choice, $slug, $icon_registry ) {
-	if ( ! empty( $choice['img'] ) ) {
-		return $choice['img'];
+if ( ! function_exists( 'pckz_icon_choice_img' ) ) {
+	function pckz_icon_choice_img( $choice, $slug, $icon_registry ) {
+		if ( ! empty( $choice['img'] ) ) {
+			return $choice['img'];
+		}
+		if ( 'none' !== $slug && ! empty( $icon_registry[ $slug ]['black'] ) ) {
+			return $icon_registry[ $slug ]['black'];
+		}
+		if ( 'none' !== $slug && ! empty( $icon_registry[ $slug ]['white'] ) ) {
+			return $icon_registry[ $slug ]['white'];
+		}
+		return '';
 	}
-	if ( 'none' !== $slug && ! empty( $icon_registry[ $slug ]['black'] ) ) {
-		return $icon_registry[ $slug ]['black'];
-	}
-	if ( 'none' !== $slug && ! empty( $icon_registry[ $slug ]['white'] ) ) {
-		return $icon_registry[ $slug ]['white'];
-	}
-	return '';
 }
 
 foreach ( $customer_options as $option ) :
