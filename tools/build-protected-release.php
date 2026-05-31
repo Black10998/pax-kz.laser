@@ -31,6 +31,7 @@ $excludes = array(
 	'.github',
 	'.cursor',
 	'dist',
+	'release-packages',
 	'tmp',
 	'node_modules',
 	'tests',
