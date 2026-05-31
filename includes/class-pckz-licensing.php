@@ -31,12 +31,14 @@ class PCKZ_Licensing {
 		add_action( 'admin_menu', array( $this, 'register_admin_menu' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_show_admin_notice' ) );
 
-		add_action( 'admin_post_pckzce_create_license', array( $this, 'handle_create_license' ) );
-		add_action( 'admin_post_pckzce_update_license_status', array( $this, 'handle_update_license_status' ) );
-		add_action( 'admin_post_pckzce_update_installation_status', array( $this, 'handle_update_installation_status' ) );
-		add_action( 'admin_post_pckzce_save_release_meta', array( $this, 'handle_save_release_meta' ) );
-		add_action( 'admin_post_pckzce_save_license_detail', array( $this, 'handle_save_license_detail' ) );
-		add_action( 'admin_post_pckzce_generate_customer_package', array( $this, 'handle_generate_customer_package' ) );
+		if ( self::is_master_mode() ) {
+			add_action( 'admin_post_pckzce_create_license', array( $this, 'handle_create_license' ) );
+			add_action( 'admin_post_pckzce_update_license_status', array( $this, 'handle_update_license_status' ) );
+			add_action( 'admin_post_pckzce_update_installation_status', array( $this, 'handle_update_installation_status' ) );
+			add_action( 'admin_post_pckzce_save_release_meta', array( $this, 'handle_save_release_meta' ) );
+			add_action( 'admin_post_pckzce_save_license_detail', array( $this, 'handle_save_license_detail' ) );
+			add_action( 'admin_post_pckzce_generate_customer_package', array( $this, 'handle_generate_customer_package' ) );
+		}
 
 		add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'inject_plugin_update' ) );
 		add_filter( 'plugins_api', array( $this, 'inject_plugin_info' ), 10, 3 );
@@ -122,8 +124,24 @@ class PCKZ_Licensing {
 	 */
 	public function bootstrap() {
 		$this->ensure_install_uuid();
+		$this->enforce_master_host_lock();
 		$this->apply_embedded_client_package_config();
 		$this->schedule_heartbeat();
+	}
+
+	/**
+	 * Force master mode off when host is not allowed.
+	 */
+	private function enforce_master_host_lock() {
+		if ( ! self::master_mode_enabled() || self::is_master_host_allowed() ) {
+			return;
+		}
+		$settings = PCKZ_Settings::get_all();
+		if ( empty( $settings['licensing_master_mode'] ) ) {
+			return;
+		}
+		$settings['licensing_master_mode'] = false;
+		update_option( PCKZ_Settings::OPTION_KEY, $settings, false );
 	}
 
 	/**
@@ -150,6 +168,9 @@ class PCKZ_Licensing {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
+		if ( self::master_mode_enabled() && ! self::is_master_host_allowed() ) {
+			echo '<div class="notice notice-error"><p><strong>PCKZ Master Control:</strong> ' . esc_html__( 'Master mode is restricted to paxdesign.at. This installation runs in client mode only.', 'pckz-canonical-engine' ) . '</p></div>';
+		}
 		$settings = PCKZ_Settings::get_all();
 		if ( empty( $settings['licensing_enforce'] ) ) {
 			return;
@@ -170,7 +191,7 @@ class PCKZ_Licensing {
 			return;
 		}
 		$settings     = PCKZ_Settings::get_all();
-		$master_mode  = ! empty( $settings['licensing_master_mode'] );
+		$master_mode  = self::is_master_mode();
 		$generated    = get_transient( 'pckzce_last_created_license' );
 		$package_notice = get_transient( 'pckzce_customer_package_notice' );
 		$package_error  = get_transient( 'pckzce_customer_package_error' );
@@ -860,6 +881,9 @@ class PCKZ_Licensing {
 	 * Register REST API routes for master and update services.
 	 */
 	public function register_rest_routes() {
+		if ( ! self::is_master_mode() ) {
+			return;
+		}
 		register_rest_route(
 			'pckzce-license/v1',
 			'/client/check-in',
@@ -2168,8 +2192,51 @@ class PCKZ_Licensing {
 	 * @return bool
 	 */
 	public static function is_master_mode() {
+		return self::master_mode_enabled() && self::is_master_host_allowed();
+	}
+
+	/**
+	 * Raw master-mode toggle from settings.
+	 *
+	 * @return bool
+	 */
+	private static function master_mode_enabled() {
 		$settings = PCKZ_Settings::get_all();
 		return ! empty( $settings['licensing_master_mode'] );
+	}
+
+	/**
+	 * Whether current host is allowed to run master functionality.
+	 *
+	 * @return bool
+	 */
+	private static function is_master_host_allowed() {
+		$current = self::normalized_domain();
+		return self::domain_allowed( $current, self::master_allowed_domains() );
+	}
+
+	/**
+	 * Master-eligible domains (server-side hard gate).
+	 *
+	 * @return array
+	 */
+	private static function master_allowed_domains() {
+		$allowed = array( 'paxdesign.at' );
+		if ( defined( 'PCKZCE_MASTER_ALLOWED_DOMAINS' ) && is_array( PCKZCE_MASTER_ALLOWED_DOMAINS ) ) {
+			$allowed = PCKZCE_MASTER_ALLOWED_DOMAINS;
+		}
+		if ( function_exists( 'apply_filters' ) ) {
+			$allowed = apply_filters( 'pckzce_master_allowed_domains', $allowed );
+		}
+		$normalized = array();
+		foreach ( (array) $allowed as $domain ) {
+			$value = self::normalize_domain_value( (string) $domain );
+			if ( '' !== $value ) {
+				$normalized[] = $value;
+			}
+		}
+		$normalized = array_values( array_unique( $normalized ) );
+		return ! empty( $normalized ) ? $normalized : array( 'paxdesign.at' );
 	}
 
 	/**

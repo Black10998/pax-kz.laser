@@ -218,7 +218,7 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 			<tr>
 				<th scope="row" colspan="2"><h2 class="title"><?php esc_html_e( 'Licensing & Master Control', 'pckz-canonical-engine' ); ?></h2></th>
 			</tr>
-			<?php $is_master_install = ! empty( $settings['licensing_master_mode'] ); ?>
+			<?php $is_master_install = class_exists( 'PCKZ_Licensing' ) ? PCKZ_Licensing::is_master_mode() : ! empty( $settings['licensing_master_mode'] ); ?>
 			<?php if ( $is_master_install ) : ?>
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Master control mode', 'pckz-canonical-engine' ); ?></th>
@@ -239,9 +239,6 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 					<th scope="row"><?php esc_html_e( 'Master API key', 'pckz-canonical-engine' ); ?></th>
 					<td>
 						<input type="text" class="large-text code" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_master_api_key]" value="<?php echo esc_attr( $settings['licensing_master_api_key'] ?? '' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_key]" value="<?php echo esc_attr( $settings['licensing_key'] ?? '' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_install_uuid]" value="<?php echo esc_attr( $settings['licensing_install_uuid'] ?? '' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_enforce]" value="<?php echo esc_attr( ! empty( $settings['licensing_enforce'] ) ? '1' : '0' ); ?>">
 					</td>
 				</tr>
 				<tr>
@@ -270,18 +267,6 @@ $default_product   = absint( $settings['default_creator_product_id'] ?? 0 );
 							<?php $license_state = PCKZ_Licensing::get_client_state(); ?>
 							<p><strong><?php esc_html_e( 'Current status:', 'pckz-canonical-engine' ); ?></strong> <?php echo esc_html( $license_state['status'] ?? 'unknown' ); ?><?php echo ! empty( $license_state['reason'] ) ? ' — ' . esc_html( $license_state['reason'] ) : ''; ?></p>
 						<?php endif; ?>
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_master_mode]" value="0">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_master_url]" value="<?php echo esc_attr( $settings['licensing_master_url'] ?? '' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_key]" value="<?php echo esc_attr( $settings['licensing_key'] ?? '' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_install_uuid]" value="<?php echo esc_attr( $settings['licensing_install_uuid'] ?? '' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_enforce]" value="<?php echo esc_attr( ! empty( $settings['licensing_enforce'] ) ? '1' : '0' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_grace_minutes]" value="<?php echo esc_attr( (string) ( $settings['licensing_grace_minutes'] ?? 120 ) ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_require_signed_requests]" value="<?php echo esc_attr( ! empty( $settings['licensing_require_signed_requests'] ) ? '1' : '0' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_export_authorize]" value="<?php echo esc_attr( ! empty( $settings['licensing_export_authorize'] ) ? '1' : '0' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_export_remote_mode]" value="<?php echo esc_attr( ! empty( $settings['licensing_export_remote_mode'] ) ? '1' : '0' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_export_remote_strict]" value="<?php echo esc_attr( ! empty( $settings['licensing_export_remote_strict'] ) ? '1' : '0' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_strict_integrity]" value="<?php echo esc_attr( ! empty( $settings['licensing_strict_integrity'] ) ? '1' : '0' ); ?>">
-						<input type="hidden" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_master_api_key]" value="<?php echo esc_attr( $settings['licensing_master_api_key'] ?? '' ); ?>">
 					</td>
 				</tr>
 			<?php endif; ?>

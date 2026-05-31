@@ -124,7 +124,7 @@ if ( ! function_exists( 'wp_generate_uuid4' ) ) {
 	function wp_generate_uuid4() { return '11111111-2222-3333-4444-555555555555'; }
 }
 if ( ! function_exists( 'home_url' ) ) {
-	function home_url( $path = '' ) { return 'https://client.example.com' . $path; }
+	function home_url( $path = '' ) { return 'https://paxdesign.at' . $path; }
 }
 if ( ! function_exists( 'current_time' ) ) {
 	function current_time( $type = 'mysql' ) {

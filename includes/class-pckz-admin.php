@@ -203,6 +203,7 @@ class PCKZ_Admin {
 		}
 
 		$defaults = PCKZ_Settings::default_options();
+		$current  = PCKZ_Settings::get_all();
 		$output   = array(
 			'primary_color'        => sanitize_hex_color( $input['primary_color'] ?? $defaults['primary_color'] ) ?: $defaults['primary_color'],
 			'accent_color'         => sanitize_hex_color( $input['accent_color'] ?? $defaults['accent_color'] ) ?: $defaults['accent_color'],
@@ -238,18 +239,18 @@ class PCKZ_Admin {
 			'paypal_success_url'   => esc_url_raw( $input['paypal_success_url'] ?? '' ),
 			'creator_page_id'      => absint( $input['creator_page_id'] ?? 0 ),
 			'paypal_cancel_url'    => esc_url_raw( $input['paypal_cancel_url'] ?? '' ),
-			'licensing_master_mode' => ! empty( $input['licensing_master_mode'] ),
-			'licensing_master_url'  => esc_url_raw( $input['licensing_master_url'] ?? 'https://paxdesign.at' ),
-			'licensing_key'         => sanitize_text_field( $input['licensing_key'] ?? '' ),
-			'licensing_install_uuid' => sanitize_text_field( $input['licensing_install_uuid'] ?? '' ),
-			'licensing_enforce'     => ! empty( $input['licensing_enforce'] ),
-			'licensing_grace_minutes' => max( 5, min( 1440, absint( $input['licensing_grace_minutes'] ?? 120 ) ) ),
-			'licensing_require_signed_requests' => ! empty( $input['licensing_require_signed_requests'] ),
-			'licensing_export_authorize' => ! empty( $input['licensing_export_authorize'] ),
-			'licensing_export_remote_mode' => ! empty( $input['licensing_export_remote_mode'] ),
-			'licensing_export_remote_strict' => ! empty( $input['licensing_export_remote_strict'] ),
-			'licensing_strict_integrity' => ! empty( $input['licensing_strict_integrity'] ),
-			'licensing_master_api_key' => sanitize_text_field( $input['licensing_master_api_key'] ?? '' ),
+			'licensing_master_mode' => array_key_exists( 'licensing_master_mode', $input ) ? ! empty( $input['licensing_master_mode'] ) : ! empty( $current['licensing_master_mode'] ),
+			'licensing_master_url'  => array_key_exists( 'licensing_master_url', $input ) ? esc_url_raw( $input['licensing_master_url'] ) : esc_url_raw( (string) ( $current['licensing_master_url'] ?? 'https://paxdesign.at' ) ),
+			'licensing_key'         => array_key_exists( 'licensing_key', $input ) ? sanitize_text_field( $input['licensing_key'] ) : sanitize_text_field( (string) ( $current['licensing_key'] ?? '' ) ),
+			'licensing_install_uuid' => array_key_exists( 'licensing_install_uuid', $input ) ? sanitize_text_field( $input['licensing_install_uuid'] ) : sanitize_text_field( (string) ( $current['licensing_install_uuid'] ?? '' ) ),
+			'licensing_enforce'     => array_key_exists( 'licensing_enforce', $input ) ? ! empty( $input['licensing_enforce'] ) : ! empty( $current['licensing_enforce'] ),
+			'licensing_grace_minutes' => array_key_exists( 'licensing_grace_minutes', $input ) ? max( 5, min( 1440, absint( $input['licensing_grace_minutes'] ?? 120 ) ) ) : max( 5, min( 1440, absint( $current['licensing_grace_minutes'] ?? 120 ) ) ),
+			'licensing_require_signed_requests' => array_key_exists( 'licensing_require_signed_requests', $input ) ? ! empty( $input['licensing_require_signed_requests'] ) : ! empty( $current['licensing_require_signed_requests'] ),
+			'licensing_export_authorize' => array_key_exists( 'licensing_export_authorize', $input ) ? ! empty( $input['licensing_export_authorize'] ) : ! empty( $current['licensing_export_authorize'] ),
+			'licensing_export_remote_mode' => array_key_exists( 'licensing_export_remote_mode', $input ) ? ! empty( $input['licensing_export_remote_mode'] ) : ! empty( $current['licensing_export_remote_mode'] ),
+			'licensing_export_remote_strict' => array_key_exists( 'licensing_export_remote_strict', $input ) ? ! empty( $input['licensing_export_remote_strict'] ) : ! empty( $current['licensing_export_remote_strict'] ),
+			'licensing_strict_integrity' => array_key_exists( 'licensing_strict_integrity', $input ) ? ! empty( $input['licensing_strict_integrity'] ) : ! empty( $current['licensing_strict_integrity'] ),
+			'licensing_master_api_key' => array_key_exists( 'licensing_master_api_key', $input ) ? sanitize_text_field( $input['licensing_master_api_key'] ) : sanitize_text_field( (string) ( $current['licensing_master_api_key'] ?? '' ) ),
 			'payments_primary_provider' => in_array( sanitize_key( $input['payments_primary_provider'] ?? 'paypal' ), array( 'paypal', 'stripe' ), true )
 				? sanitize_key( $input['payments_primary_provider'] ?? 'paypal' )
 				: 'paypal',
