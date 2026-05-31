@@ -2732,6 +2732,9 @@ class PCKZ_Licensing {
 	 * @return bool
 	 */
 	public static function can_run_feature( $feature = 'export' ) {
+		if ( self::is_master_mode() ) {
+			return true;
+		}
 		$settings = PCKZ_Settings::get_all();
 		if ( empty( $settings['licensing_enforce'] ) ) {
 			return true;
@@ -2785,6 +2788,9 @@ class PCKZ_Licensing {
 	 * @return true|WP_Error|array
 	 */
 	public static function authorize_export_operation( $context = array() ) {
+		if ( self::is_master_mode() ) {
+			return true;
+		}
 		$guard = self::guard_or_error( 'export' );
 		if ( is_wp_error( $guard ) ) {
 			return $guard;
