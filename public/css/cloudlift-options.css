@@ -146,6 +146,12 @@
 	color: #fff;
 }
 
+.pckz-product--cloudlift .pckz-choice--locked {
+	border-color: #2e7d32;
+	background: #f1f8f4;
+	color: #1b5e20;
+}
+
 /* Swatches (icons + colors) */
 .pckz-product--cloudlift .cl-po--swatch-container {
 	display: flex;

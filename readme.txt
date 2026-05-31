@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.23.1
+Stable tag: 2.23.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,12 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.23.2 =
+
+* Master release metadata now auto-syncs on paxdesign.at when the installed plugin version is newer than stored release metadata, so licensed client installs detect protected updates without a manual Master Control save.
+* Shortcode embed preview sizing aligned with the Cloudlift configurator model (wrapper isolation, grid column balance, cloudlift stage max-height parity).
+* LED-Beleuchtung is always enabled: “Ja (mit LED-Aufpreis)” is locked on with a green indicator; customers cannot order without LED.
 
 = 2.23.1 =
 

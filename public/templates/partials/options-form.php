@@ -91,14 +91,40 @@ foreach ( $customer_options as $option ) :
 			</select>
 
 		<?php elseif ( 'radio' === $type ) : ?>
-			<div class="pckz-field__choices pckz-field__choices--radio" role="radiogroup" aria-label="<?php echo esc_attr( $label ); ?>">
-				<?php foreach ( $choices as $choice ) : ?>
-					<label class="pckz-choice pckz-choice--radio">
-						<input type="radio" name="pckz_options[<?php echo esc_attr( $id ); ?>]" value="<?php echo esc_attr( $choice['value'] ?? '' ); ?>" <?php checked( $default, $choice['value'] ?? '' ); ?>>
-						<span><?php echo esc_html( $choice['label'] ?? '' ); ?></span>
-					</label>
-				<?php endforeach; ?>
-			</div>
+			<?php if ( ! empty( $option['locked'] ) ) : ?>
+				<?php
+				$locked_choice = null;
+				foreach ( $choices as $choice ) {
+					if ( ( $choice['value'] ?? '' ) === $default ) {
+						$locked_choice = $choice;
+						break;
+					}
+				}
+				if ( ! $locked_choice && ! empty( $choices[0] ) ) {
+					$locked_choice = $choices[0];
+				}
+				$locked_value = (string) ( $locked_choice['value'] ?? $default );
+				$locked_label = (string) ( $locked_choice['label'] ?? $default );
+				?>
+				<div class="pckz-field__choices pckz-field__choices--locked" role="group" aria-label="<?php echo esc_attr( $label ); ?>">
+					<input type="hidden" name="pckz_options[<?php echo esc_attr( $id ); ?>]" value="<?php echo esc_attr( $locked_value ); ?>">
+					<div class="pckz-choice pckz-choice--locked is-active" aria-disabled="true">
+						<span class="pckz-choice__check" aria-hidden="true">
+							<svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M6.5 11.5 3 8l1-1 2.5 2.5L12 4l1 1z"/></svg>
+						</span>
+						<span><?php echo esc_html( $locked_label ); ?></span>
+					</div>
+				</div>
+			<?php else : ?>
+				<div class="pckz-field__choices pckz-field__choices--radio" role="radiogroup" aria-label="<?php echo esc_attr( $label ); ?>">
+					<?php foreach ( $choices as $choice ) : ?>
+						<label class="pckz-choice pckz-choice--radio">
+							<input type="radio" name="pckz_options[<?php echo esc_attr( $id ); ?>]" value="<?php echo esc_attr( $choice['value'] ?? '' ); ?>" <?php checked( $default, $choice['value'] ?? '' ); ?>>
+							<span><?php echo esc_html( $choice['label'] ?? '' ); ?></span>
+						</label>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
 
 		<?php elseif ( 'icon_select' === $type ) :
 			$preview_img = '';

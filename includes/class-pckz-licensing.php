@@ -15,6 +15,7 @@ class PCKZ_Licensing {
 	const OPTION_CLIENT_STATE   = 'pckzce_license_state';
 	const OPTION_INSTALL_SECRET = 'pckzce_license_install_secret';
 	const OPTION_RELEASE_META   = 'pckzce_master_release_meta';
+	const RELEASE_PACKAGE_REPO  = 'https://raw.githubusercontent.com/black10998/pax-kz.laser/main/release-packages';
 	const OPTION_CLIENT_PACKAGE_HASH = 'pckzce_client_package_hash';
 	const OPTION_CLIENT_BOUND_DOMAINS = 'pckzce_client_bound_domains';
 	const OPTION_REPLAY_PREFIX  = 'pckzce_license_replay_';
@@ -125,8 +126,73 @@ class PCKZ_Licensing {
 	public function bootstrap() {
 		$this->ensure_install_uuid();
 		$this->enforce_master_host_lock();
+		$this->maybe_sync_master_release_meta();
 		$this->apply_embedded_client_package_config();
 		$this->schedule_heartbeat();
+	}
+
+	/**
+	 * Default protected package URL for a release version.
+	 *
+	 * @param string $version Plugin version.
+	 * @return string
+	 */
+	public static function default_protected_package_url( $version ) {
+		$version = sanitize_text_field( (string) $version );
+		if ( '' === $version ) {
+			return '';
+		}
+		return esc_url_raw(
+			trailingslashit( self::RELEASE_PACKAGE_REPO ) . 'pckz-canonical-engine-' . $version . '-protected.zip'
+		);
+	}
+
+	/**
+	 * Keep master release metadata aligned with the installed plugin version.
+	 *
+	 * Ensures licensed clients can detect updates after a master upgrade without
+	 * requiring a manual release-meta save in Master Control.
+	 */
+	private function maybe_sync_master_release_meta() {
+		if ( ! self::is_master_mode() ) {
+			return;
+		}
+
+		$defaults = array(
+			'version'             => '',
+			'package_url'         => '',
+			'changelog'           => '',
+			'requires'            => '6.0',
+			'requires_php'        => '7.4',
+			'tested'              => '',
+			'min_client_build'    => '',
+			'allow_remote_export' => false,
+		);
+		$meta     = get_option( self::OPTION_RELEASE_META, array() );
+		if ( ! is_array( $meta ) ) {
+			$meta = array();
+		}
+		$meta = wp_parse_args( $meta, $defaults );
+
+		$stored_version = sanitize_text_field( (string) ( $meta['version'] ?? '' ) );
+		$expected_url   = self::default_protected_package_url( PCKZCE_VERSION );
+		$stored_url     = esc_url_raw( (string) ( $meta['package_url'] ?? '' ) );
+		$needs_sync     = '' === $stored_version
+			|| version_compare( PCKZCE_VERSION, $stored_version, '>' )
+			|| '' === $stored_url
+			|| ( '' !== $expected_url && $stored_url !== $expected_url && version_compare( PCKZCE_VERSION, $stored_version, '>=' ) );
+
+		if ( ! $needs_sync ) {
+			return;
+		}
+
+		$meta['version']     = PCKZCE_VERSION;
+		$meta['package_url'] = $expected_url;
+		if ( empty( $meta['tested'] ) ) {
+			$meta['tested'] = get_bloginfo( 'version' );
+		}
+
+		update_option( self::OPTION_RELEASE_META, $meta, false );
 	}
 
 	/**

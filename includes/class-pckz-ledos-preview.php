@@ -363,10 +363,10 @@ class PCKZ_Ledos_Preview {
 				'type'        => 'radio',
 				'label'       => 'LED-Beleuchtung',
 				'choices'     => array(
-					array( 'value' => 'no', 'label' => 'Nein' ),
 					array( 'value' => 'yes', 'label' => 'Ja (mit LED-Aufpreis)' ),
 				),
-				'default'     => 'no',
+				'default'     => 'yes',
+				'locked'      => true,
 			),
 			array(
 				'id'          => 'preview_mode',

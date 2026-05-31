@@ -1215,7 +1215,7 @@
 					this.selections.icon_color_right || this.selections.symbol_color || '#ffffff',
 				linien: this.selections.linien || 'none',
 				line_color: this.selections.line_color || '#FF0000',
-				led_enabled: this.selections.led_enabled || 'no',
+				led_enabled: this.selections.led_enabled || 'yes',
 				preview_mode: this.selections.preview_mode || 'day',
 				preview_led: this.selections.preview_led || 'day',
 			};
