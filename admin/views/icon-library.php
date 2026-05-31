@@ -5,11 +5,12 @@
  * @package PCKZCanonicalEngine
  * @var array<string,array> $catalog
  * @var string[]            $disabled
+ * @var array               $payload
  */
 
 defined( 'ABSPATH' ) || exit;
 
-$disabled_lookup = array_fill_keys( $disabled, true );
+$payload_json = wp_json_encode( $payload ?? PCKZ_Icon_Library::build_admin_save_payload() );
 $hero_title       = __( 'Icon Library', 'pckz-canonical-engine' );
 $hero_description = __( 'Upload SVG icons, rename labels, and control customer visibility. Bundled icons cannot be deleted.', 'pckz-canonical-engine' );
 $hero_badge       = __( 'Icons', 'pckz-canonical-engine' );
@@ -48,7 +49,14 @@ $hero_badge       = __( 'Icons', 'pckz-canonical-engine' );
 	<form method="post" action="" id="pckz-icon-library-save-form">
 		<?php wp_nonce_field( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ); ?>
 		<input type="hidden" name="pckz_icon_library_save" value="1">
-		<input type="hidden" name="pckz_icon_library_payload" id="pckz-icon-library-payload" value="">
+		<textarea
+			name="pckz_icon_library_payload"
+			id="pckz-icon-library-payload"
+			class="screen-reader-text"
+			aria-hidden="true"
+			rows="1"
+			cols="1"
+		><?php echo esc_textarea( $payload_json ); ?></textarea>
 
 		<p>
 			<button type="button" class="button" id="pckz-icon-enable-all"><?php esc_html_e( 'Enable all', 'pckz-canonical-engine' ); ?></button>
@@ -72,7 +80,7 @@ $hero_badge       = __( 'Icons', 'pckz-canonical-engine' );
 					}
 					$thumb     = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
 					$label     = $data['label'] ?? $slug;
-					$enabled   = empty( $disabled_lookup[ $slug ] );
+					$enabled   = PCKZ_Icon_Library::is_visible( $slug );
 					$is_custom = ! empty( $data['custom'] );
 					?>
 					<tr data-icon-slug="<?php echo esc_attr( $slug ); ?>">
@@ -117,36 +125,3 @@ $hero_badge       = __( 'Icons', 'pckz-canonical-engine' );
 		</div>
 	</div>
 </div>
-<script>
-(function () {
-	const table = document.querySelector('.pckz-icon-library-table');
-	const form = document.getElementById('pckz-icon-library-save-form');
-	const payloadInput = document.getElementById('pckz-icon-library-payload');
-	if (!table || !form || !payloadInput) {
-		return;
-	}
-	const boxes = () => table.querySelectorAll('.pckz-icon-enabled');
-	document.getElementById('pckz-icon-enable-all')?.addEventListener('click', () => boxes().forEach((c) => { c.checked = true; }));
-	document.getElementById('pckz-icon-disable-all')?.addEventListener('click', () => boxes().forEach((c) => { c.checked = false; }));
-	form.addEventListener('submit', function (event) {
-		const submitter = event.submitter;
-		if (submitter && submitter.name === 'pckz_icon_delete') {
-			return;
-		}
-		const icons = {};
-		table.querySelectorAll('tbody tr[data-icon-slug]').forEach((row) => {
-			const slug = row.getAttribute('data-icon-slug');
-			if (!slug) {
-				return;
-			}
-			const enabled = row.querySelector('.pckz-icon-enabled');
-			const labelInput = row.querySelector('.pckz-icon-label');
-			icons[slug] = {
-				enabled: !!(enabled && enabled.checked),
-				label: labelInput ? String(labelInput.value || '') : '',
-			};
-		});
-		payloadInput.value = JSON.stringify({ icons: icons });
-	});
-})();
-</script>

@@ -64,6 +64,14 @@ foreach ( array_keys( $custom ) as $slug ) {
 	}
 }
 
+$stored_custom = get_option( PCKZ_Icon_Library::OPTION_CUSTOM, array() );
+foreach ( array( 'bulk_icon_1', 'bulk_icon_150' ) as $slug ) {
+	if ( empty( $stored_custom[ $slug ]['customer_visible'] ) ) {
+		fwrite( STDERR, "FAIL {$slug} customer_visible not persisted in custom manifest\n" );
+		exit( 1 );
+	}
+}
+
 $choices = PCKZ_Icon_Library::get_customer_icon_choices();
 $choice_slugs = array_column( $choices, 'value' );
 foreach ( array( 'bulk_icon_1', 'bulk_icon_150' ) as $slug ) {

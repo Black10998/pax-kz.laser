@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.27.2
+Stable tag: 2.27.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,14 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.27.3 =
+
+* Icon Library: fixed Customer (On) visibility not persisting after save on production sites (paxdesign.at).
+* Icon Library: moved save script to enqueued admin/js/icon-library.js (inline scripts could be blocked by CSP).
+* Icon Library: server-rendered JSON payload in textarea so save works even before JavaScript runs.
+* Icon Library: uploaded icon visibility now stored per icon in pckz_icon_custom (customer_visible flag).
+* Icon Library: save aborts with an admin error instead of silently disabling all icons when payload is missing.
 
 = 2.27.2 =
 

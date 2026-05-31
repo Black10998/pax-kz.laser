@@ -369,6 +369,23 @@ class PCKZ_Admin {
 			PCKZ_Assets::version( 'admin/js/admin.js' ),
 			true
 		);
+
+		if ( false !== strpos( $hook, 'pckz-icon-library' ) ) {
+			wp_enqueue_script(
+				'pckz-icon-library',
+				PCKZCE_PLUGIN_URL . 'admin/js/icon-library.js',
+				array(),
+				PCKZ_Assets::version( 'admin/js/icon-library.js' ),
+				true
+			);
+			wp_localize_script(
+				'pckz-icon-library',
+				'pckzIconLibrary',
+				array(
+					'emptyPayloadMessage' => __( 'Icon library save payload is empty. Please reload the page and try again.', 'pckz-canonical-engine' ),
+				)
+			);
+		}
 	}
 
 	/**
@@ -407,26 +424,17 @@ class PCKZ_Admin {
 		}
 
 		if ( isset( $_POST['pckz_icon_library_save'] ) && check_admin_referer( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ) && ! isset( $_POST['pckz_icon_delete'] ) ) {
-			$parsed = null;
-			if ( ! empty( $_POST['pckz_icon_library_payload'] ) ) {
-				$parsed = PCKZ_Icon_Library::parse_admin_save_payload( wp_unslash( $_POST['pckz_icon_library_payload'] ) );
-			}
-			if ( is_array( $parsed ) ) {
-				PCKZ_Icon_Library::save_admin_state( $parsed['enabled'], $parsed['labels'] );
+			$result = PCKZ_Icon_Library::save_admin_state_from_post( wp_unslash( $_POST ) );
+			if ( is_wp_error( $result ) ) {
+				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
 			} else {
-				$enabled = isset( $_POST['pckz_icon_enabled'] ) && is_array( $_POST['pckz_icon_enabled'] )
-					? array_map( 'sanitize_key', wp_unslash( $_POST['pckz_icon_enabled'] ) )
-					: array();
-				$labels  = isset( $_POST['pckz_icon_labels'] ) && is_array( $_POST['pckz_icon_labels'] )
-					? wp_unslash( $_POST['pckz_icon_labels'] )
-					: array();
-				PCKZ_Icon_Library::save_admin_state( $enabled, $labels );
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Icon library updated.', 'pckz-canonical-engine' ) . '</p></div>';
 			}
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Icon library updated.', 'pckz-canonical-engine' ) . '</p></div>';
 		}
 
 		$catalog  = PCKZ_Icon_Library::admin_catalog_entries();
 		$disabled = PCKZ_Icon_Library::disabled_slugs();
+		$payload  = PCKZ_Icon_Library::build_admin_save_payload();
 		include PCKZCE_PLUGIN_DIR . 'admin/views/icon-library.php';
 	}
 

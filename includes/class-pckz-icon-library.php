@@ -65,14 +65,15 @@ class PCKZ_Icon_Library {
 	/**
 	 * Custom uploaded icons.
 	 *
-	 * @return array<string,array{label:string,file:string}>
+	 * @return array<string,array{label:string,file:string,customer_visible:bool}>
 	 */
 	public static function custom_manifest() {
 		$raw = self::option_get( self::OPTION_CUSTOM, array() );
 		if ( ! is_array( $raw ) ) {
 			return array();
 		}
-		$out = array();
+		$disabled = self::disabled_slugs();
+		$out      = array();
 		foreach ( $raw as $slug => $row ) {
 			$slug = sanitize_key( $slug );
 			if ( ! $slug || ! is_array( $row ) || empty( $row['file'] ) ) {
@@ -81,9 +82,15 @@ class PCKZ_Icon_Library {
 			if ( ! is_readable( self::upload_dir() . '/' . sanitize_file_name( $row['file'] ) ) ) {
 				continue;
 			}
+			if ( array_key_exists( 'customer_visible', $row ) ) {
+				$visible = (bool) $row['customer_visible'];
+			} else {
+				$visible = ! in_array( $slug, $disabled, true );
+			}
 			$out[ $slug ] = array(
-				'label' => sanitize_text_field( $row['label'] ?? $slug ),
-				'file'  => sanitize_file_name( $row['file'] ),
+				'label'            => sanitize_text_field( $row['label'] ?? $slug ),
+				'file'             => sanitize_file_name( $row['file'] ),
+				'customer_visible' => $visible,
 			);
 		}
 		return $out;
@@ -267,7 +274,34 @@ class PCKZ_Icon_Library {
 		if ( 'none' === $slug || '' === $slug ) {
 			return true;
 		}
-		return ! in_array( sanitize_key( $slug ), self::disabled_slugs(), true );
+		$slug = sanitize_key( $slug );
+		if ( self::is_custom( $slug ) ) {
+			$custom = self::custom_manifest();
+			if ( isset( $custom[ $slug ] ) ) {
+				return ! empty( $custom[ $slug ]['customer_visible'] );
+			}
+			return true;
+		}
+		return ! in_array( $slug, self::disabled_slugs(), true );
+	}
+
+	/**
+	 * Build compact admin save payload from the current catalog state.
+	 *
+	 * @return array{icons:array<string,array{enabled:bool,label:string}>}
+	 */
+	public static function build_admin_save_payload() {
+		$icons = array();
+		foreach ( self::admin_catalog_entries() as $slug => $data ) {
+			if ( 'none' === $slug ) {
+				continue;
+			}
+			$icons[ $slug ] = array(
+				'enabled' => self::is_visible( $slug ),
+				'label'   => (string) ( $data['label'] ?? self::label_for_slug( $slug, $slug ) ),
+			);
+		}
+		return array( 'icons' => $icons );
 	}
 
 	/**
@@ -355,15 +389,15 @@ class PCKZ_Icon_Library {
 			$custom = array();
 		}
 		$custom[ $slug ] = array(
-			'label' => $label,
-			'file'  => $filename,
+			'label'            => $label,
+			'file'             => $filename,
+			'customer_visible' => true,
 		);
 		self::option_update( self::OPTION_CUSTOM, $custom );
 
-		// New uploads are customer-visible by default.
-		$disabled = self::disabled_slugs();
+		// Ensure new uploads stay customer-visible even if a stale disabled list exists.
 		$disabled = array_values(
-			array_diff( $disabled, array( $slug ) )
+			array_diff( self::disabled_slugs(), array( $slug ) )
 		);
 		self::option_update( self::OPTION_DISABLED, $disabled );
 
@@ -427,19 +461,30 @@ class PCKZ_Icon_Library {
 	 */
 	public static function parse_admin_save_payload( $payload ) {
 		if ( is_string( $payload ) ) {
+			$payload = trim( $payload );
+			if ( '' === $payload ) {
+				return null;
+			}
 			$payload = json_decode( wp_unslash( $payload ), true );
+			if ( JSON_ERROR_NONE !== json_last_error() ) {
+				return null;
+			}
 		}
 		if ( ! is_array( $payload ) || empty( $payload['icons'] ) || ! is_array( $payload['icons'] ) ) {
 			return null;
 		}
 
 		$known   = self::admin_catalog_entries();
+		$custom  = array_keys( self::custom_manifest() );
 		$enabled = array();
 		$labels  = array();
 
 		foreach ( $payload['icons'] as $slug => $row ) {
 			$slug = sanitize_key( (string) $slug );
-			if ( ! $slug || 'none' === $slug || ! isset( $known[ $slug ] ) ) {
+			if ( ! $slug || 'none' === $slug ) {
+				continue;
+			}
+			if ( ! isset( $known[ $slug ] ) && ! in_array( $slug, $custom, true ) ) {
 				continue;
 			}
 			if ( ! empty( $row['enabled'] ) ) {
@@ -457,6 +502,29 @@ class PCKZ_Icon_Library {
 			'enabled' => array_values( array_unique( $enabled ) ),
 			'labels'  => $labels,
 		);
+	}
+
+	/**
+	 * Save icon library admin form submission.
+	 *
+	 * @param array $post Raw $_POST.
+	 * @return true|WP_Error
+	 */
+	public static function save_admin_state_from_post( $post ) {
+		$parsed = null;
+		if ( ! empty( $post['pckz_icon_library_payload'] ) ) {
+			$parsed = self::parse_admin_save_payload( $post['pckz_icon_library_payload'] );
+		}
+
+		if ( ! is_array( $parsed ) ) {
+			return new WP_Error(
+				'icon_library_empty_payload',
+				__( 'Icon library save failed: no icon state was received. Reload the page and try again.', 'pckz-canonical-engine' )
+			);
+		}
+
+		self::save_admin_state( $parsed['enabled'], $parsed['labels'] );
+		return true;
 	}
 
 	/**
@@ -496,5 +564,20 @@ class PCKZ_Icon_Library {
 			}
 		}
 		self::option_update( self::OPTION_LABELS, $clean );
+
+		$custom_raw = self::option_get( self::OPTION_CUSTOM, array() );
+		if ( is_array( $custom_raw ) ) {
+			foreach ( $custom_raw as $slug => $row ) {
+				$slug = sanitize_key( (string) $slug );
+				if ( ! $slug || ! is_array( $row ) || empty( $row['file'] ) ) {
+					continue;
+				}
+				$custom_raw[ $slug ]['customer_visible'] = in_array( $slug, $enabled, true );
+				if ( isset( $clean[ $slug ] ) ) {
+					$custom_raw[ $slug ]['label'] = $clean[ $slug ];
+				}
+			}
+			self::option_update( self::OPTION_CUSTOM, $custom_raw );
+		}
 	}
 }
