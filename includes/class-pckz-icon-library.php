@@ -359,6 +359,14 @@ class PCKZ_Icon_Library {
 			'file'  => $filename,
 		);
 		self::option_update( self::OPTION_CUSTOM, $custom );
+
+		// New uploads are customer-visible by default.
+		$disabled = self::disabled_slugs();
+		$disabled = array_values(
+			array_diff( $disabled, array( $slug ) )
+		);
+		self::option_update( self::OPTION_DISABLED, $disabled );
+
 		return array( 'slug' => $slug );
 	}
 
@@ -409,6 +417,49 @@ class PCKZ_Icon_Library {
 	}
 
 	/**
+	 * Parse compact JSON payload from icon library save form.
+	 *
+	 * Large inventories exceed PHP max_input_vars when each icon is a separate POST
+	 * field; the admin UI submits one JSON blob instead.
+	 *
+	 * @param mixed $payload Decoded or raw payload.
+	 * @return array{enabled:string[],labels:array<string,string>}|null
+	 */
+	public static function parse_admin_save_payload( $payload ) {
+		if ( is_string( $payload ) ) {
+			$payload = json_decode( wp_unslash( $payload ), true );
+		}
+		if ( ! is_array( $payload ) || empty( $payload['icons'] ) || ! is_array( $payload['icons'] ) ) {
+			return null;
+		}
+
+		$known   = self::admin_catalog_entries();
+		$enabled = array();
+		$labels  = array();
+
+		foreach ( $payload['icons'] as $slug => $row ) {
+			$slug = sanitize_key( (string) $slug );
+			if ( ! $slug || 'none' === $slug || ! isset( $known[ $slug ] ) ) {
+				continue;
+			}
+			if ( ! empty( $row['enabled'] ) ) {
+				$enabled[] = $slug;
+			}
+			if ( isset( $row['label'] ) ) {
+				$label = sanitize_text_field( (string) $row['label'] );
+				if ( '' !== $label ) {
+					$labels[ $slug ] = $label;
+				}
+			}
+		}
+
+		return array(
+			'enabled' => array_values( array_unique( $enabled ) ),
+			'labels'  => $labels,
+		);
+	}
+
+	/**
 	 * Save visibility + labels from admin.
 	 *
 	 * @param array $enabled_slugs Enabled slugs.
@@ -416,7 +467,14 @@ class PCKZ_Icon_Library {
 	 */
 	public static function save_admin_state( $enabled_slugs, $labels ) {
 		$all      = array_keys( self::admin_catalog_entries() );
-		$enabled  = array_map( 'sanitize_key', (array) $enabled_slugs );
+		$enabled  = array();
+		foreach ( (array) $enabled_slugs as $slug ) {
+			$slug = sanitize_key( (string) $slug );
+			if ( $slug && 'none' !== $slug ) {
+				$enabled[] = $slug;
+			}
+		}
+		$enabled  = array_values( array_unique( $enabled ) );
 		$disabled = array();
 		foreach ( $all as $slug ) {
 			if ( 'none' === $slug ) {
@@ -430,9 +488,9 @@ class PCKZ_Icon_Library {
 		$clean = array();
 		if ( is_array( $labels ) ) {
 			foreach ( $labels as $slug => $label ) {
-				$slug  = sanitize_key( $slug );
-				$label = sanitize_text_field( $label );
-				if ( $slug && 'none' !== $slug && $label ) {
+				$slug  = sanitize_key( (string) $slug );
+				$label = sanitize_text_field( (string) $label );
+				if ( $slug && 'none' !== $slug && '' !== $label ) {
 					$clean[ $slug ] = $label;
 				}
 			}

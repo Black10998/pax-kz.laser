@@ -45,9 +45,10 @@ $hero_badge       = __( 'Icons', 'pckz-canonical-engine' );
 			<h2><?php esc_html_e( 'Icon inventory', 'pckz-canonical-engine' ); ?></h2>
 		</header>
 		<div class="pckz-panel__body">
-	<form method="post" action="">
+	<form method="post" action="" id="pckz-icon-library-save-form">
 		<?php wp_nonce_field( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ); ?>
 		<input type="hidden" name="pckz_icon_library_save" value="1">
+		<input type="hidden" name="pckz_icon_library_payload" id="pckz-icon-library-payload" value="">
 
 		<p>
 			<button type="button" class="button" id="pckz-icon-enable-all"><?php esc_html_e( 'Enable all', 'pckz-canonical-engine' ); ?></button>
@@ -74,7 +75,7 @@ $hero_badge       = __( 'Icons', 'pckz-canonical-engine' );
 					$enabled   = empty( $disabled_lookup[ $slug ] );
 					$is_custom = ! empty( $data['custom'] );
 					?>
-					<tr>
+					<tr data-icon-slug="<?php echo esc_attr( $slug ); ?>">
 						<td>
 							<?php if ( $thumb ) : ?>
 								<img src="<?php echo esc_url( $thumb ); ?>" alt="" width="48" height="48" style="object-fit:contain;background:#eee;border-radius:4px;">
@@ -83,7 +84,7 @@ $hero_badge       = __( 'Icons', 'pckz-canonical-engine' );
 							<?php endif; ?>
 						</td>
 						<td>
-							<input type="text" class="regular-text" name="pckz_icon_labels[<?php echo esc_attr( $slug ); ?>]" value="<?php echo esc_attr( $label ); ?>">
+							<input type="text" class="regular-text pckz-icon-label" value="<?php echo esc_attr( $label ); ?>">
 						</td>
 						<td>
 							<code><?php echo esc_html( $slug ); ?></code>
@@ -93,7 +94,7 @@ $hero_badge       = __( 'Icons', 'pckz-canonical-engine' );
 						</td>
 						<td>
 							<label>
-								<input type="checkbox" name="pckz_icon_enabled[]" value="<?php echo esc_attr( $slug ); ?>" <?php checked( $enabled ); ?>>
+								<input type="checkbox" class="pckz-icon-enabled" <?php checked( $enabled ); ?>>
 								<?php esc_html_e( 'On', 'pckz-canonical-engine' ); ?>
 							</label>
 						</td>
@@ -119,9 +120,33 @@ $hero_badge       = __( 'Icons', 'pckz-canonical-engine' );
 <script>
 (function () {
 	const table = document.querySelector('.pckz-icon-library-table');
-	if (!table) return;
-	const boxes = () => table.querySelectorAll('input[type="checkbox"][name="pckz_icon_enabled[]"]');
+	const form = document.getElementById('pckz-icon-library-save-form');
+	const payloadInput = document.getElementById('pckz-icon-library-payload');
+	if (!table || !form || !payloadInput) {
+		return;
+	}
+	const boxes = () => table.querySelectorAll('.pckz-icon-enabled');
 	document.getElementById('pckz-icon-enable-all')?.addEventListener('click', () => boxes().forEach((c) => { c.checked = true; }));
 	document.getElementById('pckz-icon-disable-all')?.addEventListener('click', () => boxes().forEach((c) => { c.checked = false; }));
+	form.addEventListener('submit', function (event) {
+		const submitter = event.submitter;
+		if (submitter && submitter.name === 'pckz_icon_delete') {
+			return;
+		}
+		const icons = {};
+		table.querySelectorAll('tbody tr[data-icon-slug]').forEach((row) => {
+			const slug = row.getAttribute('data-icon-slug');
+			if (!slug) {
+				return;
+			}
+			const enabled = row.querySelector('.pckz-icon-enabled');
+			const labelInput = row.querySelector('.pckz-icon-label');
+			icons[slug] = {
+				enabled: !!(enabled && enabled.checked),
+				label: labelInput ? String(labelInput.value || '') : '',
+			};
+		});
+		payloadInput.value = JSON.stringify({ icons: icons });
+	});
 })();
 </script>
