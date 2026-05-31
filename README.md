@@ -30,6 +30,18 @@ python3 tools/convert-lightburn-ai-to-svg.py import/line-models -o public/assets
 
 See [readme.txt](readme.txt) changelog and the in-plugin export pipeline (`Fabric → canonical scene → production SVG → LBRN2`).
 
+### Master-control release tooling
+
+Protected distribution workflow helpers:
+
+```bash
+php tools/build-protected-release.php --version=2.22.0 --build=2.22.0.custom --output=dist
+php tools/build-customer-protected-package.php --source=dist/pckz-canonical-engine-2.22.0-protected.zip --license=PCKZCE-XXXX --domain=client.example.com --output=dist/customers
+php tools/verify-release-manifest.php dist/unpacked/RELEASE_MANIFEST.json
+```
+
+Set `PCKZCE_RELEASE_SIGNING_KEY` in your environment to sign and verify manifests.
+
 ## Development tests
 
 ```bash

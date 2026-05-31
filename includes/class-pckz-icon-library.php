@@ -19,6 +19,32 @@ class PCKZ_Icon_Library {
 	const UPLOAD_SUBDIR   = 'pckz-canonical-engine/icons';
 
 	/**
+	 * Safe option getter for CLI smoke environments.
+	 *
+	 * @param string $key Option key.
+	 * @param mixed  $default Default value.
+	 * @return mixed
+	 */
+	private static function option_get( $key, $default = null ) {
+		if ( function_exists( 'get_option' ) ) {
+			return get_option( $key, $default );
+		}
+		return $default;
+	}
+
+	/**
+	 * Safe option setter for CLI smoke environments.
+	 *
+	 * @param string $key   Option key.
+	 * @param mixed  $value Option value.
+	 */
+	private static function option_update( $key, $value ) {
+		if ( function_exists( 'update_option' ) ) {
+			update_option( $key, $value );
+		}
+	}
+
+	/**
 	 * Bundled icon slugs => labels (manifest).
 	 *
 	 * @return array<string,string>
@@ -42,7 +68,7 @@ class PCKZ_Icon_Library {
 	 * @return array<string,array{label:string,file:string}>
 	 */
 	public static function custom_manifest() {
-		$raw = get_option( self::OPTION_CUSTOM, array() );
+		$raw = self::option_get( self::OPTION_CUSTOM, array() );
 		if ( ! is_array( $raw ) ) {
 			return array();
 		}
@@ -69,7 +95,7 @@ class PCKZ_Icon_Library {
 	 * @return array<string,string>
 	 */
 	public static function label_overrides() {
-		$raw = get_option( self::OPTION_LABELS, array() );
+		$raw = self::option_get( self::OPTION_LABELS, array() );
 		return is_array( $raw ) ? $raw : array();
 	}
 
@@ -217,7 +243,7 @@ class PCKZ_Icon_Library {
 	 * @return string[]
 	 */
 	public static function disabled_slugs() {
-		$raw = get_option( self::OPTION_DISABLED, array() );
+		$raw = self::option_get( self::OPTION_DISABLED, array() );
 		if ( ! is_array( $raw ) ) {
 			return array();
 		}
@@ -303,7 +329,7 @@ class PCKZ_Icon_Library {
 			return new WP_Error( 'write_fail', __( 'SVG konnte nicht gespeichert werden.', 'pckz-canonical-engine' ) );
 		}
 		$label  = isset( $_POST['icon_upload_label'] ) ? sanitize_text_field( wp_unslash( $_POST['icon_upload_label'] ) ) : ucwords( str_replace( '-', ' ', $base ) );
-		$custom = get_option( self::OPTION_CUSTOM, array() );
+		$custom = self::option_get( self::OPTION_CUSTOM, array() );
 		if ( ! is_array( $custom ) ) {
 			$custom = array();
 		}
@@ -311,7 +337,7 @@ class PCKZ_Icon_Library {
 			'label' => $label,
 			'file'  => $filename,
 		);
-		update_option( self::OPTION_CUSTOM, $custom );
+		self::option_update( self::OPTION_CUSTOM, $custom );
 		return array( 'slug' => $slug );
 	}
 
@@ -336,13 +362,13 @@ class PCKZ_Icon_Library {
 	 */
 	public static function delete_custom( $slug ) {
 		$slug   = sanitize_key( $slug );
-		$custom = get_option( self::OPTION_CUSTOM, array() );
+		$custom = self::option_get( self::OPTION_CUSTOM, array() );
 		if ( ! is_array( $custom ) || empty( $custom[ $slug ] ) ) {
 			return new WP_Error( 'not_custom', __( 'Nur hochgeladene Icons können gelöscht werden.', 'pckz-canonical-engine' ) );
 		}
 		$file = $custom[ $slug ]['file'] ?? '';
 		unset( $custom[ $slug ] );
-		update_option( self::OPTION_CUSTOM, $custom );
+		self::option_update( self::OPTION_CUSTOM, $custom );
 		if ( $file ) {
 			$path = self::upload_dir() . '/' . sanitize_file_name( $file );
 			if ( is_readable( $path ) ) {
@@ -356,7 +382,7 @@ class PCKZ_Icon_Library {
 		$labels = self::label_overrides();
 		if ( isset( $labels[ $slug ] ) ) {
 			unset( $labels[ $slug ] );
-			update_option( self::OPTION_LABELS, $labels );
+			self::option_update( self::OPTION_LABELS, $labels );
 		}
 		return true;
 	}
@@ -379,7 +405,7 @@ class PCKZ_Icon_Library {
 				$disabled[] = $slug;
 			}
 		}
-		update_option( self::OPTION_DISABLED, $disabled );
+		self::option_update( self::OPTION_DISABLED, $disabled );
 		$clean = array();
 		if ( is_array( $labels ) ) {
 			foreach ( $labels as $slug => $label ) {
@@ -390,6 +416,6 @@ class PCKZ_Icon_Library {
 				}
 			}
 		}
-		update_option( self::OPTION_LABELS, $clean );
+		self::option_update( self::OPTION_LABELS, $clean );
 	}
 }

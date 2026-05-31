@@ -82,6 +82,21 @@ class PCKZ_Settings {
 			'licensing_install_uuid' => '',
 			'licensing_enforce'     => false,
 			'licensing_grace_minutes' => 120,
+			'licensing_require_signed_requests' => true,
+			'licensing_export_authorize' => false,
+			'licensing_export_remote_mode' => false,
+			'licensing_export_remote_strict' => false,
+			'licensing_strict_integrity' => false,
+			'licensing_master_api_key' => '',
+			'payments_primary_provider' => 'paypal',
+			'payments_enable_stripe' => false,
+			'payments_stripe_test_mode' => true,
+			'payments_stripe_publishable_key' => '',
+			'payments_stripe_secret_key' => '',
+			'payments_stripe_webhook_secret' => '',
+			'payments_stripe_success_url' => '',
+			'payments_stripe_cancel_url' => '',
+			'payments_stripe_webhook_tolerance' => 300,
 		);
 	}
 

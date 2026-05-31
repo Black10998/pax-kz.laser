@@ -1,23 +1,31 @@
 <?php
 /**
- * Checkout payment actions (PayPal-first when enabled).
+ * Checkout payment actions.
  *
  * @package PCKZCanonicalEngine
- * @var bool $paypal_enabled
- * @var bool $paypal_only
+ * @var bool   $payment_enabled
+ * @var bool   $payment_only
+ * @var string $payment_provider
+ * @var string $payment_provider_label
+ * @var string $payment_button_label
+ * @var string $payment_hint
  */
 
 defined( 'ABSPATH' ) || exit;
 
-$paypal_only = isset( $paypal_only ) ? $paypal_only : ( class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::checkout_paypal_only() );
+$payment_only = isset( $payment_only ) ? (bool) $payment_only : ( class_exists( 'PCKZ_Commerce' ) && PCKZ_Commerce::checkout_paypal_only() );
+$payment_provider = isset( $payment_provider ) ? sanitize_key( $payment_provider ) : ( class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::active_payment_provider() : 'paypal' );
+$payment_provider_label = isset( $payment_provider_label ) ? (string) $payment_provider_label : ( class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_label() : 'PayPal' );
+$payment_button_label = isset( $payment_button_label ) ? (string) $payment_button_label : ( class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_button_label() : __( 'Jetzt mit PayPal bezahlen', 'pckz-canonical-engine' ) );
+$payment_hint = isset( $payment_hint ) ? (string) $payment_hint : ( class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_hint() : __( 'Sie werden sicher zu PayPal weitergeleitet. Nach erfolgreicher Zahlung erhalten Sie eine Bestellbestätigung per E-Mail.', 'pckz-canonical-engine' ) );
 ?>
 <section class="pckz-checkout__payment" aria-labelledby="pckz-payment-heading">
 	<h3 id="pckz-payment-heading" class="pckz-checkout__payment-heading">Zahlung</h3>
 
-	<?php if ( $paypal_only ) : ?>
+	<?php if ( $payment_only ) : ?>
 		<p class="pckz-checkout__payment-lead">
-			<strong>Schließen Sie die Zahlung über PayPal ab, um Ihre Bestellung zu finalisieren.</strong>
-			Ohne bestätigte PayPal-Zahlung wird keine Bestellung ausgelöst.
+			<strong><?php echo esc_html( sprintf( __( 'Schließen Sie die Zahlung über %s ab, um Ihre Bestellung zu finalisieren.', 'pckz-canonical-engine' ), $payment_provider_label ) ); ?></strong>
+			<?php echo esc_html( sprintf( __( 'Ohne bestätigte %s-Zahlung wird keine Bestellung ausgelöst.', 'pckz-canonical-engine' ), $payment_provider_label ) ); ?>
 		</p>
 		<div class="pckz-checkout__actions">
 			<div class="pckz-quantity" data-quantity>
@@ -40,14 +48,14 @@ $paypal_only = isset( $paypal_only ) ? $paypal_only : ( class_exists( 'PCKZ_Comm
 			<p class="pckz-checkout__export-hint" data-export-ready-hint>
 				<?php esc_html_e( 'Zahlung wird freigegeben, sobald die Vorschau und Exportdaten bereit sind.', 'pckz-canonical-engine' ); ?>
 			</p>
-			<button type="button" class="pckz-btn pckz-btn--paypal pckz-btn--checkout-primary" data-action="paypal-checkout" disabled aria-disabled="true">
-				<span class="pckz-btn__paypal-mark" aria-hidden="true">PayPal</span>
-				<span class="pckz-btn__text">Jetzt mit PayPal bezahlen</span>
+			<button type="button" class="pckz-btn pckz-btn--paypal pckz-btn--checkout-primary" data-action="paypal-checkout" data-provider="<?php echo esc_attr( $payment_provider ); ?>" disabled aria-disabled="true">
+				<span class="pckz-btn__paypal-mark" aria-hidden="true"><?php echo esc_html( $payment_provider_label ); ?></span>
+				<span class="pckz-btn__text"><?php echo esc_html( $payment_button_label ); ?></span>
 				<span class="pckz-btn__spinner" aria-hidden="true"></span>
 			</button>
-			<p class="pckz-checkout__paypal-hint">Sie werden sicher zu PayPal weitergeleitet. Nach erfolgreicher Zahlung erhalten Sie eine Bestellbestätigung per E-Mail.</p>
+			<p class="pckz-checkout__paypal-hint"><?php echo esc_html( $payment_hint ); ?></p>
 		</div>
 	<?php else : ?>
-		<p class="pckz-checkout__payment-lead">PayPal ist derzeit nicht aktiv. Bitte kontaktieren Sie den Shop-Betreiber.</p>
+		<p class="pckz-checkout__payment-lead"><?php esc_html_e( 'Es ist derzeit kein aktiver Zahlungsanbieter konfiguriert. Bitte kontaktieren Sie den Shop-Betreiber.', 'pckz-canonical-engine' ); ?></p>
 	<?php endif; ?>
 </section>

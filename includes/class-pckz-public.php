@@ -55,10 +55,68 @@ class PCKZ_Public {
 	 * @return string
 	 */
 	/**
-	 * Capture PayPal payment after customer approval (return URL).
+	 * Capture payment after provider approval (return URL).
 	 */
 	public function handle_paypal_return() {
-		if ( ! isset( $_GET['pckz_paypal'] ) || ! class_exists( 'PCKZ_Commerce' ) ) {
+		if ( ! class_exists( 'PCKZ_Commerce' ) ) {
+			return;
+		}
+		if ( isset( $_GET['pckz_payment'] ) ) {
+			$payment_mode = sanitize_key( wp_unslash( $_GET['pckz_payment'] ) );
+			$internal_id  = isset( $_GET['pckz_order'] ) ? absint( $_GET['pckz_order'] ) : 0;
+			if ( 'stripe_cancel' === $payment_mode ) {
+				if ( $internal_id ) {
+					$row = PCKZ_Commerce::get_order( $internal_id );
+					if ( $row && in_array( sanitize_key( (string) ( $row['status'] ?? '' ) ), array( 'pending', 'stripe_created', 'failed' ), true ) ) {
+						PCKZ_Commerce::update_order( $internal_id, array( 'status' => 'cancelled' ) );
+					}
+				}
+				$redirect = wp_get_referer() ?: home_url( '/' );
+				if ( $internal_id ) {
+					$row = PCKZ_Commerce::get_order( $internal_id );
+					if ( ! empty( $row['return_url'] ) ) {
+						$redirect = (string) $row['return_url'];
+					}
+				}
+				wp_safe_redirect( $redirect );
+				exit;
+			}
+			if ( 'stripe_return' === $payment_mode && class_exists( 'PCKZ_Payments' ) ) {
+				$session_id = isset( $_GET['session_id'] ) ? sanitize_text_field( wp_unslash( $_GET['session_id'] ) ) : '';
+				if ( '' !== $session_id ) {
+					$order = null;
+					$confirmed = array();
+					if ( $internal_id ) {
+						$order = PCKZ_Commerce::get_order( $internal_id );
+					}
+					if ( ! $order ) {
+						$order = PCKZ_Commerce::get_order_by_payment_reference( $session_id, 'stripe' );
+					}
+					if ( $order ) {
+						if ( 'paid' !== sanitize_key( (string) ( $order['status'] ?? '' ) ) ) {
+							$confirmed = PCKZ_Payments::confirm_stripe_checkout( $session_id );
+							if ( is_wp_error( $confirmed ) ) {
+								wp_die( esc_html( $confirmed->get_error_message() ), esc_html__( 'Zahlung fehlgeschlagen', 'pckz-canonical-engine' ), array( 'response' => 403 ) );
+							}
+							$order = PCKZ_Commerce::get_order( (int) ( $confirmed['commerce_id'] ?? $order['id'] ) );
+						}
+						if ( $order ) {
+							$redirect = PCKZ_Commerce::resolve_post_payment_redirect( $order );
+							$wc_id = isset( $order['wc_order_id'] ) ? (int) $order['wc_order_id'] : 0;
+							if ( ! $wc_id && ! empty( $confirmed['wc_order_id'] ) ) {
+								$wc_id = (int) $confirmed['wc_order_id'];
+							}
+							if ( $wc_id > 0 ) {
+								$redirect = add_query_arg( 'wc_order', $wc_id, $redirect );
+							}
+							wp_safe_redirect( $redirect );
+							exit;
+						}
+					}
+				}
+			}
+		}
+		if ( ! isset( $_GET['pckz_paypal'] ) ) {
 			return;
 		}
 

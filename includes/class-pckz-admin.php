@@ -244,7 +244,28 @@ class PCKZ_Admin {
 			'licensing_install_uuid' => sanitize_text_field( $input['licensing_install_uuid'] ?? '' ),
 			'licensing_enforce'     => ! empty( $input['licensing_enforce'] ),
 			'licensing_grace_minutes' => max( 5, min( 1440, absint( $input['licensing_grace_minutes'] ?? 120 ) ) ),
+			'licensing_require_signed_requests' => ! empty( $input['licensing_require_signed_requests'] ),
+			'licensing_export_authorize' => ! empty( $input['licensing_export_authorize'] ),
+			'licensing_export_remote_mode' => ! empty( $input['licensing_export_remote_mode'] ),
+			'licensing_export_remote_strict' => ! empty( $input['licensing_export_remote_strict'] ),
+			'licensing_strict_integrity' => ! empty( $input['licensing_strict_integrity'] ),
+			'licensing_master_api_key' => sanitize_text_field( $input['licensing_master_api_key'] ?? '' ),
+			'payments_primary_provider' => in_array( sanitize_key( $input['payments_primary_provider'] ?? 'paypal' ), array( 'paypal', 'stripe' ), true )
+				? sanitize_key( $input['payments_primary_provider'] ?? 'paypal' )
+				: 'paypal',
+			'payments_enable_stripe' => ! empty( $input['payments_enable_stripe'] ),
+			'payments_stripe_test_mode' => ! empty( $input['payments_stripe_test_mode'] ),
+			'payments_stripe_publishable_key' => sanitize_text_field( $input['payments_stripe_publishable_key'] ?? '' ),
+			'payments_stripe_secret_key' => sanitize_text_field( $input['payments_stripe_secret_key'] ?? '' ),
+			'payments_stripe_webhook_secret' => sanitize_text_field( $input['payments_stripe_webhook_secret'] ?? '' ),
+			'payments_stripe_success_url' => esc_url_raw( $input['payments_stripe_success_url'] ?? '' ),
+			'payments_stripe_cancel_url' => esc_url_raw( $input['payments_stripe_cancel_url'] ?? '' ),
+			'payments_stripe_webhook_tolerance' => max( 60, min( 1800, absint( $input['payments_stripe_webhook_tolerance'] ?? 300 ) ) ),
 		);
+
+		if ( empty( $output['licensing_master_api_key'] ) ) {
+			$output['licensing_master_api_key'] = 'pckz-msk-' . wp_generate_password( 40, false, false );
+		}
 
 		if ( empty( $output['licensing_install_uuid'] ) ) {
 			$output['licensing_install_uuid'] = wp_generate_uuid4();
