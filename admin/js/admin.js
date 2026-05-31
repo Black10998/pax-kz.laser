@@ -70,6 +70,8 @@
 				licenseDashboard.find('.pckz-bulk-license-checkbox').prop('checked', checked);
 			} else if ('installation' === target) {
 				licenseDashboard.find('.pckz-bulk-install-checkbox').prop('checked', checked);
+			} else if ('package' === target) {
+				licenseDashboard.find('.pckz-bulk-package-checkbox').prop('checked', checked);
 			}
 		});
 

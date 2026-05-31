@@ -73,6 +73,7 @@ $status_help = array(
 			<option value="clear_installs"><?php esc_html_e( 'Clear Installations (reset counter)', 'pckz-canonical-engine' ); ?></option>
 			<option value="disable"><?php esc_html_e( 'Disable', 'pckz-canonical-engine' ); ?></option>
 			<option value="revoke"><?php esc_html_e( 'Revoke', 'pckz-canonical-engine' ); ?></option>
+			<option value="delete"><?php esc_html_e( 'Delete permanently', 'pckz-canonical-engine' ); ?></option>
 		</select>
 		<button type="submit" class="button" data-pckz-confirm="<?php esc_attr_e( 'Apply the selected bulk action to all checked licenses?', 'pckz-canonical-engine' ); ?>"><?php esc_html_e( 'Apply', 'pckz-canonical-engine' ); ?></button>
 	</form>
@@ -204,6 +205,14 @@ $status_help = array(
 											</form>
 
 											<a class="button button-small" href="<?php echo esc_url( add_query_arg( array( 'page' => 'pckz-license-server', 'pckz_license_id' => $license_id ), admin_url( 'admin.php' ) ) ); ?>"><?php esc_html_e( 'View Installations', 'pckz-canonical-engine' ); ?></a>
+
+											<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-inline-form">
+												<?php wp_nonce_field( 'pckzce_delete_license', 'pckzce_delete_license_nonce' ); ?>
+												<input type="hidden" name="action" value="pckzce_delete_license">
+												<input type="hidden" name="license_id" value="<?php echo esc_attr( (string) $license_id ); ?>">
+												<input type="hidden" name="redirect_license_id" value="<?php echo esc_attr( (string) $filter_license_id ); ?>">
+												<button type="submit" class="button button-small pckz-btn-danger" data-pckz-confirm="<?php esc_attr_e( 'Permanently delete this license and ALL installation records? This cannot be undone.', 'pckz-canonical-engine' ); ?>"><?php esc_html_e( 'Delete License', 'pckz-canonical-engine' ); ?></button>
+											</form>
 										</div>
 									</div>
 								</details>
@@ -376,22 +385,41 @@ $status_help = array(
 
 <section class="pckz-license-card pckz-license-card--full">
 	<h2><?php esc_html_e( 'Generated Customer Packages', 'pckz-canonical-engine' ); ?></h2>
+	<p class="description"><?php esc_html_e( 'ZIP files created for customers. Remove old packages to free disk space.', 'pckz-canonical-engine' ); ?></p>
+
+	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="pckz-bulk-package-form" class="pckz-license-bulk-bar">
+		<?php wp_nonce_field( 'pckzce_bulk_customer_packages', 'pckzce_bulk_packages_nonce' ); ?>
+		<input type="hidden" name="action" value="pckzce_bulk_customer_packages">
+		<label class="screen-reader-text" for="pckz-bulk-package-action"><?php esc_html_e( 'Bulk package action', 'pckz-canonical-engine' ); ?></label>
+		<select id="pckz-bulk-package-action" name="bulk_action">
+			<option value=""><?php esc_html_e( 'Bulk actions', 'pckz-canonical-engine' ); ?></option>
+			<option value="delete"><?php esc_html_e( 'Delete selected', 'pckz-canonical-engine' ); ?></option>
+			<option value="delete_all_old"><?php esc_html_e( 'Delete all old packages (keep newest)', 'pckz-canonical-engine' ); ?></option>
+		</select>
+		<button type="submit" class="button" data-pckz-confirm="<?php esc_attr_e( 'Apply the selected package cleanup action?', 'pckz-canonical-engine' ); ?>"><?php esc_html_e( 'Apply', 'pckz-canonical-engine' ); ?></button>
+	</form>
+
 	<div class="pckz-license-table-wrap">
 		<table class="widefat striped pckz-license-table">
 			<thead>
 				<tr>
+					<th class="check-column"><input type="checkbox" data-pckz-select-all="package"></th>
 					<th><?php esc_html_e( 'Filename', 'pckz-canonical-engine' ); ?></th>
 					<th><?php esc_html_e( 'Size', 'pckz-canonical-engine' ); ?></th>
 					<th><?php esc_html_e( 'Updated', 'pckz-canonical-engine' ); ?></th>
 					<th><?php esc_html_e( 'Download', 'pckz-canonical-engine' ); ?></th>
+					<th><?php esc_html_e( 'Actions', 'pckz-canonical-engine' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>
 				<?php if ( empty( $customer_packages ) ) : ?>
-					<tr><td colspan="4"><?php esc_html_e( 'No customer packages generated yet.', 'pckz-canonical-engine' ); ?></td></tr>
+					<tr><td colspan="6"><?php esc_html_e( 'No customer packages generated yet.', 'pckz-canonical-engine' ); ?></td></tr>
 				<?php else : ?>
 					<?php foreach ( $customer_packages as $pkg ) : ?>
 						<tr>
+							<th scope="row" class="check-column">
+								<input type="checkbox" name="package_filenames[]" value="<?php echo esc_attr( $pkg['filename'] ?? '' ); ?>" form="pckz-bulk-package-form" class="pckz-bulk-package-checkbox">
+							</th>
 							<td><code><?php echo esc_html( $pkg['filename'] ?? '' ); ?></code></td>
 							<td><?php echo esc_html( size_format( (int) ( $pkg['size'] ?? 0 ), 2 ) ); ?></td>
 							<td><?php echo esc_html( ! empty( $pkg['modified'] ) ? gmdate( 'Y-m-d H:i:s', (int) $pkg['modified'] ) . ' UTC' : '—' ); ?></td>
@@ -401,6 +429,14 @@ $status_help = array(
 								<?php else : ?>
 									—
 								<?php endif; ?>
+							</td>
+							<td>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-inline-form">
+									<?php wp_nonce_field( 'pckzce_delete_customer_package', 'pckzce_delete_package_nonce' ); ?>
+									<input type="hidden" name="action" value="pckzce_delete_customer_package">
+									<input type="hidden" name="package_filename" value="<?php echo esc_attr( $pkg['filename'] ?? '' ); ?>">
+									<button type="submit" class="button button-small pckz-btn-danger" data-pckz-confirm="<?php esc_attr_e( 'Delete this customer package file permanently?', 'pckz-canonical-engine' ); ?>"><?php esc_html_e( 'Delete', 'pckz-canonical-engine' ); ?></button>
+								</form>
 							</td>
 						</tr>
 					<?php endforeach; ?>
