@@ -2221,15 +2221,8 @@ class PCKZ_Licensing {
 	 * @return array
 	 */
 	private static function master_allowed_domains() {
-		$allowed = array( 'paxdesign.at' );
-		if ( defined( 'PCKZCE_MASTER_ALLOWED_DOMAINS' ) && is_array( PCKZCE_MASTER_ALLOWED_DOMAINS ) ) {
-			$allowed = PCKZCE_MASTER_ALLOWED_DOMAINS;
-		}
-		if ( function_exists( 'apply_filters' ) ) {
-			$allowed = apply_filters( 'pckzce_master_allowed_domains', $allowed );
-		}
 		$normalized = array();
-		foreach ( (array) $allowed as $domain ) {
+		foreach ( array( 'paxdesign.at' ) as $domain ) {
 			$value = self::normalize_domain_value( (string) $domain );
 			if ( '' !== $value ) {
 				$normalized[] = $value;
