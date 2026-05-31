@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.24.0
+Stable tag: 2.27.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.27.2 =
+
+* Icon Library: fixed Customer (On) visibility not persisting after save when many icons are uploaded (compact JSON save avoids PHP max_input_vars truncation).
+* Icon Library: newly uploaded SVG icons are customer-visible by default and appear in the live symbol picker.
+* Icon display: customer symbol picker loads icons from the live catalog instead of a stale per-product snapshot.
+* Icon preview: consistent placement and centering for bundled and uploaded SVG icons in the configurator.
 
 = 2.24.0 =
 
