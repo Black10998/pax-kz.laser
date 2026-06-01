@@ -65,6 +65,15 @@ class PCKZ_Admin {
 
 		add_submenu_page(
 			'pckz-canonical-engine',
+			__( 'Line Library', 'pckz-canonical-engine' ),
+			__( 'Line Library', 'pckz-canonical-engine' ),
+			'manage_options',
+			'pckz-line-library',
+			array( $this, 'render_line_library' )
+		);
+
+		add_submenu_page(
+			'pckz-canonical-engine',
 			__( 'Font Library', 'pckz-canonical-engine' ),
 			__( 'Font Library', 'pckz-canonical-engine' ),
 			'manage_options',
@@ -169,6 +178,15 @@ class PCKZ_Admin {
 				'sanitize_callback' => array( $this, 'sanitize_icon_disabled' ),
 			)
 		);
+
+		register_setting(
+			'pckz_line_library_group',
+			PCKZ_Line_Library::OPTION_DISABLED,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( $this, 'sanitize_line_disabled' ),
+			)
+		);
 	}
 
 	/**
@@ -189,6 +207,16 @@ class PCKZ_Admin {
 			}
 		}
 		return array_values( array_unique( $out ) );
+	}
+
+	/**
+	 * Sanitize disabled line slugs from admin form.
+	 *
+	 * @param mixed $input Posted value.
+	 * @return string[]
+	 */
+	public function sanitize_line_disabled( $input ) {
+		return $this->sanitize_icon_disabled( $input );
 	}
 
 	/**
@@ -386,6 +414,23 @@ class PCKZ_Admin {
 				)
 			);
 		}
+
+		if ( false !== strpos( $hook, 'pckz-line-library' ) ) {
+			wp_enqueue_script(
+				'pckz-line-library',
+				PCKZCE_PLUGIN_URL . 'admin/js/line-library.js',
+				array(),
+				PCKZ_Assets::version( 'admin/js/line-library.js' ),
+				true
+			);
+			wp_localize_script(
+				'pckz-line-library',
+				'pckzLineLibrary',
+				array(
+					'emptyPayloadMessage' => __( 'Line library save payload is empty. Please reload the page and try again.', 'pckz-canonical-engine' ),
+				)
+			);
+		}
 	}
 
 	/**
@@ -436,6 +481,47 @@ class PCKZ_Admin {
 		$disabled = PCKZ_Icon_Library::disabled_slugs();
 		$payload  = PCKZ_Icon_Library::build_admin_save_payload();
 		include PCKZCE_PLUGIN_DIR . 'admin/views/icon-library.php';
+	}
+
+	/**
+	 * Render line library visibility admin.
+	 */
+	public function render_line_library() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		if ( isset( $_POST['pckz_line_library_upload'] ) && check_admin_referer( 'pckz_line_library_upload', 'pckz_line_library_upload_nonce' ) ) {
+			$result = PCKZ_Line_Library::handle_upload( $_FILES['pckz_line_file'] ?? array() );
+			if ( is_wp_error( $result ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-success"><p>' . esc_html__( 'Line design uploaded.', 'pckz-canonical-engine' ) . '</p></div>';
+			}
+		}
+
+		if ( isset( $_POST['pckz_line_delete'] ) && check_admin_referer( 'pckz_line_library_save', 'pckz_line_library_nonce' ) ) {
+			$del = PCKZ_Line_Library::delete_custom( sanitize_key( wp_unslash( $_POST['pckz_line_delete'] ) ) );
+			if ( is_wp_error( $del ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $del->get_error_message() ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-success"><p>' . esc_html__( 'Line design deleted.', 'pckz-canonical-engine' ) . '</p></div>';
+			}
+		}
+
+		if ( isset( $_POST['pckz_line_library_save'] ) && check_admin_referer( 'pckz_line_library_save', 'pckz_line_library_nonce' ) && ! isset( $_POST['pckz_line_delete'] ) ) {
+			$result = PCKZ_Line_Library::save_admin_state_from_post( wp_unslash( $_POST ) );
+			if ( is_wp_error( $result ) ) {
+				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Line library updated.', 'pckz-canonical-engine' ) . '</p></div>';
+			}
+		}
+
+		$catalog  = PCKZ_Line_Library::admin_catalog_entries();
+		$disabled = PCKZ_Line_Library::disabled_slugs();
+		$payload  = PCKZ_Line_Library::build_admin_save_payload();
+		include PCKZCE_PLUGIN_DIR . 'admin/views/line-library.php';
 	}
 
 	/**

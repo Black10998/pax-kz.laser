@@ -11,6 +11,9 @@ $icon_registry = PCKZ_Icons::registry_for_js();
 if ( ! isset( $icon_choices ) && class_exists( 'PCKZ_Icon_Library' ) ) {
 	$icon_choices = PCKZ_Icon_Library::get_customer_icon_choices();
 }
+if ( ! isset( $line_choices ) && class_exists( 'PCKZ_Line_Library' ) ) {
+	$line_choices = PCKZ_Line_Library::get_customer_line_choices();
+}
 
 /**
  * Resolve icon image URL for a choice.
@@ -50,6 +53,9 @@ foreach ( $customer_options as $option ) :
 	$choices = (array) ( $option['choices'] ?? array() );
 	if ( in_array( $id, array( 'symbol_links', 'symbol_rechts' ), true ) && ! empty( $icon_choices ) ) {
 		$choices = $icon_choices;
+	}
+	if ( 'linien' === $id && ! empty( $line_choices ) ) {
+		$choices = $line_choices;
 	}
 	if ( in_array( $type, array( 'swatch_color', 'color' ), true ) && ! empty( $choices ) ) {
 		$filtered = array();

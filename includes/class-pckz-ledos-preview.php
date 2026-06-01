@@ -135,11 +135,11 @@ class PCKZ_Ledos_Preview {
 	}
 
 	/**
-	 * Line overlay SVGs (Type 1–20 CDN + bundled type_21–71).
+	 * Line overlay SVGs (Type 1–20 CDN + bundled type_21–71), without custom uploads.
 	 *
 	 * @return array<string,string>
 	 */
-	public static function line_types() {
+	public static function base_line_types() {
 		$base = 'https://cdn.shopify.com/s/files/1/0746/3672/2449/files/';
 		$map  = array(
 			'none'   => '',
@@ -165,6 +165,101 @@ class PCKZ_Ledos_Preview {
 			'type_20' => $base . 'a_bk42_Type_20.svg',
 		);
 		return array_merge( $map, self::bundled_line_types() );
+	}
+
+	/**
+	 * Line overlay SVGs (Type 1–20 CDN + bundled type_21–71 + custom uploads).
+	 *
+	 * @return array<string,string>
+	 */
+	public static function line_types() {
+		$map = self::base_line_types();
+		if ( class_exists( 'PCKZ_Line_Library' ) ) {
+			foreach ( PCKZ_Line_Library::custom_manifest() as $slug => $row ) {
+				unset( $row );
+				$url = PCKZ_Line_Library::custom_url( $slug );
+				if ( $url ) {
+					$map[ $slug ] = $url;
+				}
+			}
+		}
+		return $map;
+	}
+
+	/**
+	 * Default display label for a line slug.
+	 *
+	 * @param string $slug Line slug.
+	 * @return string
+	 */
+	public static function default_line_label( $slug ) {
+		if ( class_exists( 'PCKZ_Line_Library' ) ) {
+			return PCKZ_Line_Library::default_label_for_slug( $slug );
+		}
+		if ( preg_match( '/^type_(\d+)$/', $slug, $m ) ) {
+			return 'Typ ' . $m[1];
+		}
+		return $slug;
+	}
+
+	/**
+	 * Line catalog for admin/customer UI (labels, previews, visibility).
+	 *
+	 * @param bool $for_customer When true, omit admin-disabled lines.
+	 * @return array<string,array>
+	 */
+	public static function line_catalog( $for_customer = true ) {
+		$none_preview = PCKZCE_PLUGIN_URL . 'public/images/icons/lines-black.svg';
+		$items        = array(
+			'none' => array(
+				'url'     => '',
+				'preview' => esc_url_raw( $none_preview ),
+				'label'   => 'Keine Linien',
+				'custom'  => false,
+			),
+		);
+
+		foreach ( self::base_line_types() as $slug => $url ) {
+			if ( 'none' === $slug || '' === $url ) {
+				continue;
+			}
+			$items[ $slug ] = array(
+				'url'     => esc_url_raw( $url ),
+				'preview' => esc_url_raw( $url ),
+				'label'   => self::default_line_label( $slug ),
+				'custom'  => false,
+			);
+		}
+
+		if ( class_exists( 'PCKZ_Line_Library' ) ) {
+			foreach ( PCKZ_Line_Library::custom_manifest() as $slug => $row ) {
+				if ( isset( $items[ $slug ] ) ) {
+					continue;
+				}
+				$url = PCKZ_Line_Library::custom_url( $slug );
+				if ( ! $url ) {
+					continue;
+				}
+				$items[ $slug ] = array(
+					'url'     => $url,
+					'preview' => $url,
+					'label'   => PCKZ_Line_Library::label_for_slug( $slug, self::default_line_label( $slug ) ),
+					'custom'  => true,
+				);
+			}
+			foreach ( $items as $slug => $data ) {
+				if ( 'none' === $slug ) {
+					continue;
+				}
+				$items[ $slug ]['label'] = PCKZ_Line_Library::label_for_slug( $slug, $data['label'] ?? $slug );
+			}
+		}
+
+		if ( $for_customer && class_exists( 'PCKZ_Line_Library' ) ) {
+			$items = PCKZ_Line_Library::filter_visible_catalog( $items );
+		}
+
+		return $items;
 	}
 
 	/**
@@ -339,21 +434,24 @@ class PCKZ_Ledos_Preview {
 			);
 		}
 
-		$line_choices = array(
-			array( 'value' => 'none', 'label' => 'Keine Linien', 'img' => PCKZCE_PLUGIN_URL . 'public/images/icons/lines-black.svg' ),
-		);
-		$lines = self::line_types();
-		foreach ( $lines as $key => $url ) {
-			if ( 'none' === $key || '' === $url ) {
+		$line_choices = array();
+		foreach ( self::line_catalog( false ) as $slug => $data ) {
+			if ( 'none' === $slug ) {
+				$line_choices[] = array(
+					'value' => 'none',
+					'label' => $data['label'] ?? 'Keine Linien',
+					'img'   => ! empty( $data['preview'] ) ? esc_url_raw( $data['preview'] ) : ( PCKZCE_PLUGIN_URL . 'public/images/icons/lines-black.svg' ),
+				);
 				continue;
 			}
-			if ( ! preg_match( '/^type_(\d+)$/', $key, $m ) ) {
+			$thumb = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
+			if ( ! $thumb ) {
 				continue;
 			}
 			$line_choices[] = array(
-				'value' => $key,
-				'label' => 'Typ ' . $m[1],
-				'img'   => esc_url_raw( $url ),
+				'value' => $slug,
+				'label' => $data['label'] ?? self::default_line_label( $slug ),
+				'img'   => esc_url_raw( $thumb ),
 			);
 		}
 
