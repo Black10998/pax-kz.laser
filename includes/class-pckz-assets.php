@@ -177,14 +177,6 @@ class PCKZ_Assets {
 		);
 
 		wp_enqueue_script(
-			'pckzce-preview-sticky',
-			PCKZCE_PLUGIN_URL . 'public/js/preview-sticky.js',
-			array(),
-			self::version( 'public/js/preview-sticky.js' ),
-			true
-		);
-
-		wp_enqueue_script(
 			'pckzce-creator',
 			PCKZCE_PLUGIN_URL . 'public/js/creator.js',
 			$script_deps,

@@ -11,6 +11,8 @@
 	overflow-x: visible;
 	box-sizing: border-box;
 	isolation: isolate;
+	container-type: inline-size;
+	container-name: pckz-creator;
 }
 
 .pckz-creator-wrapper *,
@@ -42,8 +44,7 @@
 }
 
 .pckz-product {
-	overflow-x: clip;
-	overflow-y: visible;
+	overflow-x: hidden;
 	max-width: 100%;
 	--pckz-black: #121212;
 	--pckz-white: #ffffff;
@@ -86,8 +87,6 @@
 	gap: 20px;
 	align-items: stretch;
 	min-width: 0;
-	container-type: inline-size;
-	container-name: pckz-creator;
 }
 
 /* Desktop: preview + checkout left, options right (DOM is preview → options → checkout for mobile) */
@@ -151,14 +150,6 @@
 
 .pckz-product__media-column {
 	min-width: 0;
-}
-
-.pckz-preview-sticky-placeholder {
-	display: block;
-	margin: 0;
-	padding: 0;
-	border: 0;
-	pointer-events: none;
 }
 
 .pckz-gallery__stage-wrap {
@@ -1467,7 +1458,7 @@ select.pckz-field__control {
 	max-width: 100% !important;
 }
 
-/* Preview sticky handled by preview-sticky.js (page-scroll layouts only). */
+/* Mobile sticky preview: see cloudlift-options.css (.cl-po--preview-sticky) */
 
 .pckz-btn.is-loading {
 	opacity: 0.72;
@@ -1828,7 +1819,7 @@ select.pckz-field__control {
 
 	.pckz-product__configure-stack {
 		display: block;
-		/* Page scroll; sticky preview panel follows options (100dvh viewport). */
+		/* Normal page scroll within configure-stack on mobile (100dvh). */
 	}
 
 	.pckz-product__media-column {
@@ -2123,6 +2114,17 @@ select.pckz-field__control {
 		min-height: 36px;
 		width: 44px;
 		font-size: 14px;
+	}
+
+	/* Prevent preview paint overflow from extending mobile page scroll height. */
+	.pckz-gallery__stage-wrap,
+	.pckz-gallery__stage {
+		overflow: hidden;
+		contain: paint;
+	}
+
+	.pckz-gallery__stage .canvas-container {
+		max-height: 100%;
 	}
 }
 

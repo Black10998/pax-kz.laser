@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.27.8
+Stable tag: 2.27.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,14 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.27.9 =
+
+* Live preview UI: reverted desktop sticky/fixed preview behavior to pre-v2.27.8 state (no preview stickiness on desktop).
+* Live preview UI: removed preview-sticky.js entirely (fixed positioning caused extra mobile scroll height).
+* Live preview UI: restored original layout CSS (container-type on wrapper, overflow-x hidden on product).
+* Live preview UI: mobile scroll fix — contain preview paint overflow so the page ends where content ends.
+* Magnifier, hover zoom, and all other preview UI improvements unchanged.
 
 = 2.27.8 =
 

@@ -43,7 +43,7 @@ $payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz
 				<div class="pckz-product__media-column">
 					<p class="pckz-product__preview-heading">Live-Vorschau Ihres Rahmens</p>
 					<div class="pckz-gallery" data-gallery>
-							<div class="pckz-gallery__stage-wrap" data-preview-sticky-panel>
+							<div class="pckz-gallery__stage-wrap">
 								<div class="pckz-gallery__stage" data-stage>
 									<?php if ( $img_day ) : ?>
 										<img
