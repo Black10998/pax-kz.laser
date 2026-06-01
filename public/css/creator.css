@@ -11,8 +11,6 @@
 	overflow-x: visible;
 	box-sizing: border-box;
 	isolation: isolate;
-	container-type: inline-size;
-	container-name: pckz-creator;
 }
 
 .pckz-creator-wrapper *,
@@ -44,7 +42,8 @@
 }
 
 .pckz-product {
-	overflow-x: hidden;
+	overflow-x: clip;
+	overflow-y: visible;
 	max-width: 100%;
 	--pckz-black: #121212;
 	--pckz-white: #ffffff;
@@ -87,6 +86,8 @@
 	gap: 20px;
 	align-items: stretch;
 	min-width: 0;
+	container-type: inline-size;
+	container-name: pckz-creator;
 }
 
 /* Desktop: preview + checkout left, options right (DOM is preview → options → checkout for mobile) */
@@ -152,17 +153,12 @@
 	min-width: 0;
 }
 
-/* Sticky preview panel only (license plate gallery); no layout or visual changes. */
-.pckz-gallery {
-	position: sticky;
-	top: 0;
-	z-index: 2;
-}
-
-@media (min-width: 990px) {
-	.pckz-gallery {
-		top: 20px;
-	}
+.pckz-preview-sticky-placeholder {
+	display: block;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	pointer-events: none;
 }
 
 .pckz-gallery__stage-wrap {
@@ -1471,33 +1467,7 @@ select.pckz-field__control {
 	max-width: 100% !important;
 }
 
-/* Sticky preview panel in shortcode embeds (container width, not viewport). */
-
-@container pckz-creator (max-width: 989px) {
-	.pckz-creator-wrapper .pckz-gallery {
-		position: sticky;
-		top: 0;
-		z-index: 40;
-	}
-}
-
-@container pckz-creator (min-width: 990px) {
-	.pckz-creator-wrapper .pckz-gallery {
-		position: sticky;
-		top: 20px;
-		z-index: 2;
-	}
-}
-
-@supports not (container-type: inline-size) {
-	@media (min-width: 990px) {
-		.pckz-creator-wrapper .pckz-gallery {
-			position: sticky;
-			top: 20px;
-			z-index: 2;
-		}
-	}
-}
+/* Preview sticky handled by preview-sticky.js (page-scroll layouts only). */
 
 .pckz-btn.is-loading {
 	opacity: 0.72;
@@ -1858,13 +1828,7 @@ select.pckz-field__control {
 
 	.pckz-product__configure-stack {
 		display: block;
-		/* Page scroll; sticky gallery stays visible within configure-stack (100dvh). */
-	}
-
-	.pckz-gallery {
-		position: sticky;
-		top: 0;
-		z-index: 40;
+		/* Page scroll; sticky preview panel follows options (100dvh viewport). */
 	}
 
 	.pckz-product__media-column {
@@ -2209,12 +2173,6 @@ select.pckz-field__control {
 		min-width: 0;
 	}
 
-	.pckz-creator-wrapper .pckz-gallery {
-		position: sticky;
-		top: 20px;
-		z-index: 2;
-	}
-
 	.pckz-creator-wrapper .pckz-product__config-column {
 		grid-column: 2;
 		grid-row: 1 / -1;
@@ -2257,12 +2215,6 @@ select.pckz-field__control {
 		.pckz-creator-wrapper .pckz-product__media-column {
 			grid-column: 1;
 			grid-row: 1;
-		}
-
-		.pckz-creator-wrapper .pckz-gallery {
-			position: sticky;
-			top: 20px;
-			z-index: 2;
 		}
 
 		.pckz-creator-wrapper .pckz-product__config-column {
