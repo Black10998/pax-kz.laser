@@ -152,6 +152,42 @@
 	min-width: 0;
 }
 
+.pckz-creator-boot {
+	display: none;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	min-height: min(52vh, 420px);
+	color: var(--pckz-gray-700);
+	font-size: 14px;
+}
+
+.pckz-product--booting .pckz-creator-boot {
+	display: flex;
+}
+
+.pckz-product--booting .pckz-product__form,
+.pckz-product--booting > .pckz-validation-panel,
+.pckz-product--booting > .pckz-toast {
+	visibility: hidden;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.pckz-product.is-creator-ready .pckz-product__form {
+	animation: pckz-creator-reveal 0.3s ease;
+}
+
+@keyframes pckz-creator-reveal {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
 .pckz-gallery__stage-wrap {
 	background: transparent;
 	border: none;
@@ -201,11 +237,22 @@
 	max-width: 100%;
 }
 
+.pckz-gallery__stage > .pckz-gallery__canvas {
+	position: absolute;
+	inset: 0;
+	width: 100% !important;
+	height: 100% !important;
+	max-width: 100%;
+	max-height: 100%;
+}
+
 .pckz-gallery__stage .canvas-container {
 	position: absolute !important;
 	inset: 0 !important;
 	width: 100% !important;
 	height: 100% !important;
+	max-height: 100%;
+	overflow: hidden;
 	z-index: 1;
 }
 
@@ -398,6 +445,10 @@
 	.pckz-preview-zoom-btn,
 	.pckz-preview-magnifier-glass {
 		display: none !important;
+	}
+
+	.pckz-product.is-creator-ready .pckz-product__form {
+		animation: none;
 	}
 }
 
@@ -1809,6 +1860,20 @@ select.pckz-field__control {
 		padding: 0 12px;
 	}
 
+	.pckz-creator-wrapper {
+		overflow-x: hidden;
+		max-width: 100%;
+	}
+
+	.pckz-product,
+	.pckz-product__inner,
+	.pckz-product__form,
+	.pckz-product__grid,
+	.pckz-product__configure-stack {
+		max-width: 100%;
+		overflow-x: hidden;
+	}
+
 	.pckz-product__inner {
 		padding: 8px 0 16px;
 	}
@@ -2116,15 +2181,17 @@ select.pckz-field__control {
 		font-size: 14px;
 	}
 
-	/* Prevent preview paint overflow from extending mobile page scroll height. */
+	/* Keep preview layers clipped so canvas/transform paint cannot extend page scroll height. */
+	.pckz-gallery,
 	.pckz-gallery__stage-wrap,
 	.pckz-gallery__stage {
+		max-width: 100%;
 		overflow: hidden;
-		contain: paint;
 	}
 
 	.pckz-gallery__stage .canvas-container {
 		max-height: 100%;
+		overflow: hidden;
 	}
 }
 

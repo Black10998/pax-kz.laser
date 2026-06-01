@@ -45,6 +45,11 @@ class PCKZ_Assets {
 			self::version( 'public/css/creator.css' )
 		);
 
+		wp_add_inline_style(
+			'pckzce-creator',
+			'.pckz-product--booting .pckz-product__form,.pckz-product--booting>.pckz-validation-panel,.pckz-product--booting>.pckz-toast{visibility:hidden!important;opacity:0!important;pointer-events:none!important}.pckz-product--booting .pckz-creator-boot{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:min(52vh,420px);color:#515151;font-size:14px}.pckz-creator-boot{display:none}'
+		);
+
 		$google_url = '';
 		if ( class_exists( 'PCKZ_Font_Library' ) ) {
 			$google_url = PCKZ_Font_Library::google_fonts_css_url();

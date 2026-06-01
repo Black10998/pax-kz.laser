@@ -29,12 +29,16 @@ $use_cloudlift     = ! empty( $config['use_cloudlift_layout'] );
 $payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz_paid'];
 ?>
 <div
-	class="pckz-product<?php echo $use_cloudlift ? ' pckz-product--cloudlift' : ''; ?><?php echo $payment_only ? ' pckz-product--paypal-only' : ''; ?>"
+	class="pckz-product pckz-product--booting<?php echo $use_cloudlift ? ' pckz-product--cloudlift' : ''; ?><?php echo $payment_only ? ' pckz-product--paypal-only' : ''; ?>"
 	id="pckz-creator-<?php echo esc_attr( (string) $product_id ); ?>"
 	data-product-id="<?php echo esc_attr( (string) $product_id ); ?>"
 	lang="de"
 >
 	<div class="pckz-product__inner page-width">
+		<div class="pckz-creator-boot" data-creator-boot aria-live="polite" aria-busy="true">
+			<span class="pckz-spinner" aria-hidden="true"></span>
+			<span><?php esc_html_e( 'Vorschau wird geladen…', 'pckz-canonical-engine' ); ?></span>
+		</div>
 		<form class="pckz-product__form" id="pckz-form-<?php echo esc_attr( (string) $product_id ); ?>" novalidate>
 			<input type="hidden" name="pckz_options[preview_mode]" value="day" data-preview-mode-input>
 

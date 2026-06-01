@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.27.9
+Stable tag: 2.27.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,12 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.27.10 =
+
+* Live preview UI: fix mobile black scroll area — canvas removed from document flow before Fabric init; stage size matches CSS box; preview layers clipped on mobile.
+* Live preview UI: clean initial load — configurator hidden until canvas is ready; boot spinner shown instead of empty/partial layout flash.
+* Magnifier, hover zoom, and desktop preview behavior unchanged.
 
 = 2.27.9 =
 

@@ -74,11 +74,13 @@
 			this._uiClosersBound = false;
 			this._mobileViewportLock = false;
 			this._mobileResizeUnlockTimer = null;
+			this._creatorReadyMarked = false;
 			this.init();
 		}
 
 		init() {
 			if (!this.canvasEl || !this.stage) {
+				this.markCreatorReady();
 				return;
 			}
 			this.fallbackImg = this.root.querySelector('[data-preview-fallback]');
@@ -92,6 +94,7 @@
 			this.setCheckoutButtonsEnabled(false);
 			this.showPaymentSuccessIfReturned();
 			window.addEventListener('resize', () => this.handleWindowResize());
+			setTimeout(() => this.markCreatorReady(), 12000);
 		}
 
 		showPaymentSuccessIfReturned() {
@@ -196,9 +199,55 @@
 				return { width: BASE_W, height: BASE_H };
 			}
 			const rect = this.stage.getBoundingClientRect();
-			const width = Math.max(320, Math.round(rect.width || this.stage.offsetWidth || BASE_W));
-			const height = Math.max(160, Math.round(width * (BASE_H / BASE_W)));
+			const width = Math.max(
+				1,
+				Math.round(rect.width || this.stage.clientWidth || this.stage.offsetWidth || BASE_W)
+			);
+			let height = Math.max(
+				1,
+				Math.round(rect.height || this.stage.clientHeight || this.stage.offsetHeight || 0)
+			);
+			if (height <= 1) {
+				height = Math.max(160, Math.round(width * (BASE_H / BASE_W)));
+			}
 			return { width, height };
+		}
+
+		markCreatorReady() {
+			if (this._creatorReadyMarked) {
+				return;
+			}
+			this._creatorReadyMarked = true;
+			this.root.classList.remove('pckz-product--booting');
+			this.root.classList.add('is-creator-ready');
+			const boot = this.root.querySelector('[data-creator-boot]');
+			if (boot) {
+				boot.hidden = true;
+				boot.setAttribute('aria-busy', 'false');
+			}
+			this.trimMobileScrollOverflow();
+		}
+
+		trimMobileScrollOverflow() {
+			if (!window.matchMedia('(max-width: 989px)').matches || !this.stage) {
+				return;
+			}
+			this.root.querySelectorAll('.pckz-preview-sticky-placeholder').forEach((node) => node.remove());
+			this.stage.querySelectorAll('.canvas-container').forEach((container) => {
+				container.style.maxHeight = '100%';
+				container.style.overflow = 'hidden';
+			});
+			requestAnimationFrame(() => {
+				const checkout = this.root.querySelector('.pckz-checkout-panel');
+				if (!checkout) {
+					return;
+				}
+				const contentBottom = checkout.getBoundingClientRect().bottom + window.scrollY;
+				const docHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+				if (docHeight > contentBottom + 16 && window.scrollY > contentBottom) {
+					window.scrollTo(0, Math.max(0, contentBottom - window.innerHeight));
+				}
+			});
 		}
 
 		setFallbackVisible(mode) {
@@ -288,6 +337,7 @@
 					}
 					PCKZCE_GLOBAL.PCKZCECanvas && PCKZCE_GLOBAL.PCKZCECanvas.safeRender(this.canvas);
 					this.scheduleExportReadyCheck();
+					this.markCreatorReady();
 				});
 			};
 
@@ -313,6 +363,7 @@
 				this.refreshStripLayout();
 			}
 			PCKZCE_GLOBAL.PCKZCECanvas && PCKZCE_GLOBAL.PCKZCECanvas.safeRender(this.canvas);
+			this.trimMobileScrollOverflow();
 		}
 
 		getBgUrl(mode) {
