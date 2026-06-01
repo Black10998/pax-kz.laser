@@ -125,6 +125,11 @@
 	.pckz-product__media-column {
 		grid-column: 1;
 		grid-row: 1;
+		position: sticky;
+		top: 20px;
+		align-self: start;
+		z-index: 2;
+		max-height: calc(100dvh - 40px);
 	}
 
 	.pckz-product__config-column {
@@ -150,6 +155,8 @@
 
 .pckz-product__media-column {
 	min-width: 0;
+	align-self: start;
+	transition: box-shadow 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .pckz-gallery__stage-wrap {
@@ -1458,7 +1465,42 @@ select.pckz-field__control {
 	max-width: 100% !important;
 }
 
-/* Mobile sticky preview: see cloudlift-options.css (.cl-po--preview-sticky) */
+/* Mobile sticky preview (all products; cloudlift .cl-po--preview-sticky remains compatible). */
+
+@container pckz-creator (max-width: 989px) {
+	.pckz-creator-wrapper .pckz-product__media-column {
+		position: sticky;
+		top: 0;
+		z-index: 40;
+		background: var(--pckz-white);
+		box-shadow:
+			0 1px 0 rgba(0, 0, 0, 0.05),
+			0 6px 20px rgba(0, 0, 0, 0.07);
+		padding-bottom: 10px;
+	}
+}
+
+@container pckz-creator (min-width: 990px) {
+	.pckz-creator-wrapper .pckz-product__media-column {
+		position: sticky;
+		top: 20px;
+		align-self: start;
+		z-index: 2;
+		max-height: calc(100dvh - 40px);
+	}
+}
+
+@supports not (container-type: inline-size) {
+	@media (min-width: 990px) {
+		.pckz-creator-wrapper .pckz-product__media-column {
+			position: sticky;
+			top: 20px;
+			align-self: start;
+			z-index: 2;
+			max-height: calc(100dvh - 40px);
+		}
+	}
+}
 
 .pckz-btn.is-loading {
 	opacity: 0.72;
@@ -1819,11 +1861,22 @@ select.pckz-field__control {
 
 	.pckz-product__configure-stack {
 		display: block;
+		/* Page scroll; preview sticks within the configure-stack region (100dvh cap). */
 	}
 
 	.pckz-product__media-column {
-		position: relative;
-		padding-bottom: 4px;
+		position: sticky;
+		top: 0;
+		z-index: 40;
+		background: var(--pckz-white);
+		box-shadow:
+			0 1px 0 rgba(0, 0, 0, 0.05),
+			0 6px 20px rgba(0, 0, 0, 0.07);
+		padding-top: 2px;
+		padding-bottom: 10px;
+		margin-bottom: 0;
+		overflow: visible;
+		transition: box-shadow 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 	}
 
 	.pckz-product__config-column {
@@ -2161,6 +2214,11 @@ select.pckz-field__control {
 		grid-column: 1;
 		grid-row: 1;
 		min-width: 0;
+		position: sticky;
+		top: 20px;
+		align-self: start;
+		z-index: 2;
+		max-height: calc(100dvh - 40px);
 	}
 
 	.pckz-creator-wrapper .pckz-product__config-column {
@@ -2205,6 +2263,11 @@ select.pckz-field__control {
 		.pckz-creator-wrapper .pckz-product__media-column {
 			grid-column: 1;
 			grid-row: 1;
+			position: sticky;
+			top: 20px;
+			align-self: start;
+			z-index: 2;
+			max-height: calc(100dvh - 40px);
 		}
 
 		.pckz-creator-wrapper .pckz-product__config-column {

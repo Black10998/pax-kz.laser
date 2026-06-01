@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.27.5
+Stable tag: 2.27.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.27.6 =
+
+* Live preview UI: sticky/floating license plate preview while scrolling the configurator (CSS-only).
+* Desktop: preview column stays pinned while options scroll (page or panel scroll unchanged).
+* Mobile: preview sticks to the top of the viewport with a subtle shadow while changing options.
+* Shortcode embeds: container-query sticky rules for narrow and wide wrapper widths.
 
 = 2.27.5 =
 
