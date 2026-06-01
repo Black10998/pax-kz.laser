@@ -63,6 +63,18 @@ $payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz
 										class="pckz-gallery__canvas"
 										aria-label="Produktvorschau mit Ihrer Personalisierung"
 									></canvas>
+									<button
+										type="button"
+										class="pckz-preview-zoom-btn"
+										data-preview-zoom-btn
+										tabindex="-1"
+										aria-hidden="true"
+									>
+										<span aria-hidden="true">&#128270;</span>
+									</button>
+									<div class="pckz-preview-magnifier-glass" data-preview-magnifier-glass aria-hidden="true">
+										<span class="pckz-preview-magnifier-glass__view" data-preview-magnifier-view></span>
+									</div>
 								</div>
 							</div>
 							<?php if ( $img_day || $img_night ) : ?>

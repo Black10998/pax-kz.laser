@@ -173,6 +173,7 @@
 	max-height: min(52vh, 480px);
 	background: transparent;
 	transition: none;
+	overflow: hidden;
 }
 
 .pckz-gallery__fallback {
@@ -219,6 +220,10 @@
 		cursor: zoom-in;
 	}
 
+	.pckz-gallery__stage.is-magnifier-active {
+		cursor: none;
+	}
+
 	.pckz-gallery__stage .canvas-container,
 	.pckz-gallery__stage .pckz-gallery__fallback {
 		transition:
@@ -233,28 +238,149 @@
 		transform: scale(1.12);
 	}
 
-	.pckz-gallery__stage::after {
-		content: "";
+	/* Magnifier hint button (preview area only). */
+	.pckz-preview-zoom-btn {
 		position: absolute;
-		right: 10px;
-		bottom: 10px;
-		z-index: 3;
-		width: 28px;
-		height: 28px;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.88)
-			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E")
-			center / 14px 14px no-repeat;
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+		left: 50%;
+		bottom: 0;
+		z-index: 4;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: auto;
+		height: auto;
+		margin: 0;
+		padding: 0 0 0.15rem;
+		border: 0;
+		background: transparent;
+		color: rgba(255, 255, 255, 0.95);
+		font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+		line-height: 1;
+		letter-spacing: 0.12rem;
+		text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+		transform: translateX(-50%) scale(0);
+		transform-origin: bottom center;
 		opacity: 0;
-		transform: scale(0.85);
-		transition: opacity 0.35s ease, transform 0.35s ease;
 		pointer-events: none;
+		user-select: none;
 	}
 
-	.pckz-gallery__stage:hover::after {
+	.pckz-gallery__stage.is-canvas-ready .pckz-preview-zoom-btn,
+	.pckz-gallery__stage:not(.is-canvas-ready) .pckz-preview-zoom-btn {
+		animation:
+			pckz-preview-zoom-btn-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.35s forwards,
+			pckz-preview-zoom-btn-pulse 1s ease-in-out 0.85s 5;
+	}
+
+	.pckz-gallery__stage:hover .pckz-preview-zoom-btn {
 		opacity: 1;
-		transform: scale(1);
+	}
+
+	/* Magnifying glass lens (follows pointer inside preview). */
+	.pckz-preview-magnifier-glass {
+		position: absolute;
+		z-index: 5;
+		width: 168px;
+		height: 168px;
+		border-radius: 50%;
+		pointer-events: none;
+		opacity: 0;
+		transform: scale(0);
+		transition:
+			transform 0.7s ease,
+			opacity 0.2s ease;
+		background-color: transparent;
+		background-repeat: no-repeat;
+		background-image:
+			radial-gradient(circle, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1) 25%, transparent 50%),
+			radial-gradient(ellipse, rgba(210, 210, 210, 0.7), transparent 50%),
+			radial-gradient(ellipse, rgba(210, 210, 210, 0.7), transparent 50%),
+			radial-gradient(ellipse, rgba(210, 210, 210, 0.4), transparent 50%),
+			radial-gradient(ellipse, rgba(210, 210, 210, 0.5), transparent 50%),
+			radial-gradient(ellipse, rgba(210, 210, 210, 0.7), transparent 50%),
+			radial-gradient(ellipse, rgba(210, 210, 210, 0.5), transparent 50%),
+			radial-gradient(ellipse, rgba(0, 0, 0, 0.1), transparent 60%),
+			radial-gradient(ellipse, rgba(0, 0, 0, 0.2), transparent 60%),
+			radial-gradient(ellipse, rgba(57, 57, 57, 0.5), transparent 50%),
+			radial-gradient(ellipse, rgba(57, 57, 57, 0.5), transparent 50%),
+			radial-gradient(ellipse, rgba(109, 109, 109, 0.1), transparent 50%),
+			radial-gradient(ellipse, rgba(121, 121, 121, 0.2), transparent 50%);
+		background-size:
+			100px 100px,
+			100px 100px,
+			100px 100px,
+			100px 100px,
+			100px 100px,
+			200px 200px,
+			200px 200px,
+			200px 200px,
+			200px 200px,
+			100px 100px,
+			120px 120px,
+			120px 120px,
+			120px 120px;
+		background-position:
+			58% -55%,
+			-15% 90%,
+			-5% 100%,
+			5% 110%,
+			20% 120%,
+			-70% 170%,
+			-35% 210%,
+			-10% 215%,
+			80% 225%,
+			-35% 25%,
+			-10% 30%,
+			135% 15%,
+			80% -45%;
+		box-shadow:
+			inset 1px 2px 4px 3px rgba(255, 255, 255, 0.3),
+			inset 1px 2px 3px 2px rgba(255, 255, 255, 0.05),
+			inset 0 -40px 47px -18px rgba(0, 0, 0, 0.2),
+			inset -5px 5px 8px 0 rgba(0, 0, 0, 0.7),
+			inset -30px 15px 20px -10px rgba(0, 0, 0, 0.25),
+			inset -10px 10px 30px -5px rgba(0, 0, 0, 0.7),
+			inset -10px 10px 10px -5px rgba(0, 0, 0, 0.3),
+			inset 50px -50px 20px -10px rgba(108, 108, 108, 0.1),
+			1px 3px 8px 1px rgba(0, 0, 0, 0.4),
+			15px 38px 20px -30px rgba(0, 0, 0, 0.5),
+			0 0 3px rgba(0, 0, 0, 0.2);
+		border: 1px solid rgba(255, 255, 255, 0.15);
+		overflow: hidden;
+	}
+
+	.pckz-preview-magnifier-glass__view {
+		position: absolute;
+		inset: 0;
+		border-radius: 50%;
+		background-repeat: no-repeat;
+		background-color: transparent;
+		filter: brightness(1.08);
+	}
+
+	.pckz-gallery__stage.is-magnifier-active .pckz-preview-magnifier-glass {
+		transition: transform 0.35s ease, opacity 0.15s ease;
+	}
+}
+
+@keyframes pckz-preview-zoom-btn-in {
+	from {
+		opacity: 0;
+		transform: translateX(-50%) scale(0);
+	}
+	to {
+		opacity: 0.92;
+		transform: translateX(-50%) scale(1);
+	}
+}
+
+@keyframes pckz-preview-zoom-btn-pulse {
+	0%,
+	100% {
+		transform: translateX(-50%) scale(1);
+	}
+	50% {
+		transform: translateX(-50%) scale(1.22);
 	}
 }
 
@@ -269,8 +395,9 @@
 		transform: none;
 	}
 
-	.pckz-gallery__stage::after {
-		display: none;
+	.pckz-preview-zoom-btn,
+	.pckz-preview-magnifier-glass {
+		display: none !important;
 	}
 }
 

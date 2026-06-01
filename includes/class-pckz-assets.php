@@ -169,6 +169,14 @@ class PCKZ_Assets {
 		$script_deps[] = 'pckzce-canonical-scene';
 
 		wp_enqueue_script(
+			'pckzce-preview-magnifier',
+			PCKZCE_PLUGIN_URL . 'public/js/preview-magnifier.js',
+			array(),
+			self::version( 'public/js/preview-magnifier.js' ),
+			true
+		);
+
+		wp_enqueue_script(
 			'pckzce-creator',
 			PCKZCE_PLUGIN_URL . 'public/js/creator.js',
 			$script_deps,
