@@ -125,4 +125,25 @@ class PCKZ_Icons {
 		}
 		return ucfirst( $slug );
 	}
+
+	/**
+	 * Resolve icon/line image URL for a visual picker choice.
+	 *
+	 * @param array  $choice        Choice row.
+	 * @param string $slug          Choice slug.
+	 * @param array  $icon_registry Icon registry from registry_for_js().
+	 * @return string
+	 */
+	public static function choice_img( $choice, $slug, $icon_registry ) {
+		if ( ! empty( $choice['img'] ) ) {
+			return $choice['img'];
+		}
+		if ( 'none' !== $slug && ! empty( $icon_registry[ $slug ]['black'] ) ) {
+			return $icon_registry[ $slug ]['black'];
+		}
+		if ( 'none' !== $slug && ! empty( $icon_registry[ $slug ]['white'] ) ) {
+			return $icon_registry[ $slug ]['white'];
+		}
+		return '';
+	}
 }

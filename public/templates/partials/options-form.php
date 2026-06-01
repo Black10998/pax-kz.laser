@@ -15,29 +15,6 @@ if ( ! isset( $line_choices ) && class_exists( 'PCKZ_Line_Library' ) ) {
 	$line_choices = PCKZ_Line_Library::get_customer_line_choices();
 }
 
-/**
- * Resolve icon image URL for a choice.
- *
- * @param array  $choice        Choice row.
- * @param string $slug          Icon slug.
- * @param array  $icon_registry Icon registry.
- * @return string
- */
-if ( ! function_exists( 'pckz_icon_choice_img' ) ) {
-	function pckz_icon_choice_img( $choice, $slug, $icon_registry ) {
-		if ( ! empty( $choice['img'] ) ) {
-			return $choice['img'];
-		}
-		if ( 'none' !== $slug && ! empty( $icon_registry[ $slug ]['black'] ) ) {
-			return $icon_registry[ $slug ]['black'];
-		}
-		if ( 'none' !== $slug && ! empty( $icon_registry[ $slug ]['white'] ) ) {
-			return $icon_registry[ $slug ]['white'];
-		}
-		return '';
-	}
-}
-
 foreach ( $customer_options as $option ) :
 	$id      = $option['id'] ?? '';
 	if ( 'preview_mode' === $id ) {
@@ -143,7 +120,7 @@ foreach ( $customer_options as $option ) :
 			$preview_lbl = $default;
 			foreach ( $choices as $choice ) {
 				if ( ( $choice['value'] ?? '' ) === $default ) {
-					$preview_img = pckz_icon_choice_img( $choice, $default, $icon_registry );
+					$preview_img = PCKZ_Icons::choice_img( $choice, $default, $icon_registry );
 					$preview_lbl = $choice['label'] ?? $default;
 					break;
 				}
@@ -193,7 +170,7 @@ foreach ( $customer_options as $option ) :
 				>
 					<?php foreach ( $choices as $choice ) :
 						$val = $choice['value'] ?? '';
-						$img = pckz_icon_choice_img( $choice, $val, $icon_registry );
+						$img = PCKZ_Icons::choice_img( $choice, $val, $icon_registry );
 						$lbl = $choice['label'] ?? $val;
 						$active = ( $default === $val );
 						?>
