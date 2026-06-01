@@ -36,16 +36,22 @@
 
 		const rect = trigger.getBoundingClientRect();
 		const gap = 4;
-		const maxH = Math.min(280, Math.max(120, window.innerHeight - rect.bottom - gap - 12));
+		const isLineGrid = root.classList.contains('pckz-visual-picker--line-grid');
+		const maxListH = isLineGrid ? 440 : 280;
+		const maxH = Math.min(maxListH, Math.max(120, window.innerHeight - rect.bottom - gap - 12));
 		const spaceBelow = window.innerHeight - rect.bottom - gap;
 		const openUp = spaceBelow < 140 && rect.top > spaceBelow;
 
 		list.style.position = 'fixed';
 		list.style.left = Math.max(8, rect.left) + 'px';
-		const minW = root.classList.contains('pckz-visual-picker--icon-grid') ? 280 : 200;
+		const minW = root.classList.contains('pckz-visual-picker--icon-grid')
+			? 280
+			: isLineGrid
+				? Math.max(rect.width, 280)
+				: 200;
 		list.style.width = Math.max(rect.width, minW) + 'px';
 		list.style.zIndex = '100000';
-		list.style.maxHeight = (openUp ? Math.min(280, rect.top - gap - 12) : maxH) + 'px';
+		list.style.maxHeight = (openUp ? Math.min(maxListH, rect.top - gap - 12) : maxH) + 'px';
 
 		if (openUp) {
 			list.style.top = 'auto';

@@ -1025,6 +1025,74 @@ select.pckz-field__control {
 	background: var(--pckz-gray-100);
 }
 
+/* Line picker: wide SVG previews only (no labels, no checker tile) */
+.pckz-visual-picker--line-grid .pckz-visual-picker__thumb.o--img,
+.pckz-visual-picker--line-grid .pckz-visual-picker__option .o--img {
+	background-color: #fff;
+	background-image: none;
+}
+
+.pckz-visual-picker--line-grid .pckz-visual-picker__thumb.o--img {
+	width: auto;
+	flex: 1;
+	min-width: 0;
+	max-width: calc(100% - 28px);
+	height: 40px;
+	padding: 4px 8px;
+	border-color: var(--pckz-gray-200);
+}
+
+.pckz-visual-picker--line-grid .pckz-visual-picker__trigger {
+	padding-top: 8px;
+	padding-bottom: 8px;
+}
+
+.pckz-visual-picker--line-grid .pckz-visual-picker__thumb img,
+.pckz-visual-picker--line-grid .pckz-visual-picker__option .o--img img {
+	width: 100%;
+	max-width: 100%;
+	height: 32px;
+	object-fit: contain;
+	object-position: center;
+	filter: brightness(0);
+}
+
+.pckz-visual-picker--line-grid.is-open .pckz-visual-picker__list {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 4px;
+	padding: 8px;
+	max-height: min(440px, 70vh);
+}
+
+.pckz-visual-picker--line-grid .pckz-visual-picker__option {
+	justify-content: center;
+	gap: 0;
+	padding: 10px 12px;
+	min-height: 0;
+	border-radius: 4px;
+}
+
+.pckz-visual-picker--line-grid .pckz-visual-picker__option .o--img {
+	width: 100%;
+	height: 44px;
+	border: none;
+	background: transparent;
+}
+
+.pckz-visual-picker--line-grid .pckz-visual-picker__option .o--img img {
+	height: 40px;
+}
+
+.pckz-visual-picker--line-grid .pckz-visual-picker__option.is-active {
+	box-shadow: inset 0 0 0 2px var(--pckz-black);
+	background: var(--pckz-gray-100);
+}
+
+.pckz-visual-picker--line-grid .pckz-visual-picker__option:hover {
+	background: var(--pckz-gray-100);
+}
+
 .pckz-sr-only {
 	position: absolute;
 	width: 1px;
@@ -1957,6 +2025,19 @@ select.pckz-field__control {
 	.pckz-visual-picker--icon-grid.is-open .pckz-visual-picker__list {
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 		max-height: 240px;
+	}
+
+	.pckz-visual-picker--line-grid .pckz-visual-picker__thumb img,
+	.pckz-visual-picker--line-grid .pckz-visual-picker__option .o--img img {
+		height: 28px;
+	}
+
+	.pckz-visual-picker--line-grid .pckz-visual-picker__option .o--img {
+		height: 36px;
+	}
+
+	.pckz-visual-picker--line-grid .pckz-visual-picker__option .o--img img {
+		height: 32px;
 	}
 
 	.pckz-visual-picker__trigger {

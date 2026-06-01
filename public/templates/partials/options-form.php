@@ -127,7 +127,17 @@ foreach ( $customer_options as $option ) :
 			}
 			$list_id    = 'pckz-visual-list-' . esc_attr( $id );
 			$is_icon_ui = in_array( $id, array( 'symbol_links', 'symbol_rechts' ), true );
-			$picker_cls = 'pckz-visual-picker' . ( $is_icon_ui ? ' pckz-visual-picker--icon-grid' : '' );
+			$is_line_ui = ( 'linien' === $id );
+			$picker_cls = 'pckz-visual-picker';
+			if ( $is_icon_ui ) {
+				$picker_cls .= ' pckz-visual-picker--icon-grid';
+			} elseif ( $is_line_ui ) {
+				$picker_cls .= ' pckz-visual-picker--line-grid';
+			}
+			$thumb_w = $is_line_ui ? 160 : 36;
+			$thumb_h = $is_line_ui ? 28 : 36;
+			$opt_w   = $is_line_ui ? 220 : 32;
+			$opt_h   = $is_line_ui ? 36 : 32;
 			?>
 			<div class="<?php echo esc_attr( $picker_cls ); ?>" data-visual-picker="<?php echo esc_attr( $id ); ?>">
 				<input
@@ -151,14 +161,14 @@ foreach ( $customer_options as $option ) :
 							data-visual-preview-img
 							src="<?php echo $preview_img ? esc_url( $preview_img ) : ''; ?>"
 							alt=""
-							width="36"
-							height="36"
+							width="<?php echo (int) $thumb_w; ?>"
+							height="<?php echo (int) $thumb_h; ?>"
 							loading="lazy"
 							crossorigin="anonymous"
 						>
 						<span class="pckz-visual-picker__empty<?php echo $preview_img ? ' pckz-hidden' : ''; ?>" data-visual-preview-empty aria-hidden="true">—</span>
 					</span>
-					<span class="pckz-visual-picker__label o--text" data-visual-preview-label><?php echo esc_html( $preview_lbl ); ?></span>
+					<span class="pckz-visual-picker__label o--text<?php echo ( $is_icon_ui || $is_line_ui ) ? ' pckz-sr-only' : ''; ?>" data-visual-preview-label><?php echo esc_html( $preview_lbl ); ?></span>
 					<span class="pckz-visual-picker__caret" aria-hidden="true"></span>
 				</button>
 				<ul
@@ -185,15 +195,15 @@ foreach ( $customer_options as $option ) :
 						>
 							<span class="o--img">
 								<?php if ( $img ) : ?>
-									<img src="<?php echo esc_url( $img ); ?>" alt="" width="32" height="32" loading="lazy" crossorigin="anonymous">
+									<img src="<?php echo esc_url( $img ); ?>" alt="" width="<?php echo (int) $opt_w; ?>" height="<?php echo (int) $opt_h; ?>" loading="lazy" crossorigin="anonymous">
 								<?php else : ?>
 									<span class="pckz-visual-picker__opt-empty">—</span>
 								<?php endif; ?>
 							</span>
-							<?php if ( ! $is_icon_ui ) : ?>
-								<span class="o--text"><?php echo esc_html( $lbl ); ?></span>
-							<?php else : ?>
+							<?php if ( $is_icon_ui || $is_line_ui ) : ?>
 								<span class="o--text pckz-sr-only"><?php echo esc_html( $lbl ); ?></span>
+							<?php else : ?>
+								<span class="o--text"><?php echo esc_html( $lbl ); ?></span>
 							<?php endif; ?>
 						</li>
 					<?php endforeach; ?>
