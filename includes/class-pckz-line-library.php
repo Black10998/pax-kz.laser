@@ -317,25 +317,64 @@ class PCKZ_Line_Library {
 		if ( false === $contents || ! self::is_safe_svg( $contents ) ) {
 			return new WP_Error( 'unsafe_svg', __( 'SVG enthält nicht erlaubte Inhalte.', 'pckz-canonical-engine' ) );
 		}
-		$slug     = self::next_upload_slug();
+		$slug  = self::next_upload_slug();
+		$label = isset( $_POST['line_upload_label'] ) ? sanitize_text_field( wp_unslash( $_POST['line_upload_label'] ) ) : self::default_label_for_slug( $slug );
+		if ( '' === $label ) {
+			$label = self::default_label_for_slug( $slug );
+		}
+		return self::store_custom_svg( $contents, $slug, $label, 'upload' );
+	}
+
+	/**
+	 * Import SVG from a remote URL and store locally.
+	 *
+	 * @param string $url   Remote SVG URL.
+	 * @param string $label Optional display label.
+	 * @return array|WP_Error
+	 */
+	public static function handle_url_import( $url, $label = '' ) {
+		$contents = PCKZ_Svg_Library::fetch_from_url( $url );
+		if ( is_wp_error( $contents ) ) {
+			return $contents;
+		}
+		if ( ! self::is_safe_svg( $contents ) ) {
+			return new WP_Error( 'unsafe_svg', __( 'SVG enthält nicht erlaubte Inhalte.', 'pckz-canonical-engine' ) );
+		}
+		$slug = self::next_upload_slug();
+		if ( '' === $label ) {
+			$base  = PCKZ_Svg_Library::basename_from_url( $url );
+			$label = $base ? ucwords( str_replace( '-', ' ', $base ) ) : self::default_label_for_slug( $slug );
+		} else {
+			$label = sanitize_text_field( $label );
+		}
+		return self::store_custom_svg( $contents, $slug, $label, 'url' );
+	}
+
+	/**
+	 * Persist validated custom SVG and register manifest entry.
+	 *
+	 * @param string $contents SVG source.
+	 * @param string $slug     Unique slug.
+	 * @param string $label    Display label.
+	 * @param string $source   upload|url.
+	 * @return array|WP_Error
+	 */
+	private static function store_custom_svg( $contents, $slug, $label, $source = 'upload' ) {
+		$slug     = sanitize_key( $slug );
 		$filename = $slug . '.svg';
 		$dest     = self::upload_dir() . '/' . $filename;
 		if ( ! file_put_contents( $dest, $contents ) ) {
 			return new WP_Error( 'write_fail', __( 'SVG konnte nicht gespeichert werden.', 'pckz-canonical-engine' ) );
-		}
-		$base  = sanitize_title( pathinfo( $file['name'], PATHINFO_FILENAME ) );
-		$label = isset( $_POST['line_upload_label'] ) ? sanitize_text_field( wp_unslash( $_POST['line_upload_label'] ) ) : self::default_label_for_slug( $slug );
-		if ( '' === $label ) {
-			$label = self::default_label_for_slug( $slug );
 		}
 		$custom = self::option_get( self::OPTION_CUSTOM, array() );
 		if ( ! is_array( $custom ) ) {
 			$custom = array();
 		}
 		$custom[ $slug ] = array(
-			'label'            => $label,
+			'label'            => sanitize_text_field( $label ),
 			'file'             => $filename,
 			'customer_visible' => true,
+			'source'           => in_array( $source, array( 'upload', 'url' ), true ) ? $source : 'upload',
 		);
 		self::option_update( self::OPTION_CUSTOM, $custom );
 
@@ -354,10 +393,9 @@ class PCKZ_Line_Library {
 	 * @return bool
 	 */
 	public static function is_safe_svg( $svg ) {
-		if ( stripos( $svg, '<script' ) !== false || stripos( $svg, '<?php' ) !== false ) {
-			return false;
-		}
-		return (bool) preg_match( '/<svg[\s>]/i', $svg );
+		return class_exists( 'PCKZ_Svg_Library' )
+			? PCKZ_Svg_Library::is_safe_svg( $svg )
+			: ( ( stripos( $svg, '<script' ) === false && stripos( $svg, '<?php' ) === false ) && (bool) preg_match( '/<svg[\s>]/i', $svg ) );
 	}
 
 	/**
@@ -391,6 +429,45 @@ class PCKZ_Line_Library {
 			self::option_update( self::OPTION_LABELS, $labels );
 		}
 		return true;
+	}
+
+	/**
+	 * Delete multiple custom lines (built-in items are skipped).
+	 *
+	 * @param array $slugs Slugs to delete.
+	 * @return array{deleted:int,failed:int,skipped:int}|WP_Error
+	 */
+	public static function delete_custom_bulk( $slugs ) {
+		if ( ! is_array( $slugs ) || empty( $slugs ) ) {
+			return new WP_Error( 'bulk_empty', __( 'Keine Linien zum Löschen ausgewählt.', 'pckz-canonical-engine' ) );
+		}
+		$deleted = 0;
+		$failed  = 0;
+		$skipped = 0;
+		foreach ( $slugs as $slug ) {
+			$slug = sanitize_key( (string) $slug );
+			if ( ! $slug ) {
+				continue;
+			}
+			if ( ! self::is_custom( $slug ) ) {
+				++$skipped;
+				continue;
+			}
+			$result = self::delete_custom( $slug );
+			if ( is_wp_error( $result ) ) {
+				++$failed;
+			} else {
+				++$deleted;
+			}
+		}
+		if ( 0 === $deleted && 0 === $failed ) {
+			return new WP_Error( 'bulk_none', __( 'Keine benutzerdefinierten Linien konnten gelöscht werden.', 'pckz-canonical-engine' ) );
+		}
+		return array(
+			'deleted' => $deleted,
+			'failed'  => $failed,
+			'skipped' => $skipped,
+		);
 	}
 
 	/**

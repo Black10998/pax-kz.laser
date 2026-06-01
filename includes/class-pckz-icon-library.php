@@ -378,24 +378,72 @@ class PCKZ_Icon_Library {
 		if ( self::is_bundled( $slug ) || self::is_custom( $slug ) ) {
 			$slug .= '-' . substr( wp_generate_uuid4(), 0, 6 );
 		}
+		$label = isset( $_POST['icon_upload_label'] ) ? sanitize_text_field( wp_unslash( $_POST['icon_upload_label'] ) ) : ucwords( str_replace( '-', ' ', $base ) );
+		return self::store_custom_svg( $contents, $slug, $label, 'upload' );
+	}
+
+	/**
+	 * Import SVG from a remote URL and store locally.
+	 *
+	 * @param string $url   Remote SVG URL.
+	 * @param string $label Optional display label.
+	 * @return array|WP_Error
+	 */
+	public static function handle_url_import( $url, $label = '' ) {
+		$contents = PCKZ_Svg_Library::fetch_from_url( $url );
+		if ( is_wp_error( $contents ) ) {
+			return $contents;
+		}
+		if ( ! self::is_safe_svg( $contents ) ) {
+			return new WP_Error( 'unsafe_svg', __( 'SVG enthält nicht erlaubte Inhalte.', 'pckz-canonical-engine' ) );
+		}
+		$base = PCKZ_Svg_Library::basename_from_url( $url );
+		$slug = sanitize_key( $base );
+		if ( ! $slug ) {
+			$slug = 'icon-' . substr( wp_generate_uuid4(), 0, 8 );
+		}
+		if ( self::is_bundled( $slug ) || self::is_custom( $slug ) ) {
+			$slug .= '-' . substr( wp_generate_uuid4(), 0, 6 );
+		}
+		if ( '' === $label ) {
+			$label = ucwords( str_replace( '-', ' ', $base ) );
+			if ( '' === trim( $label ) ) {
+				$label = $slug;
+			}
+		} else {
+			$label = sanitize_text_field( $label );
+		}
+		return self::store_custom_svg( $contents, $slug, $label, 'url' );
+	}
+
+	/**
+	 * Persist validated custom SVG and register manifest entry.
+	 *
+	 * @param string $contents SVG source.
+	 * @param string $slug     Unique slug.
+	 * @param string $label    Display label.
+	 * @param string $source   upload|url.
+	 * @return array|WP_Error
+	 */
+	private static function store_custom_svg( $contents, $slug, $label, $source = 'upload' ) {
+		$slug     = sanitize_key( $slug );
 		$filename = $slug . '.svg';
 		$dest     = self::upload_dir() . '/' . $filename;
 		if ( ! file_put_contents( $dest, $contents ) ) {
 			return new WP_Error( 'write_fail', __( 'SVG konnte nicht gespeichert werden.', 'pckz-canonical-engine' ) );
 		}
-		$label  = isset( $_POST['icon_upload_label'] ) ? sanitize_text_field( wp_unslash( $_POST['icon_upload_label'] ) ) : ucwords( str_replace( '-', ' ', $base ) );
 		$custom = self::option_get( self::OPTION_CUSTOM, array() );
 		if ( ! is_array( $custom ) ) {
 			$custom = array();
 		}
 		$custom[ $slug ] = array(
-			'label'            => $label,
+			'label'            => sanitize_text_field( $label ),
 			'file'             => $filename,
 			'customer_visible' => true,
+			'source'           => in_array( $source, array( 'upload', 'url' ), true ) ? $source : 'upload',
 		);
 		self::option_update( self::OPTION_CUSTOM, $custom );
 
-		// Ensure new uploads stay customer-visible even if a stale disabled list exists.
 		$disabled = array_values(
 			array_diff( self::disabled_slugs(), array( $slug ) )
 		);
@@ -411,10 +459,9 @@ class PCKZ_Icon_Library {
 	 * @return bool
 	 */
 	public static function is_safe_svg( $svg ) {
-		if ( stripos( $svg, '<script' ) !== false || stripos( $svg, '<?php' ) !== false ) {
-			return false;
-		}
-		return (bool) preg_match( '/<svg[\s>]/i', $svg );
+		return class_exists( 'PCKZ_Svg_Library' )
+			? PCKZ_Svg_Library::is_safe_svg( $svg )
+			: ( ( stripos( $svg, '<script' ) === false && stripos( $svg, '<?php' ) === false ) && (bool) preg_match( '/<svg[\s>]/i', $svg ) );
 	}
 
 	/**
@@ -448,6 +495,45 @@ class PCKZ_Icon_Library {
 			self::option_update( self::OPTION_LABELS, $labels );
 		}
 		return true;
+	}
+
+	/**
+	 * Delete multiple custom icons (built-in items are skipped).
+	 *
+	 * @param array $slugs Slugs to delete.
+	 * @return array{deleted:int,failed:int,skipped:int}|WP_Error
+	 */
+	public static function delete_custom_bulk( $slugs ) {
+		if ( ! is_array( $slugs ) || empty( $slugs ) ) {
+			return new WP_Error( 'bulk_empty', __( 'Keine Icons zum Löschen ausgewählt.', 'pckz-canonical-engine' ) );
+		}
+		$deleted = 0;
+		$failed  = 0;
+		$skipped = 0;
+		foreach ( $slugs as $slug ) {
+			$slug = sanitize_key( (string) $slug );
+			if ( ! $slug ) {
+				continue;
+			}
+			if ( ! self::is_custom( $slug ) ) {
+				++$skipped;
+				continue;
+			}
+			$result = self::delete_custom( $slug );
+			if ( is_wp_error( $result ) ) {
+				++$failed;
+			} else {
+				++$deleted;
+			}
+		}
+		if ( 0 === $deleted && 0 === $failed ) {
+			return new WP_Error( 'bulk_none', __( 'Keine benutzerdefinierten Icons konnten gelöscht werden.', 'pckz-canonical-engine' ) );
+		}
+		return array(
+			'deleted' => $deleted,
+			'failed'  => $failed,
+			'skipped' => $skipped,
+		);
 	}
 
 	/**

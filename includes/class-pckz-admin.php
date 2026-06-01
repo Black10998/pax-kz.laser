@@ -220,6 +220,31 @@ class PCKZ_Admin {
 	}
 
 	/**
+	 * Parse JSON slug list from library bulk-delete form.
+	 *
+	 * @param mixed $json Raw JSON string.
+	 * @return string[]
+	 */
+	private function parse_library_bulk_slugs( $json ) {
+		$raw = is_string( $json ) ? trim( $json ) : '';
+		if ( '' === $raw ) {
+			return array();
+		}
+		$decoded = json_decode( wp_unslash( $raw ), true );
+		if ( ! is_array( $decoded ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $decoded as $slug ) {
+			$s = sanitize_key( (string) $slug );
+			if ( $s ) {
+				$out[] = $s;
+			}
+		}
+		return array_values( array_unique( $out ) );
+	}
+
+	/**
 	 * Sanitize global settings on save.
 	 *
 	 * @param array $input Raw input.
@@ -400,34 +425,80 @@ class PCKZ_Admin {
 
 		if ( false !== strpos( $hook, 'pckz-icon-library' ) ) {
 			wp_enqueue_script(
-				'pckz-icon-library',
-				PCKZCE_PLUGIN_URL . 'admin/js/icon-library.js',
+				'pckz-library-admin',
+				PCKZCE_PLUGIN_URL . 'admin/js/library-admin.js',
 				array(),
-				PCKZ_Assets::version( 'admin/js/icon-library.js' ),
+				PCKZ_Assets::version( 'admin/js/library-admin.js' ),
 				true
 			);
 			wp_localize_script(
-				'pckz-icon-library',
-				'pckzIconLibrary',
+				'pckz-library-admin',
+				'pckzLibraryAdmin',
 				array(
-					'emptyPayloadMessage' => __( 'Icon library save payload is empty. Please reload the page and try again.', 'pckz-canonical-engine' ),
+					'icon' => array(
+						'tableSelector'      => '.pckz-icon-library-table',
+						'formId'             => 'pckz-icon-library-save-form',
+						'payloadId'          => 'pckz-icon-library-payload',
+						'bulkInputId'        => 'pckz-icon-bulk-slugs',
+						'bulkActionId'       => 'pckz-icon-bulk-delete-flag',
+						'rowSlugAttr'        => 'data-icon-slug',
+						'payloadKey'         => 'icons',
+						'enabledClass'       => 'pckz-icon-enabled',
+						'labelClass'         => 'pckz-icon-label',
+						'bulkCheckboxClass'  => 'pckz-library-bulk-select',
+						'enableAllId'        => 'pckz-icon-enable-all',
+						'disableAllId'       => 'pckz-icon-disable-all',
+						'selectAllId'        => 'pckz-icon-select-all-custom',
+						'deselectAllId'      => 'pckz-icon-deselect-all-custom',
+						'headerSelectId'     => 'pckz-icon-header-select',
+						'bulkDeleteId'       => 'pckz-icon-bulk-delete',
+						'singleDeleteName'   => 'pckz_icon_delete',
+						'messages'           => array(
+							'emptyPayload'       => __( 'Icon library save payload is empty. Please reload the page and try again.', 'pckz-canonical-engine' ),
+							'selectItems'        => __( 'Select one or more custom icons to delete.', 'pckz-canonical-engine' ),
+							'confirmBulkDelete'  => __( 'Delete {count} selected icon(s)? This cannot be undone.', 'pckz-canonical-engine' ),
+						),
+					),
 				)
 			);
 		}
 
 		if ( false !== strpos( $hook, 'pckz-line-library' ) ) {
 			wp_enqueue_script(
-				'pckz-line-library',
-				PCKZCE_PLUGIN_URL . 'admin/js/line-library.js',
+				'pckz-library-admin',
+				PCKZCE_PLUGIN_URL . 'admin/js/library-admin.js',
 				array(),
-				PCKZ_Assets::version( 'admin/js/line-library.js' ),
+				PCKZ_Assets::version( 'admin/js/library-admin.js' ),
 				true
 			);
 			wp_localize_script(
-				'pckz-line-library',
-				'pckzLineLibrary',
+				'pckz-library-admin',
+				'pckzLibraryAdmin',
 				array(
-					'emptyPayloadMessage' => __( 'Line library save payload is empty. Please reload the page and try again.', 'pckz-canonical-engine' ),
+					'line' => array(
+						'tableSelector'      => '.pckz-line-library-table',
+						'formId'             => 'pckz-line-library-save-form',
+						'payloadId'          => 'pckz-line-library-payload',
+						'bulkInputId'        => 'pckz-line-bulk-slugs',
+						'bulkActionId'       => 'pckz-line-bulk-delete-flag',
+						'rowSlugAttr'        => 'data-line-slug',
+						'payloadKey'         => 'lines',
+						'enabledClass'       => 'pckz-line-enabled',
+						'labelClass'         => 'pckz-line-label',
+						'bulkCheckboxClass'  => 'pckz-library-bulk-select',
+						'enableAllId'        => 'pckz-line-enable-all',
+						'disableAllId'       => 'pckz-line-disable-all',
+						'selectAllId'        => 'pckz-line-select-all-custom',
+						'deselectAllId'      => 'pckz-line-deselect-all-custom',
+						'headerSelectId'     => 'pckz-line-header-select',
+						'bulkDeleteId'       => 'pckz-line-bulk-delete',
+						'singleDeleteName'   => 'pckz_line_delete',
+						'messages'           => array(
+							'emptyPayload'       => __( 'Line library save payload is empty. Please reload the page and try again.', 'pckz-canonical-engine' ),
+							'selectItems'        => __( 'Select one or more custom lines to delete.', 'pckz-canonical-engine' ),
+							'confirmBulkDelete'  => __( 'Delete {count} selected line design(s)? This cannot be undone.', 'pckz-canonical-engine' ),
+						),
+					),
 				)
 			);
 		}
@@ -459,16 +530,34 @@ class PCKZ_Admin {
 			}
 		}
 
-		if ( isset( $_POST['pckz_icon_delete'] ) && check_admin_referer( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ) ) {
+		if ( isset( $_POST['pckz_icon_library_url_import'] ) && check_admin_referer( 'pckz_icon_library_url', 'pckz_icon_library_url_nonce' ) ) {
+			$url   = isset( $_POST['icon_import_url'] ) ? esc_url_raw( wp_unslash( $_POST['icon_import_url'] ) ) : '';
+			$label = isset( $_POST['icon_import_label'] ) ? sanitize_text_field( wp_unslash( $_POST['icon_import_label'] ) ) : '';
+			$result = PCKZ_Icon_Library::handle_url_import( $url, $label );
+			if ( is_wp_error( $result ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-success"><p>' . esc_html__( 'Icon imported from URL.', 'pckz-canonical-engine' ) . '</p></div>';
+			}
+		}
+
+		if ( ! empty( $_POST['pckz_icon_library_bulk_delete'] ) && check_admin_referer( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ) ) {
+			$slugs  = $this->parse_library_bulk_slugs( $_POST['pckz_icon_bulk_slugs_json'] ?? '' );
+			$result = PCKZ_Icon_Library::delete_custom_bulk( $slugs );
+			if ( is_wp_error( $result ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+			} else {
+				/* translators: %d: number of deleted icons */
+				echo '<div class="notice notice-success"><p>' . esc_html( sprintf( __( '%d icon(s) deleted.', 'pckz-canonical-engine' ), (int) $result['deleted'] ) ) . '</p></div>';
+			}
+		} elseif ( isset( $_POST['pckz_icon_delete'] ) && check_admin_referer( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ) ) {
 			$del = PCKZ_Icon_Library::delete_custom( sanitize_key( wp_unslash( $_POST['pckz_icon_delete'] ) ) );
 			if ( is_wp_error( $del ) ) {
 				echo '<div class="notice notice-error"><p>' . esc_html( $del->get_error_message() ) . '</p></div>';
 			} else {
 				echo '<div class="notice notice-success"><p>' . esc_html__( 'Icon deleted.', 'pckz-canonical-engine' ) . '</p></div>';
 			}
-		}
-
-		if ( isset( $_POST['pckz_icon_library_save'] ) && check_admin_referer( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ) && ! isset( $_POST['pckz_icon_delete'] ) ) {
+		} elseif ( isset( $_POST['pckz_icon_library_save'] ) && check_admin_referer( 'pckz_icon_library_save', 'pckz_icon_library_nonce' ) ) {
 			$result = PCKZ_Icon_Library::save_admin_state_from_post( wp_unslash( $_POST ) );
 			if ( is_wp_error( $result ) ) {
 				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
@@ -500,16 +589,34 @@ class PCKZ_Admin {
 			}
 		}
 
-		if ( isset( $_POST['pckz_line_delete'] ) && check_admin_referer( 'pckz_line_library_save', 'pckz_line_library_nonce' ) ) {
+		if ( isset( $_POST['pckz_line_library_url_import'] ) && check_admin_referer( 'pckz_line_library_url', 'pckz_line_library_url_nonce' ) ) {
+			$url   = isset( $_POST['line_import_url'] ) ? esc_url_raw( wp_unslash( $_POST['line_import_url'] ) ) : '';
+			$label = isset( $_POST['line_import_label'] ) ? sanitize_text_field( wp_unslash( $_POST['line_import_label'] ) ) : '';
+			$result = PCKZ_Line_Library::handle_url_import( $url, $label );
+			if ( is_wp_error( $result ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-success"><p>' . esc_html__( 'Line design imported from URL.', 'pckz-canonical-engine' ) . '</p></div>';
+			}
+		}
+
+		if ( ! empty( $_POST['pckz_line_library_bulk_delete'] ) && check_admin_referer( 'pckz_line_library_save', 'pckz_line_library_nonce' ) ) {
+			$slugs  = $this->parse_library_bulk_slugs( $_POST['pckz_line_bulk_slugs_json'] ?? '' );
+			$result = PCKZ_Line_Library::delete_custom_bulk( $slugs );
+			if ( is_wp_error( $result ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+			} else {
+				/* translators: %d: number of deleted lines */
+				echo '<div class="notice notice-success"><p>' . esc_html( sprintf( __( '%d line design(s) deleted.', 'pckz-canonical-engine' ), (int) $result['deleted'] ) ) . '</p></div>';
+			}
+		} elseif ( isset( $_POST['pckz_line_delete'] ) && check_admin_referer( 'pckz_line_library_save', 'pckz_line_library_nonce' ) ) {
 			$del = PCKZ_Line_Library::delete_custom( sanitize_key( wp_unslash( $_POST['pckz_line_delete'] ) ) );
 			if ( is_wp_error( $del ) ) {
 				echo '<div class="notice notice-error"><p>' . esc_html( $del->get_error_message() ) . '</p></div>';
 			} else {
 				echo '<div class="notice notice-success"><p>' . esc_html__( 'Line design deleted.', 'pckz-canonical-engine' ) . '</p></div>';
 			}
-		}
-
-		if ( isset( $_POST['pckz_line_library_save'] ) && check_admin_referer( 'pckz_line_library_save', 'pckz_line_library_nonce' ) && ! isset( $_POST['pckz_line_delete'] ) ) {
+		} elseif ( isset( $_POST['pckz_line_library_save'] ) && check_admin_referer( 'pckz_line_library_save', 'pckz_line_library_nonce' ) ) {
 			$result = PCKZ_Line_Library::save_admin_state_from_post( wp_unslash( $_POST ) );
 			if ( is_wp_error( $result ) ) {
 				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';

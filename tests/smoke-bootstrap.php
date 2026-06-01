@@ -340,12 +340,21 @@ if ( ! function_exists( 'pckz_smoke_live_http_get' ) ) {
 		if ( strpos( $url, 'line' ) !== false || strpos( $url, 'Line' ) !== false ) {
 			return array(
 				'response' => array( 'code' => 200 ),
+				'headers'  => array( 'content-type' => 'image/svg+xml' ),
 				'body'     => $GLOBALS['pckz_smoke_line_svg'],
+			);
+		}
+		if ( preg_match( '/\.svg(?:$|[?#])/i', $url ) ) {
+			return array(
+				'response' => array( 'code' => 200 ),
+				'headers'  => array( 'content-type' => 'image/svg+xml' ),
+				'body'     => $GLOBALS['pckz_smoke_icon_svg'],
 			);
 		}
 		if ( strpos( $url, 'Icon_background' ) !== false || strpos( $url, 'instagram' ) !== false ) {
 			return array(
 				'response' => array( 'code' => 200 ),
+				'headers'  => array( 'content-type' => 'image/svg+xml' ),
 				'body'     => $GLOBALS['pckz_smoke_icon_svg'],
 			);
 		}
@@ -361,6 +370,21 @@ if ( ! function_exists( 'delete_transient' ) ) {
 if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
 	function wp_remote_retrieve_response_code( $response ) {
 		return is_array( $response ) ? (int) ( $response['response']['code'] ?? 0 ) : 0;
+	}
+}
+if ( ! function_exists( 'wp_remote_retrieve_header' ) ) {
+	function wp_remote_retrieve_header( $response, $name ) {
+		if ( ! is_array( $response ) ) {
+			return '';
+		}
+		$key = strtolower( (string) $name );
+		$headers = $response['headers'] ?? array();
+		return isset( $headers[ $key ] ) ? (string) $headers[ $key ] : '';
+	}
+}
+if ( ! function_exists( 'wp_http_validate_url' ) ) {
+	function wp_http_validate_url( $url ) {
+		return is_string( $url ) && preg_match( '#^https?://#i', $url ) ? $url : false;
 	}
 }
 if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {

@@ -293,8 +293,38 @@
 }
 
 .pckz-font-library-table .pckz-admin-font-preview,
-.pckz-icon-library-table img {
+.pckz-icon-library-table img,
+.pckz-line-library-table img {
 	display: block;
+}
+
+.pckz-library-add-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 16px;
+}
+
+.pckz-library-upload-card {
+	padding: 12px 14px;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	background: #fafafa;
+}
+
+.pckz-library-upload-card h3 {
+	margin: 0 0 10px;
+	font-size: 14px;
+}
+
+.pckz-library-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.pckz-library-toolbar__sep {
+	color: #a7aaad;
 }
 
 .pckz-badge {
@@ -311,7 +341,8 @@
 }
 
 .pckz-font-library-admin,
-.pckz-icon-library-admin {
+.pckz-icon-library-admin,
+.pckz-line-library-admin {
 	max-width: 1200px;
 }
 
