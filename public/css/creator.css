@@ -153,10 +153,10 @@
 }
 
 .pckz-gallery__stage-wrap {
-	background: var(--pckz-gray-100);
-	border-radius: var(--pckz-radius);
-	border: 1px solid var(--pckz-gray-200);
-	overflow: hidden;
+	background: transparent;
+	border: none;
+	border-radius: 0;
+	overflow: visible;
 	width: 100%;
 }
 
@@ -171,8 +171,8 @@
 	aspect-ratio: 529.1 / 116;
 	min-height: 200px;
 	max-height: min(52vh, 480px);
-	background: var(--pckz-gray-100);
-	transition: background 0.2s ease;
+	background: transparent;
+	transition: none;
 }
 
 .pckz-gallery__fallback {
@@ -192,7 +192,7 @@
 }
 
 .pckz-gallery__stage.is-night {
-	background: #0a0a0a;
+	background: transparent;
 }
 
 .pckz-gallery__canvas {
@@ -211,6 +211,67 @@
 .pckz-gallery__stage .canvas-container canvas {
 	width: 100% !important;
 	height: 100% !important;
+}
+
+/* Visual-only hover zoom: scales rendered output, not Fabric coordinates. */
+@media (hover: hover) and (pointer: fine) {
+	.pckz-gallery__stage {
+		cursor: zoom-in;
+	}
+
+	.pckz-gallery__stage .canvas-container,
+	.pckz-gallery__stage .pckz-gallery__fallback {
+		transition:
+			transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+			opacity 0.25s ease;
+		transform-origin: center center;
+		will-change: transform;
+	}
+
+	.pckz-gallery__stage:hover .canvas-container,
+	.pckz-gallery__stage:hover .pckz-gallery__fallback {
+		transform: scale(1.12);
+	}
+
+	.pckz-gallery__stage::after {
+		content: "";
+		position: absolute;
+		right: 10px;
+		bottom: 10px;
+		z-index: 3;
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.88)
+			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E")
+			center / 14px 14px no-repeat;
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+		opacity: 0;
+		transform: scale(0.85);
+		transition: opacity 0.35s ease, transform 0.35s ease;
+		pointer-events: none;
+	}
+
+	.pckz-gallery__stage:hover::after {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pckz-gallery__stage .canvas-container,
+	.pckz-gallery__stage .pckz-gallery__fallback {
+		transition: opacity 0.25s ease;
+	}
+
+	.pckz-gallery__stage:hover .canvas-container,
+	.pckz-gallery__stage:hover .pckz-gallery__fallback {
+		transform: none;
+	}
+
+	.pckz-gallery__stage::after {
+		display: none;
+	}
 }
 
 .pckz-gallery__loader {
