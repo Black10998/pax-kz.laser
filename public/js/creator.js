@@ -75,6 +75,7 @@
 			this._mobileViewportLock = false;
 			this._mobileResizeUnlockTimer = null;
 			this._creatorReadyMarked = false;
+			this.iconColorUserSet = { left: false, right: false };
 			this.init();
 		}
 
@@ -220,6 +221,11 @@
 			this._creatorReadyMarked = true;
 			this.root.classList.remove('pckz-product--booting');
 			this.root.classList.add('is-creator-ready');
+			const wrapper = this.root.closest('.pckz-creator-wrapper');
+			if (wrapper) {
+				wrapper.classList.remove('pckz-creator-wrapper--loading');
+				wrapper.classList.add('is-creator-ready');
+			}
 			const boot = this.root.querySelector('[data-creator-boot]');
 			if (boot) {
 				boot.hidden = true;
@@ -960,6 +966,12 @@
 						if (hidden) {
 							hidden.value = btn.dataset.value;
 						}
+						const optionId = field.dataset.optionId || '';
+						if (optionId === 'icon_color_left') {
+							this.iconColorUserSet.left = true;
+						} else if (optionId === 'icon_color_right') {
+							this.iconColorUserSet.right = true;
+						}
 						syncMobileColorPreview(btn.dataset.value || '#ffffff');
 						if (mobileColorPicker && mobileColorTrigger) {
 							mobileColorPicker.classList.remove('is-open');
@@ -1264,6 +1276,8 @@
 					this.selections.icon_color_left || this.selections.symbol_color || '#ffffff',
 				icon_color_right:
 					this.selections.icon_color_right || this.selections.symbol_color || '#ffffff',
+				icon_color_left_user_set: this.iconColorUserSet.left,
+				icon_color_right_user_set: this.iconColorUserSet.right,
 				linien: this.selections.linien || 'none',
 				line_color: this.selections.line_color || '#FF0000',
 				led_enabled: this.selections.led_enabled || 'yes',
@@ -1301,6 +1315,13 @@
 			const prev = { ...this.selections };
 			this.collectSelections();
 			this.applyConditionalFields();
+
+			if (this.selections.symbol_links !== prev.symbol_links) {
+				this.iconColorUserSet.left = false;
+			}
+			if (this.selections.symbol_rechts !== prev.symbol_rechts) {
+				this.iconColorUserSet.right = false;
+			}
 
 			const mode = this.getEffectivePreviewMode();
 			if (mode !== this.previewMode) {

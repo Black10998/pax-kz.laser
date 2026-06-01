@@ -109,4 +109,75 @@ class PCKZ_Svg_Library {
 		$base = $path ? pathinfo( $path, PATHINFO_FILENAME ) : '';
 		return sanitize_title( $base );
 	}
+
+	/**
+	 * Whether an SVG should keep its native colors (multi-color artwork).
+	 *
+	 * @param string $svg SVG source.
+	 * @return bool
+	 */
+	public static function svg_should_preserve_colors( $svg ) {
+		if ( ! is_string( $svg ) || '' === trim( $svg ) ) {
+			return false;
+		}
+		if ( preg_match( '/<(?:linear|radial)Gradient|url\s*\(\s*#/i', $svg ) ) {
+			return true;
+		}
+		$colors = self::collect_svg_paint_colors( $svg );
+		return count( $colors ) >= 2;
+	}
+
+	/**
+	 * Collect distinct non-transparent paint colors from SVG markup.
+	 *
+	 * @param string $svg SVG source.
+	 * @return string[]
+	 */
+	public static function collect_svg_paint_colors( $svg ) {
+		$colors = array();
+		$patterns = array(
+			'/(?:fill|stroke)\s*=\s*["\']([^"\']+)["\']/i',
+			'/(?:fill|stroke)\s*:\s*([^;"\'\s]+)/i',
+		);
+		foreach ( $patterns as $pattern ) {
+			if ( ! preg_match_all( $pattern, $svg, $matches ) ) {
+				continue;
+			}
+			foreach ( $matches[1] as $raw ) {
+				$color = self::normalize_svg_color_token( $raw );
+				if ( $color ) {
+					$colors[ $color ] = true;
+				}
+			}
+		}
+		return array_keys( $colors );
+	}
+
+	/**
+	 * @param string $raw Raw color token.
+	 * @return string Normalized color or empty string.
+	 */
+	private static function normalize_svg_color_token( $raw ) {
+		$color = strtolower( trim( (string) $raw ) );
+		if ( '' === $color ) {
+			return '';
+		}
+		if ( in_array( $color, array( 'none', 'transparent', 'currentcolor', 'inherit' ), true ) ) {
+			return '';
+		}
+		if ( 0 === strpos( $color, 'url(' ) ) {
+			return '';
+		}
+		return $color;
+	}
+
+	/**
+	 * Resolve icon color mode for library storage/catalog.
+	 *
+	 * @param string $svg SVG source.
+	 * @return string preserve|tintable
+	 */
+	public static function icon_color_mode_for_svg( $svg ) {
+		return self::svg_should_preserve_colors( $svg ) ? 'preserve' : 'tintable';
+	}
 }

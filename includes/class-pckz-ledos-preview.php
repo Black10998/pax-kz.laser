@@ -337,12 +337,15 @@ class PCKZ_Ledos_Preview {
 				if ( ! $url ) {
 					continue;
 				}
+				$color_mode = PCKZ_Icon_Library::color_mode_for_slug( $slug );
+				$preserve   = ( 'preserve' === $color_mode );
 				$items[ $slug ] = array(
-					'url'      => $url,
-					'preview'  => $url,
-					'tintable' => true,
-					'label'    => PCKZ_Icon_Library::label_for_slug( $slug, $row['label'] ?? $slug ),
-					'custom'   => true,
+					'url'             => $url,
+					'preview'         => $url,
+					'tintable'        => ! $preserve,
+					'preserve_colors' => $preserve,
+					'label'           => PCKZ_Icon_Library::label_for_slug( $slug, $row['label'] ?? $slug ),
+					'custom'          => true,
 				);
 			}
 			foreach ( $items as $slug => $data ) {

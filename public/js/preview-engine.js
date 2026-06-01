@@ -138,6 +138,38 @@
 			}
 		}
 
+		/**
+		 * Decide whether a catalog icon should receive customer color tinting.
+		 *
+		 * @param {string} slug Icon slug.
+		 * @param {object} state Preview state.
+		 * @param {'left'|'right'} side Symbol side.
+		 * @returns {{tintable:boolean,color:string|null}}
+		 */
+		resolveIconTint(slug, state, side) {
+			const meta = slug ? this.iconCatalog[slug] || {} : {};
+			if (meta.preserve_colors) {
+				const userSet =
+					side === 'left' ? !!state.icon_color_left_user_set : !!state.icon_color_right_user_set;
+				if (!userSet) {
+					return { tintable: false, color: null };
+				}
+				const colorKey = side === 'left' ? 'icon_color_left' : 'icon_color_right';
+				return {
+					tintable: true,
+					color: state[colorKey] || null,
+				};
+			}
+			if (meta.tintable === false) {
+				return { tintable: false, color: null };
+			}
+			const colorKey = side === 'left' ? 'icon_color_left' : 'icon_color_right';
+			return {
+				tintable: true,
+				color: state[colorKey] || null,
+			};
+		}
+
 		computeSvgObjectsBounds(objects) {
 			if (!Array.isArray(objects) || !objects.length) {
 				return null;
@@ -671,11 +703,11 @@
 			if (state.symbol_links && state.symbol_links !== 'none') {
 				const meta = this.iconCatalog[state.symbol_links];
 				if (meta && meta.url) {
-					const tintable = meta.tintable !== false;
+					const tint = this.resolveIconTint(state.symbol_links, state, 'left');
 					const icon = await this.loadSvgAsset(
 						meta.url,
-						tintable ? state.icon_color_left : null,
-						tintable
+						tint.tintable ? tint.color : null,
+						tint.tintable
 					);
 					if (icon) {
 						icon.pckzSymbol = state.symbol_links;
@@ -689,11 +721,11 @@
 			if (state.symbol_rechts && state.symbol_rechts !== 'none') {
 				const meta = this.iconCatalog[state.symbol_rechts];
 				if (meta && meta.url) {
-					const tintable = meta.tintable !== false;
+					const tint = this.resolveIconTint(state.symbol_rechts, state, 'right');
 					const icon = await this.loadSvgAsset(
 						meta.url,
-						tintable ? state.icon_color_right : null,
-						tintable
+						tint.tintable ? tint.color : null,
+						tint.tintable
 					);
 					if (icon) {
 						icon.pckzSymbol = state.symbol_rechts;
@@ -2738,6 +2770,19 @@ fitTextPathMatrixToFabricBounds(textObj, otPath, baseMatrix) {
 		 */
 		applyExportObjectStyle(obj, role, selections) {
 			if (!obj || !role) {
+				return;
+			}
+			if (role === 'icon-left' || role === 'icon-right') {
+				const side = role === 'icon-left' ? 'left' : 'right';
+				const slug =
+					obj.pckzSymbol ||
+					(side === 'left' ? selections.symbol_links : selections.symbol_rechts) ||
+					'';
+				const tint = this.resolveIconTint(slug, selections, side);
+				if (tint.tintable && tint.color) {
+					const fillHex = this.colorToHex(tint.color) || '#000000';
+					this.recolorSvgObject(obj, fillHex);
+				}
 				return;
 			}
 			if (role.indexOf('icon') >= 0) {

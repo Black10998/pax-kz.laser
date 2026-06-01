@@ -29,6 +29,7 @@ $img_night         = $config['background_night'] ?: $img_day;
 $use_cloudlift     = ! empty( $config['use_cloudlift_layout'] );
 $payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz_paid'];
 ?>
+<style id="pckzce-boot-critical">.pckz-product--booting .pckz-product__form,.pckz-product--booting>.pckz-validation-panel,.pckz-product--booting>.pckz-toast{visibility:hidden!important;opacity:0!important;pointer-events:none!important}.pckz-product--booting .pckz-creator-boot{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:min(52vh,420px);color:#515151;font-size:14px}.pckz-creator-boot{display:none}.pckz-creator-wrapper--loading:not(.is-creator-ready){min-height:min(52vh,420px)}</style>
 <div
 	class="pckz-product pckz-product--booting<?php echo $use_cloudlift ? ' pckz-product--cloudlift' : ''; ?><?php echo $payment_only ? ' pckz-product--paypal-only' : ''; ?>"
 	id="pckz-creator-<?php echo esc_attr( (string) $product_id ); ?>"

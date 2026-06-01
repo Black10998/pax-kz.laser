@@ -150,6 +150,33 @@ class PCKZ_Icon_Library {
 	}
 
 	/**
+	 * Color handling mode for a custom icon slug.
+	 *
+	 * @param string $slug Icon slug.
+	 * @return string preserve|tintable
+	 */
+	public static function color_mode_for_slug( $slug ) {
+		$raw = self::option_get( self::OPTION_CUSTOM, array() );
+		$slug = sanitize_key( $slug );
+		if ( is_array( $raw ) && ! empty( $raw[ $slug ]['color_mode'] ) ) {
+			$mode = sanitize_key( (string) $raw[ $slug ]['color_mode'] );
+			if ( in_array( $mode, array( 'preserve', 'tintable' ), true ) ) {
+				return $mode;
+			}
+		}
+		if ( is_array( $raw ) && ! empty( $raw[ $slug ]['file'] ) ) {
+			$path = self::upload_dir() . '/' . sanitize_file_name( $raw[ $slug ]['file'] );
+			if ( is_readable( $path ) ) {
+				$svg = file_get_contents( $path );
+				if ( is_string( $svg ) && class_exists( 'PCKZ_Svg_Library' ) ) {
+					return PCKZ_Svg_Library::icon_color_mode_for_svg( $svg );
+				}
+			}
+		}
+		return 'tintable';
+	}
+
+	/**
 	 * Upload directory.
 	 *
 	 * @return string
@@ -441,6 +468,7 @@ class PCKZ_Icon_Library {
 			'file'             => $filename,
 			'customer_visible' => true,
 			'source'           => in_array( $source, array( 'upload', 'url' ), true ) ? $source : 'upload',
+			'color_mode'       => PCKZ_Svg_Library::icon_color_mode_for_svg( $contents ),
 		);
 		self::option_update( self::OPTION_CUSTOM, $custom );
 

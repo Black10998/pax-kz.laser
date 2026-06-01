@@ -54,7 +54,7 @@ class PCKZ_Shortcode {
 				. '</div>';
 		}
 
-		$wrapper_class = 'pckz-creator-wrapper';
+		$wrapper_class = 'pckz-creator-wrapper pckz-creator-wrapper--loading';
 		if ( ! empty( $atts['class'] ) ) {
 			$wrapper_class .= ' ' . sanitize_html_class( $atts['class'] );
 		}
