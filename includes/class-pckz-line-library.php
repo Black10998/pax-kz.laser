@@ -570,7 +570,7 @@ class PCKZ_Line_Library {
 			if ( '' === $thumb ) {
 				$thumb = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
 			}
-			$preserve = ! empty( $data['custom'] ) && ! empty( $data['preserve_colors'] );
+			$preserve = ! empty( $data['preserve_colors'] );
 			$choices[] = array(
 				'value'           => $slug,
 				'label'           => $data['label'] ?? self::label_for_slug( $slug, $slug ),

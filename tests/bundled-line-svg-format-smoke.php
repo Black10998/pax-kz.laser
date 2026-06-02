@@ -1,14 +1,32 @@
 <?php
 /**
- * Smoke: bundled type_21–81 SVGs match Cloudlift line artboard (950×35, white).
+ * Smoke: bundled type_21–121 SVGs match Cloudlift line artboard (950×35).
  */
-if ( ! defined( 'PCKZCE_PLUGIN_DIR' ) ) {
-	define( 'PCKZCE_PLUGIN_DIR', dirname( __DIR__ ) . '/' );
+$root = dirname( __DIR__ );
+
+if ( ! defined( 'ABSPATH' ) ) {
+	define( 'ABSPATH', $root . '/' );
 }
 
-require_once dirname( __DIR__ ) . '/includes/class-pckz-ledos-preview.php';
+if ( ! function_exists( 'trailingslashit' ) ) {
+	/**
+	 * @param string $string Path.
+	 * @return string
+	 */
+	function trailingslashit( $string ) {
+		return rtrim( $string, '/\\' ) . '/';
+	}
+}
 
-$dir = PCKZ_Ledos_Preview::line_assets_dir();
+if ( ! defined( 'PCKZCE_PLUGIN_DIR' ) ) {
+	define( 'PCKZCE_PLUGIN_DIR', $root . '/' );
+}
+
+require_once $root . '/includes/class-pckz-ledos-preview.php';
+
+$dir       = PCKZ_Ledos_Preview::line_assets_dir();
+$red_min   = 102;
+$red_color = '#b22222';
 
 for ( $i = PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MIN; $i <= PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MAX; $i++ ) {
 	$path = $dir . 'type_' . $i . '.svg';
@@ -16,7 +34,8 @@ for ( $i = PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MIN; $i <= PCKZ_Ledos_Preview::
 		fwrite( STDERR, "FAIL missing {$path}\n" );
 		exit( 1 );
 	}
-	$svg = file_get_contents( $path );
+	$svg     = file_get_contents( $path );
+	$is_red  = ( $i >= $red_min );
 	if ( ! preg_match( '/viewBox="0 0 950 35"/', $svg ) ) {
 		fwrite( STDERR, "FAIL viewBox 950×35 for type_{$i}\n" );
 		exit( 1 );
@@ -25,26 +44,26 @@ for ( $i = PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MIN; $i <= PCKZ_Ledos_Preview::
 		fwrite( STDERR, "FAIL black fill/stroke in type_{$i}\n" );
 		exit( 1 );
 	}
-	if ( ! preg_match( '/fill="white"|stroke="white"/', $svg ) ) {
+	if ( $is_red ) {
+		if ( ! preg_match( '/' . preg_quote( $red_color, '/' ) . '/i', $svg ) ) {
+			fwrite( STDERR, "FAIL matte red (#B22222) expected in type_{$i}\n" );
+			exit( 1 );
+		}
+	} elseif ( ! preg_match( '/fill="white"|stroke="white"/', $svg ) ) {
 		fwrite( STDERR, "FAIL no white primitives in type_{$i}\n" );
 		exit( 1 );
 	}
-	// Types with horizontal stroke runners must use plate-side text band (like CDN type 5).
-	$has_stroke_runner = (bool) preg_match(
-		'/<path d="M[^"]+ L[^"]+" fill="none" stroke="white"/',
-		$svg
-	);
-	if ( $has_stroke_runner ) {
-		if ( ! preg_match( '/M9\.5 [\d.]+ L(?:19[0-9]|20[0-5])\./', $svg ) ) {
-			fwrite( STDERR, "FAIL missing left runner before text band in type_{$i}\n" );
-			exit( 1 );
-		}
-		if ( ! preg_match( '/M75[0-9][\d.]* [\d.]+ L(?:93[0-9]|940)/', $svg ) ) {
-			fwrite( STDERR, "FAIL missing right runner after text band in type_{$i}\n" );
+	$stroke_pat = $is_red
+		? '<path d="M[^"]+ L[^"]+" fill="none" stroke="#B22222"'
+		: '<path d="M[^"]+ L[^"]+" fill="none" stroke="white"';
+	$has_stroke_runner = (bool) preg_match( '/' . $stroke_pat . '/i', $svg );
+	if ( $has_stroke_runner && preg_match( '/M598 [\d.]+ L940/', $svg ) ) {
+		if ( ! preg_match( '/M9\.5 [\d.]+ L352/', $svg ) ) {
+			fwrite( STDERR, "FAIL missing left runner (9.5→352) in type_{$i}\n" );
 			exit( 1 );
 		}
 	}
 }
 
 $total = PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MAX - PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MIN + 1;
-echo "OK bundled-line-svg-format: {$total} bundled types use 950×35 white artboard\n";
+echo "OK bundled-line-svg-format: {$total} bundled types use 950×35 artboard\n";

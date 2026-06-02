@@ -55,6 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.27.30 =
+
+* Line library: bundled matte-red ornaments type_102–type_121 (20 models, reference sheet rows 1–10 × two variants).
+* Same 950×35 artboard and center runners (9.5→352, 598→940.5) as CDN type_1–20; native `#B22222` preserved in customer preview, picker, SVG export, and LightBurn.
+
 = 2.27.10 =
 
 * Live preview UI: fix mobile black scroll area — canvas removed from document flow before Fabric init; stage size matches CSS box; preview layers clipped on mobile.

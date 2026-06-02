@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="950" height="35" viewBox="0 0 950 35" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M352 20 L347.6699 22.5 L343.3397 20 L343.3397 15 L347.6699 12.5 L352 15 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M598 20 L602.3301 22.5 L606.6603 20 L606.6603 15 L602.3301 12.5 L598 15 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M352 13.25 L348.9689 15 L345.9378 13.25 L345.9378 9.75 L348.9689 8 L352 9.75 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M598 13.25 L601.0311 15 L604.0622 13.25 L604.0622 9.75 L601.0311 8 L598 9.75 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M352 25.25 L348.9689 27 L345.9378 25.25 L345.9378 21.75 L348.9689 20 L352 21.75 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M598 25.25 L601.0311 27 L604.0622 25.25 L604.0622 21.75 L601.0311 20 L598 21.75 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M352 19.5 L348.5359 21.5 L345.0718 19.5 L345.0718 15.5 L348.5359 13.5 L352 15.5 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M598 19.5 L601.4641 21.5 L604.9282 19.5 L604.9282 15.5 L601.4641 13.5 L598 15.5 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M352 13.9 L349.5751 15.3 L347.1503 13.9 L347.1503 11.1 L349.5751 9.7 L352 11.1 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M598 13.9 L600.4249 15.3 L602.8497 13.9 L602.8497 11.1 L600.4249 9.7 L598 11.1 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M352 23.9 L349.5751 25.3 L347.1503 23.9 L347.1503 21.1 L349.5751 19.7 L352 21.1 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M598 23.9 L600.4249 25.3 L602.8497 23.9 L602.8497 21.1 L600.4249 19.7 L598 21.1 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#B22222" stroke="none"/>
+  <path d="M9.5 17.5 L352 17.5" fill="none" stroke="#B22222" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M598 17.5 L940.5 17.5" fill="none" stroke="#B22222" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

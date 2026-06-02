@@ -94,7 +94,7 @@ class PCKZ_Ledos_Preview {
 	 * First / last bundled line type index (model 21–91 SVGs).
 	 */
 	const BUNDLED_LINE_TYPE_MIN = 21;
-	const BUNDLED_LINE_TYPE_MAX = 101;
+	const BUNDLED_LINE_TYPE_MAX = 121;
 
 	/**
 	 * Absolute path to bundled line SVG directory.
@@ -115,7 +115,7 @@ class PCKZ_Ledos_Preview {
 	}
 
 	/**
-	 * Line overlay SVGs shipped with the plugin (type_21–type_101).
+	 * Line overlay SVGs shipped with the plugin (type_21–type_121).
 	 *
 	 * @return array<string,string>
 	 */
@@ -252,12 +252,21 @@ class PCKZ_Ledos_Preview {
 			if ( class_exists( 'PCKZ_Line_Library' ) && PCKZ_Line_Library::is_retired_bundled_slug( $slug ) ) {
 				continue;
 			}
-			$items[ $slug ] = array(
+			$entry = array(
 				'url'     => esc_url_raw( $url ),
 				'preview' => esc_url_raw( $url ),
 				'label'   => self::default_line_label( $slug ),
 				'custom'  => false,
 			);
+			$file = self::line_assets_dir() . $slug . '.svg';
+			if ( is_readable( $file ) && class_exists( 'PCKZ_Svg_Library' ) ) {
+				$svg_body = (string) file_get_contents( $file );
+				if ( 'preserve' === PCKZ_Svg_Library::line_color_mode_for_svg( $svg_body ) ) {
+					$entry['preserve_colors'] = true;
+					$entry['tintable']        = false;
+				}
+			}
+			$items[ $slug ] = $entry;
 		}
 
 		if ( class_exists( 'PCKZ_Line_Library' ) ) {
