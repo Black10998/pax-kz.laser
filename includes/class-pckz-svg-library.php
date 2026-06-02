@@ -180,4 +180,132 @@ class PCKZ_Svg_Library {
 	public static function icon_color_mode_for_svg( $svg ) {
 		return self::svg_should_preserve_colors( $svg ) ? 'preserve' : 'tintable';
 	}
+
+	/** Standard Cloudlift line artboard (matches bundled type_21–71). */
+	const LINE_ARTBOARD_W = 950;
+	const LINE_ARTBOARD_H = 35;
+
+	/**
+	 * Reference artboard size for line normalization.
+	 *
+	 * @param bool $half When true, left/right half width.
+	 * @return array{width:float,height:float}
+	 */
+	public static function line_artboard_size( $half = false ) {
+		return array(
+			'width'  => $half ? self::LINE_ARTBOARD_W / 2 : self::LINE_ARTBOARD_W,
+			'height' => self::LINE_ARTBOARD_H,
+		);
+	}
+
+	/**
+	 * Parse SVG root viewBox / width / height.
+	 *
+	 * @param string $svg SVG markup.
+	 * @return array{x:float,y:float,width:float,height:float}
+	 */
+	public static function parse_svg_viewbox( $svg ) {
+		$x = 0.0;
+		$y = 0.0;
+		$w = self::LINE_ARTBOARD_W;
+		$h = self::LINE_ARTBOARD_H;
+		if ( ! preg_match( '/<svg\b([^>]*)>/i', (string) $svg, $m ) ) {
+			return compact( 'x', 'y' ) + array( 'width' => $w, 'height' => $h );
+		}
+		$attrs = $m[1];
+		if ( preg_match( '/viewBox\s*=\s*["\']([^"\']+)["\']/i', $attrs, $vm ) ) {
+			$p = preg_split( '/[\s,]+/', trim( $vm[1] ) );
+			if ( count( $p ) >= 4 ) {
+				$x = (float) $p[0];
+				$y = (float) $p[1];
+				$w = max( 0.001, (float) $p[2] );
+				$h = max( 0.001, (float) $p[3] );
+			}
+		} else {
+			if ( preg_match( '/width\s*=\s*["\']([\d.]+)/i', $attrs, $wm ) ) {
+				$w = max( 0.001, (float) $wm[1] );
+			}
+			if ( preg_match( '/height\s*=\s*["\']([\d.]+)/i', $attrs, $hm ) ) {
+				$h = max( 0.001, (float) $hm[1] );
+			}
+		}
+		return array(
+			'x'      => $x,
+			'y'      => $y,
+			'width'  => $w,
+			'height' => $h,
+		);
+	}
+
+	/**
+	 * Extract inner SVG markup (without outer svg wrapper).
+	 *
+	 * @param string $svg SVG markup.
+	 * @return string
+	 */
+	public static function svg_inner_markup( $svg ) {
+		if ( preg_match( '/<svg\b[^>]*>([\s\S]*)<\/svg>/i', (string) $svg, $m ) ) {
+			return trim( $m[1] );
+		}
+		return trim( (string) $svg );
+	}
+
+	/**
+	 * Build normalized line preview SVG on standard 950×35 artboard.
+	 *
+	 * @param string $svg       Source SVG.
+	 * @param bool   $connected Mirror right-side continuation for picker preview.
+	 * @return string
+	 */
+	public static function normalize_line_svg_for_preview( $svg, $connected = false ) {
+		$inner   = self::svg_inner_markup( $svg );
+		$viewbox = self::parse_svg_viewbox( $svg );
+		$board   = self::line_artboard_size( false );
+		$half    = self::line_artboard_size( true );
+		$target  = $connected ? $half : $board;
+
+		$scale = min(
+			$target['width'] / max( 0.001, $viewbox['width'] ),
+			$target['height'] / max( 0.001, $viewbox['height'] )
+		);
+		$content_w = $viewbox['width'] * $scale;
+		$content_h = $viewbox['height'] * $scale;
+		$offset_x  = ( $target['width'] - $content_w ) / 2 - ( $viewbox['x'] * $scale );
+		$offset_y  = ( $target['height'] - $content_h ) / 2 - ( $viewbox['y'] * $scale );
+
+		$placed = sprintf(
+			'<g transform="translate(%s,%s) scale(%s)">%s</g>',
+			self::svg_num( $offset_x ),
+			self::svg_num( $offset_y ),
+			self::svg_num( $scale ),
+			$inner
+		);
+
+		if ( $connected ) {
+			$body = $placed . sprintf(
+				'<g transform="translate(%s,0) scale(-1,1)">%s</g>',
+				self::svg_num( $half['width'] ),
+				$placed
+			);
+		} else {
+			$body = $placed;
+		}
+
+		return sprintf(
+			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %s %s" fill="none">%s</svg>',
+			self::svg_num( $board['width'] ),
+			self::svg_num( $board['height'] ),
+			$body
+		);
+	}
+
+	/**
+	 * @param float $n Number.
+	 * @return string
+	 */
+	private static function svg_num( $n ) {
+		$n = round( (float) $n, 4 );
+		$s = rtrim( rtrim( sprintf( '%.4F', $n ), '0' ), '.' );
+		return '' === $s ? '0' : $s;
+	}
 }

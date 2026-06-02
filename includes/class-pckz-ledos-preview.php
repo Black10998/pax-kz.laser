@@ -264,9 +264,10 @@ class PCKZ_Ledos_Preview {
 				if ( ! $url ) {
 					continue;
 				}
+				$preview = PCKZ_Line_Library::preview_url( $slug );
 				$items[ $slug ] = array(
 					'url'             => $url,
-					'preview'         => $url,
+					'preview'         => $preview ? $preview : $url,
 					'label'           => PCKZ_Line_Library::label_for_slug( $slug, self::default_line_label( $slug ) ),
 					'custom'          => true,
 					'connected_right' => PCKZ_Line_Library::connected_right_for_slug( $slug ),

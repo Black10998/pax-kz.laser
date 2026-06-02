@@ -287,6 +287,63 @@ class PCKZ_Line_Library {
 	}
 
 	/**
+	 * Preview filename for a custom line slug.
+	 *
+	 * @param string $slug Line slug.
+	 * @return string
+	 */
+	public static function preview_filename( $slug ) {
+		return sanitize_key( $slug ) . '-preview.svg';
+	}
+
+	/**
+	 * Public URL for normalized picker/admin preview SVG.
+	 *
+	 * @param string $slug Line slug.
+	 * @return string
+	 */
+	public static function preview_url( $slug ) {
+		$slug = sanitize_key( $slug );
+		if ( ! self::is_custom( $slug ) ) {
+			return '';
+		}
+		$file = self::upload_dir() . '/' . self::preview_filename( $slug );
+		if ( ! is_readable( $file ) ) {
+			self::regenerate_preview_svg( $slug );
+		}
+		if ( ! is_readable( $file ) ) {
+			return self::custom_url( $slug );
+		}
+		return esc_url_raw( self::upload_url_base() . '/' . self::preview_filename( $slug ) );
+	}
+
+	/**
+	 * Write normalized preview SVG for picker/admin thumbnails.
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function regenerate_preview_svg( $slug ) {
+		$slug   = sanitize_key( $slug );
+		$custom = self::option_get( self::OPTION_CUSTOM, array() );
+		if ( ! is_array( $custom ) || empty( $custom[ $slug ]['file'] ) ) {
+			return false;
+		}
+		$source = self::upload_dir() . '/' . sanitize_file_name( $custom[ $slug ]['file'] );
+		if ( ! is_readable( $source ) ) {
+			return false;
+		}
+		$svg = file_get_contents( $source );
+		if ( ! is_string( $svg ) || ! class_exists( 'PCKZ_Svg_Library' ) ) {
+			return false;
+		}
+		$connected = ! empty( $custom[ $slug ]['connected_right'] );
+		$preview   = PCKZ_Svg_Library::normalize_line_svg_for_preview( $svg, $connected );
+		$dest      = self::upload_dir() . '/' . self::preview_filename( $slug );
+		return (bool) file_put_contents( $dest, $preview );
+	}
+
+	/**
 	 * Slugs disabled in admin (hidden from customer selector).
 	 *
 	 * @return string[]
@@ -521,6 +578,8 @@ class PCKZ_Line_Library {
 
 		self::append_to_display_order( $slug );
 
+		self::regenerate_preview_svg( $slug );
+
 		return array( 'slug' => $slug );
 	}
 
@@ -559,6 +618,14 @@ class PCKZ_Line_Library {
 				} else {
 					unlink( $path );
 				}
+			}
+		}
+		$preview = self::upload_dir() . '/' . self::preview_filename( $slug );
+		if ( is_readable( $preview ) ) {
+			if ( function_exists( 'wp_delete_file' ) ) {
+				wp_delete_file( $preview );
+			} else {
+				unlink( $preview );
 			}
 		}
 		$labels = self::label_overrides();
@@ -755,6 +822,10 @@ class PCKZ_Line_Library {
 				}
 			}
 			self::option_update( self::OPTION_CUSTOM, $custom_raw );
+		}
+
+		foreach ( array_keys( self::custom_manifest() ) as $slug ) {
+			self::regenerate_preview_svg( $slug );
 		}
 
 		if ( is_array( $order ) && ! empty( $order ) ) {

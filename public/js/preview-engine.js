@@ -264,12 +264,19 @@
 		}
 
 		visualBoundsForPlacement(obj, role) {
+			const r = role || obj.pckzRole || '';
+			if ( r === 'line-overlay' || r === 'lines' ) {
+				return this.visualBoundsForLinePlacement( obj, false );
+			}
+			if ( r === 'line-half-left' || r === 'line-half-right' ) {
+				return this.visualBoundsForLinePlacement( obj, true );
+			}
 			if (
 				!obj ||
-				(role !== 'icon-left' &&
-					role !== 'icon-right' &&
-					role !== 'icon-bg-left' &&
-					role !== 'icon-bg-right')
+				( r !== 'icon-left' &&
+					r !== 'icon-right' &&
+					r !== 'icon-bg-left' &&
+					r !== 'icon-bg-right' )
 			) {
 				return null;
 			}
@@ -300,6 +307,44 @@
 				height: drawH,
 				deltaX: drawCx - viewCx,
 				deltaY: drawCy - viewCy,
+			};
+		}
+
+		lineReferenceArtboard(half) {
+			const fullW = 950;
+			const fullH = 35;
+			return {
+				width: half ? fullW / 2 : fullW,
+				height: fullH,
+			};
+		}
+
+		visualBoundsForLinePlacement(obj, half) {
+			const viewport = obj && obj.pckzSvgViewport;
+			const draw = obj && obj.pckzSvgDrawBounds;
+			if ( !viewport || !draw || !obj ) {
+				return null;
+			}
+			const ref = this.lineReferenceArtboard( !!half );
+			const vpW = Math.max( 0.001, parseFloat( viewport.width ) || ref.width );
+			const vpH = Math.max( 0.001, parseFloat( viewport.height ) || ref.height );
+			const vpX = parseFloat( viewport.x ) || 0;
+			const vpY = parseFloat( viewport.y ) || 0;
+			const fabricW = Math.max( 0.001, parseFloat( obj.width ) || vpW );
+			const fabricH = Math.max( 0.001, parseFloat( obj.height ) || vpH );
+			const drawW = Math.max( 0.001, parseFloat( draw.width ) || vpW );
+			const drawH = Math.max( 0.001, parseFloat( draw.height ) || vpH );
+			const drawCx = ( parseFloat( draw.x ) || 0 ) - vpX + drawW / 2;
+			const drawCy = ( parseFloat( draw.y ) || 0 ) - vpY + drawH / 2;
+			const viewCx = vpW / 2;
+			const viewCy = vpH / 2;
+			const refRatioW = ref.width / vpW;
+			const refRatioH = ref.height / vpH;
+			return {
+				width: fabricW * refRatioW,
+				height: fabricH * refRatioH,
+				deltaX: ( drawCx - viewCx ) * refRatioW,
+				deltaY: ( drawCy - viewCy ) * refRatioH,
 			};
 		}
 
@@ -426,9 +471,6 @@
 			if (!obj || !box || (role !== 'icon-left' && role !== 'icon-right')) {
 				return;
 			}
-			if (typeof obj.getBoundingRect !== 'function') {
-				return;
-			}
 			let b = obj.getBoundingRect(true, true);
 			if (!b || !(b.width > 0) || !(b.height > 0)) {
 				return;
@@ -455,6 +497,42 @@
 				top: (obj.top || 0) + (box.cy - cy),
 			});
 			if (typeof obj.setCoords === 'function') {
+				obj.setCoords();
+			}
+		}
+
+		postNormalizeLinePlacement(obj, box, role) {
+			if ( !obj || !box || ( role !== 'line-overlay' && role !== 'lines' ) ) {
+				return;
+			}
+			if ( typeof obj.getBoundingRect !== 'function' ) {
+				return;
+			}
+			let b = obj.getBoundingRect( true, true );
+			if ( !b || !( b.width > 0 ) || !( b.height > 0 ) ) {
+				return;
+			}
+			const shrink = Math.min( 1, box.width / b.width, box.height / b.height );
+			if ( isFinite( shrink ) && shrink > 0 && Math.abs( 1 - shrink ) > 0.005 ) {
+				obj.set( {
+					scaleX: ( obj.scaleX || 1 ) * shrink,
+					scaleY: ( obj.scaleY || 1 ) * shrink,
+				} );
+				if ( typeof obj.setCoords === 'function' ) {
+					obj.setCoords();
+				}
+				b = obj.getBoundingRect( true, true );
+			}
+			if ( !b || !( b.width > 0 ) || !( b.height > 0 ) ) {
+				return;
+			}
+			const cx = b.left + b.width / 2;
+			const cy = b.top + b.height / 2;
+			obj.set( {
+				left: ( obj.left || 0 ) + ( box.cx - cx ),
+				top: ( obj.top || 0 ) + ( box.cy - cy ),
+			} );
+			if ( typeof obj.setCoords === 'function' ) {
 				obj.setCoords();
 			}
 		}
@@ -582,6 +660,42 @@
 				evented: false,
 			});
 			this.postNormalizeIconPlacement(obj, box, role || obj.pckzRole || '');
+			this.postNormalizeLinePlacement(obj, box, role || obj.pckzRole || '');
+			return obj;
+		}
+
+		/**
+		 * Place one connected line half at the plate center seam (absolute canvas coords).
+		 *
+		 * @param {object} obj Fabric SVG object.
+		 * @param {object} box Full lines ref canvas box.
+		 * @param {'left'|'right'} side Half side.
+		 */
+		placeLineHalfAtSeam(obj, box, side) {
+			if ( !obj || !box ) {
+				return null;
+			}
+			const seamX = box.left + box.width / 2;
+			const halfW = box.width / 2;
+			const ref = this.lineReferenceArtboard( true );
+			const scale = Math.min( halfW / ref.width, box.height / ref.height );
+			const visual = this.visualBoundsForLinePlacement( obj, true );
+			const deltaY = visual ? visual.deltaY * scale : 0;
+			obj.set( {
+				originX: side === 'left' ? 'right' : 'left',
+				originY: 'center',
+				left: seamX,
+				top: box.cy + deltaY,
+				scaleX: scale,
+				scaleY: scale,
+				flipX: side === 'right',
+				flipY: false,
+				selectable: false,
+				evented: false,
+			} );
+			if ( typeof obj.setCoords === 'function' ) {
+				obj.setCoords();
+			}
 			return obj;
 		}
 
@@ -593,66 +707,35 @@
 		 * @returns {Promise<fabric.Object|null>}
 		 */
 		async buildConnectedLineGroup(url, ref) {
-			const base = await this.loadSvgAsset(url, null, false);
-			if (!base) {
+			const base = await this.loadSvgAsset( url, null, false );
+			if ( !base ) {
 				return null;
 			}
-			const left = await this.cloneCached(base);
-			const right = await this.cloneCached(base);
-			if (!left || !right) {
+			const left = await this.cloneCached( base );
+			const right = await this.cloneCached( base );
+			if ( !left || !right ) {
 				return null;
 			}
-			const box = this.refToCanvas(ref);
-			const seamX = box.left + box.width / 2;
-			const halfW = box.width / 2;
+			const box = this.refToCanvas( ref );
 
-			const fitHalfAtSeam = (obj, side) => {
-				if (typeof obj.setCoords === 'function') {
-					obj.setCoords();
-				}
-				const bounds =
-					this.computeSvgObjectsBounds([obj]) ||
-					(typeof obj.getBoundingRect === 'function' ? obj.getBoundingRect(true, true) : null);
-				const w = bounds && bounds.width ? bounds.width : (obj.width || 1) * Math.abs(obj.scaleX || 1);
-				const h = bounds && bounds.height ? bounds.height : (obj.height || 1) * Math.abs(obj.scaleY || 1);
-				const scale = Math.min(halfW / Math.max(w, 0.001), box.height / Math.max(h, 0.001));
-				const flip = side === 'right';
-				obj.set({
-					originX: flip ? 'left' : 'right',
-					originY: 'center',
-					left: seamX,
-					top: box.cy,
-					scaleX: flip ? -scale : scale,
-					scaleY: scale,
-					flipX: false,
-					flipY: false,
-					selectable: false,
-					evented: false,
-				});
-				if (typeof obj.setCoords === 'function') {
-					obj.setCoords();
-				}
-				return obj;
-			};
+			left.pckzRole = 'line-half-left';
+			right.pckzRole = 'line-half-right';
+			this.placeLineHalfAtSeam( left, box, 'left' );
+			this.placeLineHalfAtSeam( right, box, 'right' );
 
-			fitHalfAtSeam(left, 'left');
-			fitHalfAtSeam(right, 'right');
-
-			if (typeof fabric.Group !== 'function') {
+			if ( typeof fabric.Group !== 'function' ) {
 				return left;
 			}
-			const group = new fabric.Group([left, right], {
+			const group = new fabric.Group( [ left, right ], {
 				selectable: false,
 				evented: false,
-				originX: 'center',
-				originY: 'center',
-				left: box.cx,
-				top: box.cy,
-			});
-			if (typeof group.setCoords === 'function') {
+			} );
+			if ( typeof group.setCoords === 'function' ) {
 				group.setCoords();
 			}
 			group.pckzConnectedLine = true;
+			group.pckzRole = 'line-overlay';
+			this.postNormalizeLinePlacement( group, box, 'line-overlay' );
 			return group;
 		}
 
