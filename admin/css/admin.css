@@ -340,6 +340,11 @@
 	border-radius: 3px;
 }
 
+.pckz-badge--muted {
+	background: #f0f0f1;
+	color: #50575e;
+}
+
 .pckz-line-order-cell {
 	display: flex;
 	align-items: center;

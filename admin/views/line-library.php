@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 $payload_json    = wp_json_encode( $payload ?? PCKZ_Line_Library::build_admin_save_payload() );
 $custom_manifest = PCKZ_Line_Library::custom_manifest();
 $hero_title       = __( 'Line Library', 'pckz-canonical-engine' );
-$hero_description = __( 'Upload SVG line designs, import from URL, rename labels, control display order, connected left/right designs, and customer visibility. Built-in line types cannot be deleted.', 'pckz-canonical-engine' );
+$hero_description = __( 'Manage all line models: enable or hide built-in and custom designs for customers, reorder via drag and drop, upload or import SVGs, and delete custom uploads only (built-in files stay in the plugin).', 'pckz-canonical-engine' );
 $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 ?>
 <div class="wrap pckz-admin-wrap pckz-line-library-admin">
@@ -82,6 +82,10 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 			cols="1"
 		><?php echo esc_textarea( $payload_json ); ?></textarea>
 
+		<p class="description">
+			<?php esc_html_e( 'Use “Visible to customers” to hide models without deleting files. Drag rows or use arrows to change picker order. Only custom uploads can be deleted.', 'pckz-canonical-engine' ); ?>
+		</p>
+
 		<p class="pckz-library-toolbar">
 			<button type="button" class="button" id="pckz-line-enable-all"><?php esc_html_e( 'Enable all', 'pckz-canonical-engine' ); ?></button>
 			<button type="button" class="button" id="pckz-line-disable-all"><?php esc_html_e( 'Disable all', 'pckz-canonical-engine' ); ?></button>
@@ -102,7 +106,7 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 					<th><?php esc_html_e( 'Label', 'pckz-canonical-engine' ); ?></th>
 					<th><?php esc_html_e( 'Slug', 'pckz-canonical-engine' ); ?></th>
 					<th style="width:120px"><?php esc_html_e( 'Connected L/R', 'pckz-canonical-engine' ); ?></th>
-					<th style="width:90px"><?php esc_html_e( 'Customer', 'pckz-canonical-engine' ); ?></th>
+					<th style="width:120px"><?php esc_html_e( 'Visible to customers', 'pckz-canonical-engine' ); ?></th>
 					<th style="width:80px"><?php esc_html_e( 'Actions', 'pckz-canonical-engine' ); ?></th>
 				</tr>
 			</thead>
@@ -114,10 +118,10 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 						continue;
 					}
 					++$row_index;
+					$is_custom        = ! empty( $data['custom'] );
 					$thumb            = ( $is_custom && ! empty( $data['url'] ) ) ? $data['url'] : ( ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' ) );
 					$label            = $data['label'] ?? $slug;
 					$enabled          = PCKZ_Line_Library::is_visible( $slug );
-					$is_custom        = ! empty( $data['custom'] );
 					$source           = $is_custom ? ( $custom_manifest[ $slug ]['source'] ?? 'upload' ) : '';
 					$connected_right  = $is_custom && PCKZ_Line_Library::connected_right_for_slug( $slug );
 					?>
@@ -149,6 +153,8 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 							<code><?php echo esc_html( $slug ); ?></code>
 							<?php if ( $is_custom ) : ?>
 								<br><span class="pckz-badge"><?php echo 'url' === $source ? esc_html__( 'URL', 'pckz-canonical-engine' ) : esc_html__( 'Upload', 'pckz-canonical-engine' ); ?></span>
+							<?php else : ?>
+								<br><span class="pckz-badge pckz-badge--muted"><?php esc_html_e( 'Built-in', 'pckz-canonical-engine' ); ?></span>
 							<?php endif; ?>
 						</td>
 						<td>
@@ -164,8 +170,11 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 						<td>
 							<label>
 								<input type="checkbox" class="pckz-line-enabled" <?php checked( $enabled ); ?>>
-								<?php esc_html_e( 'On', 'pckz-canonical-engine' ); ?>
+								<?php esc_html_e( 'Show', 'pckz-canonical-engine' ); ?>
 							</label>
+							<?php if ( ! $enabled ) : ?>
+								<br><span class="description"><?php esc_html_e( 'Hidden', 'pckz-canonical-engine' ); ?></span>
+							<?php endif; ?>
 						</td>
 						<td>
 							<?php if ( $is_custom ) : ?>

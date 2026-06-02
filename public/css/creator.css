@@ -1025,6 +1025,46 @@ select.pckz-field__control {
 	background: var(--pckz-gray-100);
 }
 
+/* Symbol picker (Instagram, Facebook, …): selection UI only — clearer thumbs, no plate/export change */
+.pckz-visual-picker--icon-grid .pckz-visual-picker__thumb.o--img,
+.pckz-visual-picker--icon-grid .pckz-visual-picker__option .o--img {
+	background-color: #fff;
+	background-image: none;
+	border: 1px solid var(--pckz-gray-300);
+}
+
+.pckz-visual-picker--icon-grid .pckz-visual-picker__thumb.o--img {
+	width: 48px;
+	height: 48px;
+}
+
+.pckz-visual-picker--icon-grid .pckz-visual-picker__option .o--img {
+	width: 52px;
+	height: 52px;
+}
+
+.pckz-visual-picker--icon-grid .pckz-visual-picker__thumb img,
+.pckz-visual-picker--icon-grid .pckz-visual-picker__option .o--img img {
+	width: 44px;
+	height: 44px;
+	max-width: 100%;
+	max-height: 100%;
+	opacity: 1;
+	object-fit: contain;
+	filter: brightness(0);
+}
+
+.pckz-visual-picker--icon-grid .pckz-visual-picker__thumb[data-preserve-colors="1"] img,
+.pckz-visual-picker--icon-grid .pckz-visual-picker__option[data-preserve-colors="1"] .o--img img,
+.pckz-visual-picker--icon-grid .pckz-visual-picker__option[data-preserve-colors="1"] img {
+	filter: none;
+}
+
+.pckz-visual-picker--icon-grid .pckz-visual-picker__trigger {
+	padding-top: 8px;
+	padding-bottom: 8px;
+}
+
 /* Line picker: wide SVG previews only (no labels, no checker tile) */
 .pckz-visual-picker--line-grid .pckz-visual-picker__thumb.o--img,
 .pckz-visual-picker--line-grid .pckz-visual-picker__option .o--img {
@@ -2030,6 +2070,22 @@ select.pckz-field__control {
 	.pckz-visual-picker--icon-grid.is-open .pckz-visual-picker__list {
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 		max-height: 240px;
+	}
+
+	.pckz-visual-picker--icon-grid .pckz-visual-picker__thumb.o--img {
+		width: 44px;
+		height: 44px;
+	}
+
+	.pckz-visual-picker--icon-grid .pckz-visual-picker__option .o--img {
+		width: 48px;
+		height: 48px;
+	}
+
+	.pckz-visual-picker--icon-grid .pckz-visual-picker__thumb img,
+	.pckz-visual-picker--icon-grid .pckz-visual-picker__option .o--img img {
+		width: 40px;
+		height: 40px;
 	}
 
 	.pckz-visual-picker--line-grid .pckz-visual-picker__thumb img,
