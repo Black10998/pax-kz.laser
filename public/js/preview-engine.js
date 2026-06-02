@@ -198,8 +198,62 @@
 			};
 		}
 
-		connectedLinePreviewBalanceScale() {
-			return 0.94;
+		builtinLinePreviewTargetBounds(box) {
+			const ref = this.lineReferenceArtboard( false );
+			const scale = Math.min( box.width / ref.width, box.height / ref.height );
+			return {
+				width: ref.width * scale,
+				height: ref.height * scale,
+			};
+		}
+
+		scalePairFromSeamAnisotropic(left, right, box, scaleX, scaleY) {
+			if ( !left || !right || !box ) {
+				return;
+			}
+			const sx = parseFloat( scaleX );
+			const sy = parseFloat( scaleY );
+			if ( !( sx > 0 ) || !( sy > 0 ) ) {
+				return;
+			}
+			if ( Math.abs( 1 - sx ) <= 0.005 && Math.abs( 1 - sy ) <= 0.005 ) {
+				return;
+			}
+			const seamX = box.left + box.width / 2;
+			[ left, right ].forEach( ( obj ) => {
+				obj.set( {
+					scaleX: ( obj.scaleX || 1 ) * sx,
+					scaleY: ( obj.scaleY || 1 ) * sy,
+					left: seamX + ( ( obj.left || 0 ) - seamX ) * sx,
+					top: box.cy + ( ( obj.top || 0 ) - box.cy ) * sy,
+				} );
+			} );
+			this.alignLineHalfVisualToSeam( left, seamX, 'left' );
+			this.alignLineHalfVisualToSeam( right, seamX, 'right' );
+		}
+
+		normalizeConnectedLineToBuiltinReference(left, right, box) {
+			const target = this.builtinLinePreviewTargetBounds( box );
+			if ( !target || !( target.width > 0 ) || !( target.height > 0 ) ) {
+				return;
+			}
+			if ( typeof left.setCoords === 'function' ) {
+				left.setCoords();
+			}
+			if ( typeof right.setCoords === 'function' ) {
+				right.setCoords();
+			}
+			const lb = left.getBoundingRect( true, true );
+			const rb = right.getBoundingRect( true, true );
+			if ( !lb || !rb || !( lb.width > 0 ) || !( rb.width > 0 ) ) {
+				return;
+			}
+			const cw = Math.max( lb.left + lb.width, rb.left + rb.width ) - Math.min( lb.left, rb.left );
+			const ch = Math.max( lb.top + lb.height, rb.top + rb.height ) - Math.min( lb.top, rb.top );
+			if ( !( cw > 0 ) || !( ch > 0 ) ) {
+				return;
+			}
+			this.scalePairFromSeamAnisotropic( left, right, box, target.width / cw, target.height / ch );
 		}
 
 		computeSvgObjectsBounds(objects) {
@@ -598,6 +652,8 @@
 					return;
 				}
 			}
+			this.normalizeConnectedLineToBuiltinReference( left, right, box );
+			b = boundsOfPair();
 			if ( !b ) {
 				return;
 			}
@@ -608,10 +664,6 @@
 				right.set( { top: ( right.top || 0 ) + vShift } );
 				this.alignLineHalfVisualToSeam( left, seamX, 'left' );
 				this.alignLineHalfVisualToSeam( right, seamX, 'right' );
-			}
-			const balance = this.connectedLinePreviewBalanceScale();
-			if ( isFinite( balance ) && balance > 0 && Math.abs( 1 - balance ) > 0.005 ) {
-				scalePairFromSeam( balance );
 			}
 		}
 

@@ -86,11 +86,14 @@ group.setCoords();
 const box = engine.refToCanvas(engine.layers.lines);
 const gb = group.getBoundingRect(true, true);
 const coverage = gb.width / box.width;
-if (coverage < 0.88) {
-	throw new Error(`connected line too short on plate, coverage=${coverage.toFixed(3)}`);
+const heightCov = gb.height / box.height;
+const ref = engine.builtinLinePreviewTargetBounds(box);
+const refHeightCov = ref.height / box.height;
+if (coverage < 0.98) {
+	throw new Error(`connected line width should match built-in coverage, coverage=${coverage.toFixed(3)}`);
 }
-if (coverage > 0.97) {
-	throw new Error(`connected line preview should be visually balanced, coverage=${coverage.toFixed(3)}`);
+if (Math.abs(heightCov - refHeightCov) > 0.03) {
+	throw new Error(`connected line height should match built-in reference, heightCov=${heightCov.toFixed(3)} ref=${refHeightCov.toFixed(3)}`);
 }
 const leftGap = gb.left - box.left;
 const rightGap = (box.left + box.width) - (gb.left + gb.width);
@@ -98,7 +101,7 @@ if (leftGap < -1 || rightGap < -1) {
 	throw new Error(`connected line exceeds line ref, leftGap=${leftGap.toFixed(3)} rightGap=${rightGap.toFixed(3)}`);
 }
 if (Math.abs(leftGap - rightGap) > 2) {
-	throw new Error(`connected line inset should be symmetric, leftGap=${leftGap.toFixed(3)} rightGap=${rightGap.toFixed(3)}`);
+	throw new Error(`connected line should align to built-in width, leftGap=${leftGap.toFixed(3)} rightGap=${rightGap.toFixed(3)}`);
 }
 const overflow = Math.max(0, gb.left + gb.width - (box.left + box.width), box.left - gb.left);
 if (overflow > 4) {
