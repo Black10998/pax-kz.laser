@@ -525,25 +525,47 @@
 					bottom: Math.max( lb.top + lb.height, rb.top + rb.height ),
 				};
 			};
-			let b = boundsOfPair();
-			if ( !b ) {
-				return;
-			}
-			const cw = b.right - b.left;
-			const ch = b.bottom - b.top;
-			const shrink = Math.min( 1, box.width / cw, box.height / ch );
-			if ( isFinite( shrink ) && shrink > 0 && Math.abs( 1 - shrink ) > 0.005 ) {
+			const scalePairFromSeam = ( factor ) => {
+				if ( !isFinite( factor ) || factor <= 0 || Math.abs( 1 - factor ) <= 0.005 ) {
+					return;
+				}
 				[ left, right ].forEach( ( obj ) => {
 					obj.set( {
-						scaleX: ( obj.scaleX || 1 ) * shrink,
-						scaleY: ( obj.scaleY || 1 ) * shrink,
-						left: seamX + ( ( obj.left || 0 ) - seamX ) * shrink,
-						top: box.cy + ( ( obj.top || 0 ) - box.cy ) * shrink,
+						scaleX: ( obj.scaleX || 1 ) * factor,
+						scaleY: ( obj.scaleY || 1 ) * factor,
+						left: seamX + ( ( obj.left || 0 ) - seamX ) * factor,
+						top: box.cy + ( ( obj.top || 0 ) - box.cy ) * factor,
 					} );
 				} );
 				this.alignLineHalfVisualToSeam( left, seamX, 'left' );
 				this.alignLineHalfVisualToSeam( right, seamX, 'right' );
+			};
+			let b = boundsOfPair();
+			if ( !b ) {
+				return;
+			}
+			let cw = b.right - b.left;
+			let ch = b.bottom - b.top;
+			if ( cw > 0 && cw < box.width - 0.5 ) {
+				const expand = Math.min(
+					box.width / cw,
+					ch > 0 ? box.height / ch : box.width / cw
+				);
+				scalePairFromSeam( expand );
 				b = boundsOfPair();
+				if ( !b ) {
+					return;
+				}
+				cw = b.right - b.left;
+				ch = b.bottom - b.top;
+			}
+			const shrink = Math.min( 1, box.width / cw, box.height / ch );
+			if ( isFinite( shrink ) && shrink > 0 && Math.abs( 1 - shrink ) > 0.005 ) {
+				scalePairFromSeam( shrink );
+				b = boundsOfPair();
+				if ( !b ) {
+					return;
+				}
 			}
 			if ( !b ) {
 				return;

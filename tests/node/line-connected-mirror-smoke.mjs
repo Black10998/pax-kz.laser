@@ -85,6 +85,15 @@ canvas.add(group);
 group.setCoords();
 const box = engine.refToCanvas(engine.layers.lines);
 const gb = group.getBoundingRect(true, true);
+const coverage = gb.width / box.width;
+if (coverage < 0.95) {
+	throw new Error(`connected line too short on plate, coverage=${coverage.toFixed(3)}`);
+}
+const leftGap = gb.left - box.left;
+const rightGap = (box.left + box.width) - (gb.left + gb.width);
+if (leftGap > 4 || rightGap > 4) {
+	throw new Error(`connected line does not span line ref, leftGap=${leftGap.toFixed(3)} rightGap=${rightGap.toFixed(3)}`);
+}
 const overflow = Math.max(0, gb.left + gb.width - (box.left + box.width), box.left - gb.left);
 if (overflow > 4) {
 	throw new Error(`group exceeds line ref by ${overflow.toFixed(3)}px`);
