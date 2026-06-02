@@ -220,6 +220,8 @@ class PCKZ_Ledos_Preview {
 				'label'           => $data['label'] ?? $slug,
 				'custom'          => ! empty( $data['custom'] ),
 				'connected_right' => ! empty( $data['connected_right'] ),
+				'tintable'        => ! empty( $data['tintable'] ),
+				'preserve_colors' => ! empty( $data['preserve_colors'] ),
 			);
 		}
 		return $catalog;
@@ -264,13 +266,17 @@ class PCKZ_Ledos_Preview {
 				if ( ! $url ) {
 					continue;
 				}
-				$preview = PCKZ_Line_Library::preview_url( $slug );
+				$preview    = PCKZ_Line_Library::preview_url( $slug );
+				$color_mode = PCKZ_Line_Library::color_mode_for_slug( $slug );
+				$preserve   = ( 'preserve' === $color_mode );
 				$items[ $slug ] = array(
 					'url'             => $url,
 					'preview'         => $preview ? $preview : $url,
 					'label'           => PCKZ_Line_Library::label_for_slug( $slug, self::default_line_label( $slug ) ),
 					'custom'          => true,
 					'connected_right' => PCKZ_Line_Library::connected_right_for_slug( $slug ),
+					'tintable'        => ! $preserve,
+					'preserve_colors' => $preserve,
 				);
 			}
 			foreach ( $items as $slug => $data ) {

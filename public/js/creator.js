@@ -76,6 +76,7 @@
 			this._mobileResizeUnlockTimer = null;
 			this._creatorReadyMarked = false;
 			this.iconColorUserSet = { left: false, right: false };
+			this.lineColorUserSet = false;
 			this.init();
 		}
 
@@ -971,6 +972,8 @@
 							this.iconColorUserSet.left = true;
 						} else if (optionId === 'icon_color_right') {
 							this.iconColorUserSet.right = true;
+						} else if (optionId === 'line_color') {
+							this.lineColorUserSet = true;
 						}
 						syncMobileColorPreview(btn.dataset.value || '#ffffff');
 						if (mobileColorPicker && mobileColorTrigger) {
@@ -1280,6 +1283,7 @@
 				icon_color_right_user_set: this.iconColorUserSet.right,
 				linien: this.selections.linien || 'none',
 				line_color: this.selections.line_color || '#FF0000',
+				line_color_user_set: this.lineColorUserSet,
 				led_enabled: this.selections.led_enabled || 'yes',
 				preview_mode: this.selections.preview_mode || 'day',
 				preview_led: this.selections.preview_led || 'day',
@@ -1321,6 +1325,9 @@
 			}
 			if (this.selections.symbol_rechts !== prev.symbol_rechts) {
 				this.iconColorUserSet.right = false;
+			}
+			if (this.selections.linien !== prev.linien) {
+				this.lineColorUserSet = false;
 			}
 
 			const mode = this.getEffectivePreviewMode();

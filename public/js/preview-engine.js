@@ -171,6 +171,37 @@
 			};
 		}
 
+		/**
+		 * Decide whether a catalog line should receive customer color tinting in preview.
+		 *
+		 * @param {string} slug Line slug.
+		 * @param {object} state Preview state.
+		 * @returns {{tintable:boolean,color:string|null}}
+		 */
+		resolveLineTint(slug, state) {
+			const meta = slug ? this.lineCatalog[slug] || {} : {};
+			if (meta.preserve_colors) {
+				if (!state.line_color_user_set) {
+					return { tintable: false, color: null };
+				}
+				return {
+					tintable: true,
+					color: state.line_color || null,
+				};
+			}
+			if (meta.tintable === false || !meta.custom) {
+				return { tintable: false, color: null };
+			}
+			return {
+				tintable: true,
+				color: state.line_color || null,
+			};
+		}
+
+		connectedLinePreviewBalanceScale() {
+			return 0.94;
+		}
+
 		computeSvgObjectsBounds(objects) {
 			if (!Array.isArray(objects) || !objects.length) {
 				return null;
@@ -578,6 +609,10 @@
 				this.alignLineHalfVisualToSeam( left, seamX, 'left' );
 				this.alignLineHalfVisualToSeam( right, seamX, 'right' );
 			}
+			const balance = this.connectedLinePreviewBalanceScale();
+			if ( isFinite( balance ) && balance > 0 && Math.abs( 1 - balance ) > 0.005 ) {
+				scalePairFromSeam( balance );
+			}
 		}
 
 		postNormalizeLinePlacement(obj, box, role) {
@@ -825,8 +860,13 @@
 		 * @param {object} ref Lines layer ref.
 		 * @returns {Promise<fabric.Object|null>}
 		 */
-		async buildConnectedLineGroup(url, ref) {
-			const base = await this.loadSvgAsset( url, null, false );
+		async buildConnectedLineGroup(url, ref, tint) {
+			const lineTint = tint || { tintable: false, color: null };
+			const base = await this.loadSvgAsset(
+				url,
+				lineTint.tintable ? lineTint.color : null,
+				lineTint.tintable
+			);
 			if ( !base ) {
 				return null;
 			}
@@ -942,11 +982,16 @@
 			if (lineKey && lineKey !== 'none' && this.lineTypes[lineKey]) {
 				const lineMeta = this.lineCatalog[lineKey] || {};
 				const lineUrl = this.lineTypes[lineKey];
+				const lineTint = this.resolveLineTint(lineKey, state);
 				let lineImg = null;
 				if (lineMeta.connected_right) {
-					lineImg = await this.buildConnectedLineGroup(lineUrl, linesRef);
+					lineImg = await this.buildConnectedLineGroup(lineUrl, linesRef, lineTint);
 				} else {
-					lineImg = await this.loadSvgAsset(lineUrl, null, false);
+					lineImg = await this.loadSvgAsset(
+						lineUrl,
+						lineTint.tintable ? lineTint.color : null,
+						lineTint.tintable
+					);
 					if (lineImg) {
 						this.placeInRef(lineImg, linesRef, 'line-overlay');
 					}

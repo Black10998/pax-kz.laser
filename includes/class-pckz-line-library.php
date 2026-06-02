@@ -165,6 +165,30 @@ class PCKZ_Line_Library {
 	}
 
 	/**
+	 * Color mode for a custom line slug.
+	 *
+	 * @param string $slug Line slug.
+	 * @return string preserve|tintable
+	 */
+	public static function color_mode_for_slug( $slug ) {
+		$slug   = sanitize_key( $slug );
+		$custom = self::custom_manifest();
+		if ( empty( $custom[ $slug ] ) ) {
+			return 'tintable';
+		}
+		$mode = $custom[ $slug ]['color_mode'] ?? '';
+		if ( in_array( $mode, array( 'preserve', 'tintable' ), true ) ) {
+			return $mode;
+		}
+		$file = sanitize_file_name( $custom[ $slug ]['file'] ?? '' );
+		$path = $file ? self::upload_dir() . '/' . $file : '';
+		if ( $path && is_readable( $path ) && class_exists( 'PCKZ_Svg_Library' ) ) {
+			return PCKZ_Svg_Library::line_color_mode_for_svg( (string) file_get_contents( $path ) );
+		}
+		return 'tintable';
+	}
+
+	/**
 	 * Sort catalog items by admin-defined display order.
 	 *
 	 * @param array<string,array> $items Catalog entries keyed by slug.
@@ -438,10 +462,12 @@ class PCKZ_Line_Library {
 			} else {
 				$thumb = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
 			}
+			$preserve = ! empty( $data['custom'] ) && ! empty( $data['preserve_colors'] );
 			$choices[] = array(
-				'value' => $slug,
-				'label' => $data['label'] ?? self::label_for_slug( $slug, $slug ),
-				'img'   => $thumb ? esc_url_raw( $thumb ) : '',
+				'value'           => $slug,
+				'label'           => $data['label'] ?? self::label_for_slug( $slug, $slug ),
+				'img'             => $thumb ? esc_url_raw( $thumb ) : '',
+				'preserve_colors' => $preserve,
 			);
 		}
 		return $choices;
@@ -568,11 +594,15 @@ class PCKZ_Line_Library {
 		if ( ! is_array( $custom ) ) {
 			$custom = array();
 		}
+		$color_mode = class_exists( 'PCKZ_Svg_Library' )
+			? PCKZ_Svg_Library::line_color_mode_for_svg( $contents )
+			: 'tintable';
 		$custom[ $slug ] = array(
 			'label'            => sanitize_text_field( $label ),
 			'file'             => $filename,
 			'customer_visible' => true,
 			'connected_right'  => false,
+			'color_mode'       => $color_mode,
 			'source'           => in_array( $source, array( 'upload', 'url' ), true ) ? $source : 'upload',
 		);
 		self::option_update( self::OPTION_CUSTOM, $custom );

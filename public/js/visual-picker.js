@@ -80,6 +80,7 @@
 			hidden.value = value;
 			let img = '';
 			let label = value;
+			let preserveColors = '0';
 			options.forEach((opt) => {
 				const isActive = opt.dataset.visualValue === value;
 				opt.classList.toggle('is-active', isActive);
@@ -87,10 +88,19 @@
 				if (isActive) {
 					img = opt.dataset.visualImg || '';
 					label = opt.dataset.visualLabel || value;
+					preserveColors = opt.dataset.visualPreserveColors || '0';
 				}
 			});
 			if (previewLabel) {
 				previewLabel.textContent = label;
+			}
+			const previewWrap = root.querySelector('[data-visual-preview]');
+			if (previewWrap) {
+				if (preserveColors === '1') {
+					previewWrap.setAttribute('data-preserve-colors', '1');
+				} else {
+					previewWrap.removeAttribute('data-preserve-colors');
+				}
 			}
 			if (previewImg) {
 				if (img) {

@@ -118,10 +118,12 @@ foreach ( $customer_options as $option ) :
 		<?php elseif ( 'icon_select' === $type ) :
 			$preview_img = '';
 			$preview_lbl = $default;
+			$preview_preserve = false;
 			foreach ( $choices as $choice ) {
 				if ( ( $choice['value'] ?? '' ) === $default ) {
 					$preview_img = PCKZ_Icons::choice_img( $choice, $default, $icon_registry );
 					$preview_lbl = $choice['label'] ?? $default;
+					$preview_preserve = ! empty( $choice['preserve_colors'] );
 					break;
 				}
 			}
@@ -155,7 +157,7 @@ foreach ( $customer_options as $option ) :
 					aria-haspopup="listbox"
 					aria-controls="<?php echo esc_attr( $list_id ); ?>"
 				>
-					<span class="pckz-visual-picker__thumb o--img" data-visual-preview>
+					<span class="pckz-visual-picker__thumb o--img" data-visual-preview<?php echo $preview_preserve ? ' data-preserve-colors="1"' : ''; ?>>
 						<img
 							class="<?php echo $preview_img ? '' : 'pckz-hidden'; ?>"
 							data-visual-preview-img
@@ -183,6 +185,7 @@ foreach ( $customer_options as $option ) :
 						$img = PCKZ_Icons::choice_img( $choice, $val, $icon_registry );
 						$lbl = $choice['label'] ?? $val;
 						$active = ( $default === $val );
+						$preserve = ! empty( $choice['preserve_colors'] );
 						?>
 						<li
 							class="pckz-visual-picker__option<?php echo $active ? ' is-active' : ''; ?>"
@@ -191,6 +194,8 @@ foreach ( $customer_options as $option ) :
 							data-visual-value="<?php echo esc_attr( $val ); ?>"
 							data-visual-img="<?php echo esc_attr( $img ); ?>"
 							data-visual-label="<?php echo esc_attr( $lbl ); ?>"
+							data-visual-preserve-colors="<?php echo $preserve ? '1' : '0'; ?>"
+							<?php echo $preserve ? 'data-preserve-colors="1"' : ''; ?>
 							aria-selected="<?php echo $active ? 'true' : 'false'; ?>"
 						>
 							<span class="o--img">

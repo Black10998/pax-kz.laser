@@ -1057,6 +1057,11 @@ select.pckz-field__control {
 	filter: brightness(0);
 }
 
+.pckz-visual-picker--line-grid .pckz-visual-picker__thumb[data-preserve-colors="1"] img,
+.pckz-visual-picker--line-grid .pckz-visual-picker__option[data-preserve-colors="1"] .o--img img {
+	filter: none;
+}
+
 .pckz-visual-picker--line-grid.is-open .pckz-visual-picker__list {
 	display: grid;
 	grid-template-columns: 1fr;

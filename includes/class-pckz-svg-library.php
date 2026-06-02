@@ -181,6 +181,59 @@ class PCKZ_Svg_Library {
 		return self::svg_should_preserve_colors( $svg ) ? 'preserve' : 'tintable';
 	}
 
+	/**
+	 * Whether a line SVG should keep native colors in customer preview.
+	 *
+	 * @param string $svg SVG source.
+	 * @return bool
+	 */
+	public static function svg_line_should_preserve_colors( $svg ) {
+		if ( self::svg_should_preserve_colors( $svg ) ) {
+			return true;
+		}
+		foreach ( self::collect_svg_paint_colors( $svg ) as $color ) {
+			if ( self::is_chromatic_svg_paint_color( $color ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Resolve line color mode for library storage/catalog.
+	 *
+	 * @param string $svg SVG source.
+	 * @return string preserve|tintable
+	 */
+	public static function line_color_mode_for_svg( $svg ) {
+		return self::svg_line_should_preserve_colors( $svg ) ? 'preserve' : 'tintable';
+	}
+
+	/**
+	 * @param string $color Normalized color token.
+	 * @return bool
+	 */
+	private static function is_chromatic_svg_paint_color( $color ) {
+		$color = strtolower( trim( (string) $color ) );
+		if ( '' === $color ) {
+			return false;
+		}
+		if ( in_array( $color, array( 'none', 'transparent', 'currentcolor', 'inherit', 'white', 'black' ), true ) ) {
+			return false;
+		}
+		if ( preg_match( '/^#([0-9a-f]{3}|[0-9a-f]{6})$/', $color, $m ) ) {
+			$hex = 3 === strlen( $m[1] )
+				? $m[1][0] . $m[1][0] . $m[1][1] . $m[1][1] . $m[1][2] . $m[1][2]
+				: $m[1];
+			$r   = hexdec( substr( $hex, 0, 2 ) );
+			$g   = hexdec( substr( $hex, 2, 2 ) );
+			$b   = hexdec( substr( $hex, 4, 2 ) );
+			return ( max( $r, $g, $b ) - min( $r, $g, $b ) ) > 8;
+		}
+		$achromatic = array( 'white', 'black', 'silver', 'gray', 'grey', 'lightgray', 'lightgrey', 'darkgray', 'darkgrey' );
+		return ! in_array( $color, $achromatic, true );
+	}
+
 	/** Standard Cloudlift line artboard (matches bundled type_21–71). */
 	const LINE_ARTBOARD_W = 950;
 	const LINE_ARTBOARD_H = 35;
