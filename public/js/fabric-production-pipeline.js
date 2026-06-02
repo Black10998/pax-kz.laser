@@ -38,11 +38,24 @@
 			if (!source || !cloned || typeof cloned.set !== 'function') {
 				return;
 			}
+			let scaleX = source.scaleX;
+			let scaleY = source.scaleY;
+			const role = source.pckzRole || '';
+			const previewBoost = parseFloat( source.pckzPreviewLineDisplayBoost );
+			if (
+				( role === 'line-overlay' || role === 'lines' ) &&
+				isFinite( previewBoost ) &&
+				previewBoost > 1.001
+			) {
+				const inv = 1 / previewBoost;
+				scaleX = ( scaleX || 1 ) * inv;
+				scaleY = ( scaleY || 1 ) * inv;
+			}
 			const props = {
 				left: source.left,
 				top: source.top,
-				scaleX: source.scaleX,
-				scaleY: source.scaleY,
+				scaleX: scaleX,
+				scaleY: scaleY,
 				angle: source.angle,
 				skewX: source.skewX,
 				skewY: source.skewY,
