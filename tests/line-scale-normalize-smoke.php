@@ -65,8 +65,12 @@ if ( '' === $url || false === strpos( $url, '-preview.svg' ) ) {
 }
 
 $catalog = PCKZ_Ledos_Preview::line_catalog( true );
-if ( empty( $catalog[ $slug ]['preview'] ) || $catalog[ $slug ]['preview'] === $catalog[ $slug ]['url'] ) {
-	fwrite( STDERR, "FAIL line catalog should expose normalized preview URL for custom line\n" );
+if ( empty( $catalog[ $slug ]['preview'] ) || false === strpos( (string) $catalog[ $slug ]['preview'], 'pckz_line_picker=' ) ) {
+	fwrite( STDERR, "FAIL line catalog should expose picker preview URL for custom line\n" );
+	exit( 1 );
+}
+if ( empty( $catalog[ $slug ]['url'] ) || false === strpos( (string) $catalog[ $slug ]['url'], $file ) ) {
+	fwrite( STDERR, "FAIL line catalog url must remain original upload for export\n" );
 	exit( 1 );
 }
 

@@ -303,8 +303,33 @@ class PCKZ_Svg_Library {
 		return trim( (string) $svg );
 	}
 
+	/** When drawable width is below this fraction of viewBox width, picker preview scales artwork up (display only). */
+	const LINE_PICKER_WIDTH_COVERAGE = 0.88;
+
 	/**
-	 * Build normalized line preview SVG on standard 950×35 artboard.
+	 * Infer drawable bounds for line SVG (path geometry, not empty viewBox margins).
+	 *
+	 * @param string $svg SVG markup.
+	 * @return array{x:float,y:float,width:float,height:float}|null
+	 */
+	public static function infer_line_draw_bounds( $svg ) {
+		if ( ! class_exists( 'PCKZ_Production_Geometry' ) ) {
+			return null;
+		}
+		$viewbox = self::parse_svg_viewbox( $svg );
+		$defs    = PCKZ_Production_Geometry::extract_paths_from_svg( (string) $svg );
+		if ( empty( $defs ) ) {
+			return null;
+		}
+		return PCKZ_Production_Geometry::infer_svg_draw_bounds_from_defs(
+			$defs,
+			$viewbox['width'],
+			$viewbox['height']
+		);
+	}
+
+	/**
+	 * Build normalized line preview SVG on standard 950×35 artboard (viewBox fit).
 	 *
 	 * @param string $svg       Source SVG.
 	 * @param bool   $connected Mirror right-side continuation for picker preview.
@@ -326,6 +351,62 @@ class PCKZ_Svg_Library {
 		$offset_x  = ( $target['width'] - $content_w ) / 2 - ( $viewbox['x'] * $scale );
 		$offset_y  = ( $target['height'] - $content_h ) / 2 - ( $viewbox['y'] * $scale );
 
+		return self::compose_line_preview_svg( $inner, $board, $half, $connected, $scale, $offset_x, $offset_y );
+	}
+
+	/**
+	 * Picker-only preview: scale drawable artwork to fill artboard width like CDN type_1–20.
+	 * Does not modify source SVG files; export/plate continue to use original assets.
+	 *
+	 * @param string $svg       Source SVG.
+	 * @param bool   $connected Mirror right-side continuation.
+	 * @return string
+	 */
+	public static function normalize_line_svg_for_picker_preview( $svg, $connected = false ) {
+		$inner   = self::svg_inner_markup( $svg );
+		$viewbox = self::parse_svg_viewbox( $svg );
+		$board   = self::line_artboard_size( false );
+		$half    = self::line_artboard_size( true );
+		$target  = $connected ? $half : $board;
+		$draw    = self::infer_line_draw_bounds( $svg );
+
+		$use_draw = false;
+		if ( $draw && $viewbox['width'] > 0 ) {
+			$coverage = (float) $draw['width'] / (float) $viewbox['width'];
+			if ( $coverage < self::LINE_PICKER_WIDTH_COVERAGE ) {
+				$use_draw = true;
+			}
+		}
+
+		if ( ! $use_draw ) {
+			return self::normalize_line_svg_for_preview( $svg, $connected );
+		}
+
+		$draw_w = max( 0.001, (float) $draw['width'] );
+		$draw_h = max( 0.001, (float) $draw['height'] );
+		// Match CDN type_1–20 picker look: fill available width (height may clip slightly in thumb CSS).
+		$scale     = ( 0.96 * $target['width'] ) / $draw_w;
+		$content_w = $draw_w * $scale;
+		$content_h = $draw_h * $scale;
+		$offset_x  = ( $target['width'] - $content_w ) / 2 - ( (float) $draw['x'] * $scale );
+		$offset_y  = ( $target['height'] - $content_h ) / 2 - ( (float) $draw['y'] * $scale );
+
+		return self::compose_line_preview_svg( $inner, $board, $half, $connected, $scale, $offset_x, $offset_y );
+	}
+
+	/**
+	 * Wrap scaled line inner markup on the standard artboard.
+	 *
+	 * @param string $inner      SVG inner markup.
+	 * @param array  $board      Full artboard size.
+	 * @param array  $half       Half artboard size.
+	 * @param bool   $connected  Mirror for connected lines.
+	 * @param float  $scale      Uniform scale.
+	 * @param float  $offset_x   Translate X.
+	 * @param float  $offset_y   Translate Y.
+	 * @return string
+	 */
+	private static function compose_line_preview_svg( $inner, $board, $half, $connected, $scale, $offset_x, $offset_y ) {
 		$placed = sprintf(
 			'<g transform="translate(%s,%s) scale(%s)">%s</g>',
 			self::svg_num( $offset_x ),

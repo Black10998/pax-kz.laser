@@ -36,12 +36,8 @@ foreach ( $choices as $choice ) {
 			fwrite( STDERR, "FAIL custom line choice missing img/label\n" );
 			exit( 1 );
 		}
-		if ( false !== strpos( $choice['img'], '-preview.svg' ) ) {
-			fwrite( STDERR, "FAIL custom line picker should use original artwork URL, not normalized preview\n" );
-			exit( 1 );
-		}
-		if ( false === strpos( $choice['img'], $file ) ) {
-			fwrite( STDERR, "FAIL custom line picker img should reference uploaded SVG file\n" );
+		if ( false === strpos( $choice['img'], 'pckz_line_picker=' . $slug ) ) {
+			fwrite( STDERR, "FAIL custom line picker should use display-only picker preview endpoint\n" );
 			exit( 1 );
 		}
 		break;
