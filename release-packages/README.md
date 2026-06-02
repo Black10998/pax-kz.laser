@@ -8,7 +8,11 @@ SHA256:
 
 - `8b230cfed50a3c7c2ace828a2f5cc31c29e0be2702615274ec95005d14d201f1`
 
-Direct raw download URL:
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.27.26/pckz-canonical-engine-2.27.26-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
 
 - `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.27.26-protected.zip`
 
