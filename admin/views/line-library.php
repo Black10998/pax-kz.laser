@@ -114,7 +114,7 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 						continue;
 					}
 					++$row_index;
-					$thumb            = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
+					$thumb            = ( $is_custom && ! empty( $data['url'] ) ) ? $data['url'] : ( ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' ) );
 					$label            = $data['label'] ?? $slug;
 					$enabled          = PCKZ_Line_Library::is_visible( $slug );
 					$is_custom        = ! empty( $data['custom'] );
@@ -137,7 +137,7 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 						</td>
 						<td>
 							<?php if ( $thumb ) : ?>
-								<img src="<?php echo esc_url( $thumb ); ?>" alt="" width="96" height="32" style="object-fit:contain;background:#f5f5f5;border-radius:4px;max-width:100%;">
+								<img src="<?php echo esc_url( $thumb ); ?>" alt="" width="120" height="44" style="object-fit:contain;background:#f5f5f5;border-radius:4px;max-width:100%;">
 							<?php else : ?>
 								<span aria-hidden="true">—</span>
 							<?php endif; ?>

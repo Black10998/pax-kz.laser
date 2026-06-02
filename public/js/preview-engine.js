@@ -501,8 +501,68 @@
 			}
 		}
 
+		fitConnectedLineHalves(left, right, box) {
+			if ( !left || !right || !box ) {
+				return;
+			}
+			const seamX = box.left + box.width / 2;
+			const boundsOfPair = () => {
+				if ( typeof left.setCoords === 'function' ) {
+					left.setCoords();
+				}
+				if ( typeof right.setCoords === 'function' ) {
+					right.setCoords();
+				}
+				const lb = left.getBoundingRect( true, true );
+				const rb = right.getBoundingRect( true, true );
+				if ( !lb || !rb || !( lb.width > 0 ) || !( rb.width > 0 ) ) {
+					return null;
+				}
+				return {
+					left: Math.min( lb.left, rb.left ),
+					right: Math.max( lb.left + lb.width, rb.left + rb.width ),
+					top: Math.min( lb.top, rb.top ),
+					bottom: Math.max( lb.top + lb.height, rb.top + rb.height ),
+				};
+			};
+			let b = boundsOfPair();
+			if ( !b ) {
+				return;
+			}
+			const cw = b.right - b.left;
+			const ch = b.bottom - b.top;
+			const shrink = Math.min( 1, box.width / cw, box.height / ch );
+			if ( isFinite( shrink ) && shrink > 0 && Math.abs( 1 - shrink ) > 0.005 ) {
+				[ left, right ].forEach( ( obj ) => {
+					obj.set( {
+						scaleX: ( obj.scaleX || 1 ) * shrink,
+						scaleY: ( obj.scaleY || 1 ) * shrink,
+						left: seamX + ( ( obj.left || 0 ) - seamX ) * shrink,
+						top: box.cy + ( ( obj.top || 0 ) - box.cy ) * shrink,
+					} );
+				} );
+				this.alignLineHalfVisualToSeam( left, seamX, 'left' );
+				this.alignLineHalfVisualToSeam( right, seamX, 'right' );
+				b = boundsOfPair();
+			}
+			if ( !b ) {
+				return;
+			}
+			const cy = ( b.top + b.bottom ) / 2;
+			const vShift = box.cy - cy;
+			if ( Math.abs( vShift ) > 0.01 ) {
+				left.set( { top: ( left.top || 0 ) + vShift } );
+				right.set( { top: ( right.top || 0 ) + vShift } );
+				this.alignLineHalfVisualToSeam( left, seamX, 'left' );
+				this.alignLineHalfVisualToSeam( right, seamX, 'right' );
+			}
+		}
+
 		postNormalizeLinePlacement(obj, box, role) {
 			if ( !obj || !box || ( role !== 'line-overlay' && role !== 'lines' ) ) {
+				return;
+			}
+			if ( obj.pckzConnectedLine ) {
 				return;
 			}
 			if ( typeof obj.getBoundingRect !== 'function' ) {
@@ -665,6 +725,42 @@
 		}
 
 		/**
+		 * Align rendered SVG artwork edge to the plate center seam (removes center gaps).
+		 *
+		 * @param {object} obj Fabric object.
+		 * @param {number} seamX Canvas X of center seam.
+		 * @param {'left'|'right'} side Half side.
+		 * @param {number} overlapPx Optional sub-pixel overlap to hide split lines.
+		 */
+		alignLineHalfVisualToSeam(obj, seamX, side, overlapPx) {
+			if ( !obj || typeof obj.getBoundingRect !== 'function' ) {
+				return;
+			}
+			const overlap = isFinite( overlapPx ) ? overlapPx : 1.25;
+			if ( typeof obj.setCoords === 'function' ) {
+				obj.setCoords();
+			}
+			const b = obj.getBoundingRect( true, true );
+			if ( !b || !( b.width > 0 ) ) {
+				return;
+			}
+			if ( side === 'left' ) {
+				const shift = seamX - ( b.left + b.width ) + overlap;
+				if ( Math.abs( shift ) > 0.01 ) {
+					obj.set( { left: ( obj.left || 0 ) + shift } );
+				}
+			} else {
+				const shift = seamX - b.left - overlap;
+				if ( Math.abs( shift ) > 0.01 ) {
+					obj.set( { left: ( obj.left || 0 ) + shift } );
+				}
+			}
+			if ( typeof obj.setCoords === 'function' ) {
+				obj.setCoords();
+			}
+		}
+
+		/**
 		 * Place one connected line half at the plate center seam (absolute canvas coords).
 		 *
 		 * @param {object} obj Fabric SVG object.
@@ -696,6 +792,7 @@
 			if ( typeof obj.setCoords === 'function' ) {
 				obj.setCoords();
 			}
+			this.alignLineHalfVisualToSeam( obj, seamX, side );
 			return obj;
 		}
 
@@ -722,6 +819,7 @@
 			right.pckzRole = 'line-half-right';
 			this.placeLineHalfAtSeam( left, box, 'left' );
 			this.placeLineHalfAtSeam( right, box, 'right' );
+			this.fitConnectedLineHalves( left, right, box );
 
 			if ( typeof fabric.Group !== 'function' ) {
 				return left;
@@ -735,7 +833,6 @@
 			}
 			group.pckzConnectedLine = true;
 			group.pckzRole = 'line-overlay';
-			this.postNormalizeLinePlacement( group, box, 'line-overlay' );
 			return group;
 		}
 

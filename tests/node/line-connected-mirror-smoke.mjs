@@ -74,8 +74,11 @@ const rb = right.getBoundingRect(true, true);
 const leftSeam = lb.left + lb.width;
 const rightSeam = rb.left;
 const gap = rightSeam - leftSeam;
-if (Math.abs(gap) > 3) {
-	throw new Error(`halves not aligned at seam, gap=${gap.toFixed(3)} seamX=${seamX.toFixed(1)} leftSeam=${leftSeam.toFixed(1)} rightSeam=${rightSeam.toFixed(1)}`);
+if (gap > 0.5) {
+	throw new Error(`visible center gap at seam, gap=${gap.toFixed(3)} seamX=${seamX.toFixed(1)} leftSeam=${leftSeam.toFixed(1)} rightSeam=${rightSeam.toFixed(1)}`);
+}
+if (gap < -4) {
+	throw new Error(`excessive center overlap at seam, gap=${gap.toFixed(3)}`);
 }
 
 canvas.add(group);

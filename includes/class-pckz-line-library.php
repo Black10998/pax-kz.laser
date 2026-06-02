@@ -431,7 +431,13 @@ class PCKZ_Line_Library {
 		}
 		$choices = array();
 		foreach ( PCKZ_Ledos_Preview::line_catalog( true ) as $slug => $data ) {
-			$thumb = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
+			// Customer picker uses original artwork URL for large, recognizable thumbnails.
+			// Plate preview/export continue to use normalized placement via lineTypes url + preview engine.
+			if ( ! empty( $data['custom'] ) && ! empty( $data['url'] ) ) {
+				$thumb = $data['url'];
+			} else {
+				$thumb = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
+			}
 			$choices[] = array(
 				'value' => $slug,
 				'label' => $data['label'] ?? self::label_for_slug( $slug, $slug ),
