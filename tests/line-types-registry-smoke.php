@@ -1,6 +1,6 @@
 <?php
 /**
- * Smoke: bundled line types 21–71 register when SVG assets exist.
+ * Smoke: bundled line types 21–81 register when SVG assets exist.
  *
  * @package PCKZCanonicalEngine
  */

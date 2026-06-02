@@ -167,9 +167,13 @@ def path_bounds(path: dict) -> tuple[float, float, float, float]:
 	return min(xs), min(ys), max(xs), max(ys)
 
 
-def path_centroid_y(path: dict) -> float:
+def path_centroid(path: dict) -> tuple[float, float]:
 	x0, y0, x1, y1 = path_bounds(path)
-	return (y0 + y1) * 0.5
+	return (x0 + x1) * 0.5, (y0 + y1) * 0.5
+
+
+def path_centroid_y(path: dict) -> float:
+	return path_centroid(path)[1]
 
 
 def strip_model_number_paths(paths: list[dict]) -> list[dict]:
@@ -200,10 +204,9 @@ def strip_model_number_paths(paths: list[dict]) -> list[dict]:
 		cy = (y0 + y1) * 0.5
 		rel_x = (cx - art_x0) / x_span
 
-		if max_area > 0 and area < max_area * 0.045:
-			if w < x_span * 0.14 or h < y_span * 0.4:
-				continue
-		if max_area > 0 and area < max_area * 0.09 and (rel_x < 0.11 or rel_x > 0.89):
+		if max_area > 0 and area < max_area * 0.045 and w < 18.0 and h < 12.0:
+			continue
+		if max_area > 0 and area < max_area * 0.04 and (rel_x < 0.11 or rel_x > 0.89):
 			continue
 		if (
 			max_area > 0
@@ -212,9 +215,81 @@ def strip_model_number_paths(paths: list[dict]) -> list[dict]:
 			and (cy < art_y0 + y_span * 0.22 or cy > art_y1 - y_span * 0.22)
 		):
 			continue
+		# Digit labels under ornaments (small, low on artboard).
+		if max_area > 0 and area < max_area * 0.025 and h < 12.0 and w < 20.0:
+			continue
 		kept.append(path)
 
 	return kept if kept else paths
+
+
+def strip_cluster_label_paths(paths: list[dict]) -> list[dict]:
+	"""Remove digit labels sitting below the main ornament bar within one model."""
+	if len(paths) < 2:
+		return paths
+
+	main = max(paths, key=lambda p: (path_bounds(p)[2] - path_bounds(p)[0]) * (path_bounds(p)[3] - path_bounds(p)[1]))
+	x0, y0, x1, y1 = path_bounds(main)
+	main_area = max((x1 - x0) * (y1 - y0), 1e-6)
+	bar_bottom = min(y0, y1)
+
+	kept: list[dict] = []
+	for path in paths:
+		if path is main:
+			kept.append(path)
+			continue
+		px0, py0, px1, py1 = path_bounds(path)
+		area = (px1 - px0) * (py1 - py0)
+		cy = (py0 + py1) * 0.5
+		if area < main_area * 0.06 and cy < bar_bottom + 6.0:
+			continue
+		kept.append(path)
+
+	return kept if kept else paths
+
+
+def cluster_paths_by_anchors(paths: list[dict], count: int) -> list[list[dict]]:
+	"""Split a 2-column reference sheet into N ornaments via main path anchors."""
+	anchors: list[tuple[float, float, float]] = []
+	for path in paths:
+		x0, y0, x1, y1 = path_bounds(path)
+		w = x1 - x0
+		h = y1 - y0
+		area = w * h
+		if area >= 5000.0 and w >= 180.0:
+			cx, cy = (x0 + x1) * 0.5, (y0 + y1) * 0.5
+			anchors.append((cx, cy, area))
+
+	if len(anchors) < count:
+		by_area = sorted(
+			(
+				(path_centroid(p)[0], path_centroid(p)[1], (path_bounds(p)[2] - path_bounds(p)[0]) * (path_bounds(p)[3] - path_bounds(p)[1]))
+				for p in paths
+			),
+			key=lambda t: t[2],
+			reverse=True,
+		)[:count]
+		anchors = [(a[0], a[1], a[2]) for a in by_area]
+
+	if not anchors:
+		return [paths]
+
+	mid_x = sorted(a[0] for a in anchors)[len(anchors) // 2]
+	left = sorted((a for a in anchors if a[0] < mid_x), key=lambda a: -a[1])
+	right = sorted((a for a in anchors if a[0] >= mid_x), key=lambda a: -a[1])
+	ordered = (left + right)[:count]
+	anchor_pts = [(a[0], a[1]) for a in ordered]
+
+	clusters: list[list[dict]] = [[] for _ in ordered]
+	for path in paths:
+		cx, cy = path_centroid(path)
+		best = min(
+			range(len(anchor_pts)),
+			key=lambda i: (cx - anchor_pts[i][0]) ** 2 + (cy - anchor_pts[i][1]) ** 2,
+		)
+		clusters[best].append(path)
+
+	return [c for c in clusters if c]
 
 
 def cluster_paths_vertical(paths: list[dict], count: int) -> list[list[dict]]:
@@ -422,7 +497,7 @@ def convert_paths(
 		raise ValueError(f"No paths found in {label or dest.name}")
 
 	if strip_numbers:
-		paths = strip_model_number_paths(paths)
+		paths = strip_cluster_label_paths(strip_model_number_paths(paths))
 	points = collect_points(paths)
 	if not points:
 		raise ValueError(f"No coordinates in {src}")
@@ -505,7 +580,9 @@ def convert_split_file(
 	if not paths:
 		raise ValueError(f"No paths found in {src}")
 
-	clusters = cluster_paths_vertical(paths, count)
+	clusters = cluster_paths_by_anchors(paths, count)
+	if len(clusters) != count:
+		clusters = cluster_paths_vertical(paths, count)
 	if len(clusters) != count:
 		raise ValueError(f"Expected {count} model clusters, got {len(clusters)} in {src.name}")
 

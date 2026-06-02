@@ -29,3 +29,4 @@ phpunit.xml.cache
 .idea/
 .vscode/
 *.code-workspace
+__pycache__/

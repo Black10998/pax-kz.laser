@@ -1,6 +1,6 @@
 <?php
 /**
- * Smoke: bundled type_21–71 SVGs match Cloudlift line artboard (950×35, white).
+ * Smoke: bundled type_21–81 SVGs match Cloudlift line artboard (950×35, white).
  */
 if ( ! defined( 'PCKZCE_PLUGIN_DIR' ) ) {
 	define( 'PCKZCE_PLUGIN_DIR', dirname( __DIR__ ) . '/' );

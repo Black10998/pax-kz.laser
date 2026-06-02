@@ -5,6 +5,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC_DIR="${1:-$ROOT/import/vector-fire-models}"
 SRC_FILE="${SRC_DIR}/vector fire model svg.ai"
+if [[ ! -f "$SRC_FILE" && -f "$ROOT/vector fire model svg.ai" ]]; then
+	SRC_FILE="$ROOT/vector fire model svg.ai"
+fi
 DEST="$ROOT/public/assets/lines"
 START=72
 COUNT=10
@@ -26,4 +29,3 @@ for num in $(seq "$START" "$END"); do
 done
 
 echo "Imported ${imported} fire line model(s) (type_${START}–type_${END}) into ${DEST}"
-echo "Next: set PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MAX to ${END} and bump plugin version."

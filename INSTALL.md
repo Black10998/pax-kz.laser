@@ -38,9 +38,9 @@ Console check: `window.PCKZCE_GLOBAL === window` must be `true`.
 
 Localized JS global: `pckzceConfig` (not `pckzCreator`).
 
-## Line models (Typ 21–71)
+## Line models (Typ 21–81)
 
-Bundled divider ornaments are included as `public/assets/lines/type_21.svg` … `type_71.svg`.  
+Bundled divider ornaments are included as `public/assets/lines/type_21.svg` … `type_81.svg`.  
 They appear in the customer **Linien** selector automatically (types **1–20** still use Cloudlift CDN).
 
 To regenerate SVGs after editing LightBurn sources in `import/line-models/`:
