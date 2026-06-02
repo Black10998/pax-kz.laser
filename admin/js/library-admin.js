@@ -22,7 +22,7 @@
 			return Array.prototype.slice.call(tbody.querySelectorAll('tr[' + config.rowSlugAttr + ']'));
 		}
 
-		function customBulkBoxes() {
+		function bulkBoxes() {
 			return table.querySelectorAll('.' + config.bulkCheckboxClass);
 		}
 
@@ -84,6 +84,18 @@
 					enabled: !!(enabled && enabled.checked),
 					label: labelInput ? String(labelInput.value || '') : '',
 				};
+				if (config.adminVisibleClass) {
+					const adminVisible = row.querySelector('.' + config.adminVisibleClass);
+					if (adminVisible) {
+						item.admin_visible = !!adminVisible.checked;
+					}
+				}
+				if (config.activeClass) {
+					const active = row.querySelector('.' + config.activeClass);
+					if (active) {
+						item.active = !!active.checked;
+					}
+				}
 				if (config.connectedClass) {
 					const connected = row.querySelector('.' + config.connectedClass);
 					if (connected) {
@@ -109,7 +121,7 @@
 				return;
 			}
 			const slugs = [];
-			customBulkBoxes().forEach(function (checkbox) {
+			bulkBoxes().forEach(function (checkbox) {
 				if (checkbox.checked) {
 					slugs.push(String(checkbox.value || ''));
 				}
@@ -136,14 +148,14 @@
 		});
 
 		document.getElementById(config.selectAllId)?.addEventListener('click', function () {
-			customBulkBoxes().forEach(function (checkbox) {
+			bulkBoxes().forEach(function (checkbox) {
 				checkbox.checked = true;
 			});
 			syncBulkInput();
 		});
 
 		document.getElementById(config.deselectAllId)?.addEventListener('click', function () {
-			customBulkBoxes().forEach(function (checkbox) {
+			bulkBoxes().forEach(function (checkbox) {
 				checkbox.checked = false;
 			});
 			syncBulkInput();
@@ -152,7 +164,7 @@
 		const headerSelect = document.getElementById(config.headerSelectId);
 		if (headerSelect) {
 			headerSelect.addEventListener('change', function () {
-				customBulkBoxes().forEach(function (checkbox) {
+				bulkBoxes().forEach(function (checkbox) {
 					checkbox.checked = headerSelect.checked;
 				});
 				syncBulkInput();
@@ -167,13 +179,19 @@
 			if (target.classList.contains(config.enabledClass)) {
 				syncPayload();
 			}
+			if (config.adminVisibleClass && target.classList.contains(config.adminVisibleClass)) {
+				syncPayload();
+			}
+			if (config.activeClass && target.classList.contains(config.activeClass)) {
+				syncPayload();
+			}
 			if (config.connectedClass && target.classList.contains(config.connectedClass)) {
 				syncPayload();
 			}
 			if (target.classList.contains(config.bulkCheckboxClass)) {
 				syncBulkInput();
 				if (headerSelect) {
-					const boxes = customBulkBoxes();
+					const boxes = bulkBoxes();
 					const checked = Array.prototype.filter.call(boxes, function (cb) {
 						return cb.checked;
 					}).length;
@@ -268,13 +286,13 @@
 				event.preventDefault();
 				syncBulkInput();
 				const slugs = [];
-				customBulkBoxes().forEach(function (checkbox) {
+				bulkBoxes().forEach(function (checkbox) {
 					if (checkbox.checked) {
 						slugs.push(String(checkbox.value || ''));
 					}
 				});
 				if (!slugs.length) {
-					window.alert(config.messages.selectItems || 'Select one or more custom items to delete.');
+					window.alert(config.messages.selectItems || 'Select one or more items.');
 					return;
 				}
 				const msg = (config.messages.confirmBulkDelete || 'Delete {count} selected item(s)?').replace(

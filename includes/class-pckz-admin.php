@@ -486,7 +486,10 @@ class PCKZ_Admin {
 						'enabledClass'       => 'pckz-line-enabled',
 						'labelClass'         => 'pckz-line-label',
 						'connectedClass'     => 'pckz-line-connected-right',
+						'adminVisibleClass'  => 'pckz-line-admin-visible',
+						'activeClass'        => 'pckz-line-active',
 						'bulkCheckboxClass'  => 'pckz-library-bulk-select',
+						'bulkAllRows'        => true,
 						'enableAllId'        => 'pckz-line-enable-all',
 						'disableAllId'       => 'pckz-line-disable-all',
 						'selectAllId'        => 'pckz-line-select-all-custom',
@@ -497,8 +500,8 @@ class PCKZ_Admin {
 						'orderEnabled'       => true,
 						'messages'           => array(
 							'emptyPayload'       => __( 'Line library save payload is empty. Please reload the page and try again.', 'pckz-canonical-engine' ),
-							'selectItems'        => __( 'Select one or more custom lines to delete.', 'pckz-canonical-engine' ),
-							'confirmBulkDelete'  => __( 'Delete {count} selected line design(s) permanently? This cannot be undone.', 'pckz-canonical-engine' ),
+							'selectItems'        => __( 'Select one or more line models.', 'pckz-canonical-engine' ),
+							'confirmBulkDelete'  => __( 'Remove {count} selected model(s)? Custom uploads are deleted permanently. Built-in models are hidden from the library (existing orders keep working).', 'pckz-canonical-engine' ),
 						),
 					),
 				)
@@ -604,12 +607,23 @@ class PCKZ_Admin {
 
 		if ( ! empty( $_POST['pckz_line_library_bulk_delete'] ) && check_admin_referer( 'pckz_line_library_save', 'pckz_line_library_nonce' ) ) {
 			$slugs  = $this->parse_library_bulk_slugs( $_POST['pckz_line_bulk_slugs_json'] ?? '' );
-			$result = PCKZ_Line_Library::delete_custom_bulk( $slugs );
+			$result = PCKZ_Line_Library::delete_selected_bulk( $slugs );
 			if ( is_wp_error( $result ) ) {
 				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
 			} else {
-				/* translators: %d: number of deleted lines */
-				echo '<div class="notice notice-success"><p>' . esc_html( sprintf( __( '%d line design(s) deleted.', 'pckz-canonical-engine' ), (int) $result['deleted'] ) ) . '</p></div>';
+				$parts = array();
+				if ( ! empty( $result['deleted'] ) ) {
+					/* translators: %d: number of deleted custom lines */
+					$parts[] = sprintf( __( '%d custom upload(s) deleted.', 'pckz-canonical-engine' ), (int) $result['deleted'] );
+				}
+				if ( ! empty( $result['hidden'] ) ) {
+					/* translators: %d: number of hidden built-in lines */
+					$parts[] = sprintf( __( '%d built-in model(s) hidden from the library.', 'pckz-canonical-engine' ), (int) $result['hidden'] );
+				}
+				if ( empty( $parts ) ) {
+					$parts[] = __( 'Selection processed.', 'pckz-canonical-engine' );
+				}
+				echo '<div class="notice notice-success"><p>' . esc_html( implode( ' ', $parts ) ) . '</p></div>';
 			}
 		} elseif ( isset( $_POST['pckz_line_delete'] ) && check_admin_referer( 'pckz_line_library_save', 'pckz_line_library_nonce' ) ) {
 			$del = PCKZ_Line_Library::delete_custom( sanitize_key( wp_unslash( $_POST['pckz_line_delete'] ) ) );
