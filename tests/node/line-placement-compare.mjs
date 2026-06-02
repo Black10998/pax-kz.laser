@@ -52,5 +52,6 @@ fs.writeFileSync(
 	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40"><path fill="#f00" d="M10 20 L90 20 L90 30 L10 30 Z"/></svg>'
 );
 
+await metrics('builtin type_41', 'file://' + path.join(pluginRoot, 'public/assets/lines/type_41.svg'), false);
 await metrics('builtin type_45', 'file://' + path.join(pluginRoot, 'public/assets/lines/type_45.svg'), false);
 await metrics('connected custom', 'file://' + customPath, true);

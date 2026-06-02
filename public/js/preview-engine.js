@@ -8,6 +8,12 @@
 
 	const DEFAULT_DESIGN = { width: 3651, height: 2132 };
 
+	/** Match picker preview: scale up narrow line artwork for live preview display only. */
+	const LINE_PREVIEW_WIDTH_COVERAGE = 0.88;
+	const LINE_PREVIEW_TARGET_WIDTH = 0.96;
+	const LINE_PREVIEW_TARGET_HEIGHT = 0.92;
+	const LINE_PREVIEW_MAX_DISPLAY_BOOST = 4;
+
 	if (typeof fabric !== 'undefined' && fabric.Object) {
 		fabric.Object.NUM_FRACTION_DIGITS = 8;
 	}
@@ -256,6 +262,84 @@
 			this.scalePairFromSeamAnisotropic( left, right, box, target.width / cw, target.height / ch );
 		}
 
+		/**
+		 * Tight drawable bounds from Fabric path geometry (excludes empty viewBox margins).
+		 *
+		 * @param {object[]} objects Parsed SVG objects.
+		 * @return {object|null}
+		 */
+		computeLinePathDrawBounds(objects) {
+			if ( !Array.isArray( objects ) || !objects.length ) {
+				return null;
+			}
+			let minX = Infinity;
+			let minY = Infinity;
+			let maxX = -Infinity;
+			let maxY = -Infinity;
+			const walk = ( item ) => {
+				if ( !item ) {
+					return;
+				}
+				if ( item.type === 'group' && typeof item.getObjects === 'function' ) {
+					item.getObjects().forEach( walk );
+					return;
+				}
+				if ( item.type !== 'path' && item.type !== 'polygon' && item.type !== 'polyline' && item.type !== 'rect' && item.type !== 'circle' && item.type !== 'ellipse' && item.type !== 'line' ) {
+					return;
+				}
+				if ( typeof item.setCoords === 'function' ) {
+					item.setCoords();
+				}
+				if ( typeof item.getBoundingRect !== 'function' ) {
+					return;
+				}
+				const b = item.getBoundingRect( true, true );
+				if ( !b || !isFinite( b.left ) || !isFinite( b.top ) ) {
+					return;
+				}
+				minX = Math.min( minX, b.left );
+				minY = Math.min( minY, b.top );
+				maxX = Math.max( maxX, b.left + b.width );
+				maxY = Math.max( maxY, b.top + b.height );
+			};
+			objects.forEach( walk );
+			if ( !isFinite( minX ) || !isFinite( minY ) || !isFinite( maxX ) || !isFinite( maxY ) ) {
+				return null;
+			}
+			return {
+				x: minX,
+				y: minY,
+				width: Math.max( 0.001, maxX - minX ),
+				height: Math.max( 0.001, maxY - minY ),
+			};
+		}
+
+		/**
+		 * Prefer tight path bounds for line overlays when viewBox has large side margins.
+		 *
+		 * @param {object[]} objects Parsed SVG objects.
+		 * @param {object}   options Fabric SVG parse options.
+		 * @return {object|null}
+		 */
+		resolveLineSvgDrawBounds(objects, options) {
+			const loose = this.computeSvgObjectsBounds( objects );
+			const tight = this.computeLinePathDrawBounds( objects );
+			if ( !tight ) {
+				return loose;
+			}
+			if ( !loose ) {
+				return tight;
+			}
+			const viewport = this.resolveSvgViewport( options || {}, loose );
+			const vpW = Math.max( 0.001, parseFloat( viewport.width ) || 0 );
+			const tightCov = tight.width / vpW;
+			const looseCov = loose.width / vpW;
+			if ( tightCov < LINE_PREVIEW_WIDTH_COVERAGE && tightCov < looseCov - 0.02 ) {
+				return tight;
+			}
+			return loose;
+		}
+
 		computeSvgObjectsBounds(objects) {
 			if (!Array.isArray(objects) || !objects.length) {
 				return null;
@@ -404,6 +488,25 @@
 			};
 		}
 
+		/**
+		 * Width boost for narrow line drawable bounds (preview display; stripped on export).
+		 *
+		 * @param {object} draw         SVG draw bounds.
+		 * @param {number} viewW        Viewport width.
+		 * @return {number} Boost factor (>= 1).
+		 */
+		linePreviewWidthBoostForDraw(draw, viewW) {
+			const vpW = Math.max( 0.001, parseFloat( viewW ) || 0 );
+			const drawW = Math.max( 0.001, parseFloat( draw && draw.width ) || 0 );
+			if ( !draw || drawW / vpW >= LINE_PREVIEW_WIDTH_COVERAGE ) {
+				return 1;
+			}
+			return Math.max(
+				1,
+				Math.min( LINE_PREVIEW_MAX_DISPLAY_BOOST, ( LINE_PREVIEW_TARGET_WIDTH * vpW ) / drawW )
+			);
+		}
+
 		visualBoundsForLinePlacement(obj, half) {
 			const viewport = obj && obj.pckzSvgViewport;
 			const draw = obj && obj.pckzSvgDrawBounds;
@@ -542,14 +645,23 @@
 		}
 
 		resolvedPlacementVisual(obj, role, rawBounds) {
-			const visual = this.visualBoundsForPlacement(obj, role || obj.pckzRole || '');
-			if (!visual) {
+			const r = role || obj.pckzRole || '';
+			const visual = this.visualBoundsForPlacement( obj, r );
+			if ( !visual ) {
 				return null;
 			}
-			if (!rawBounds) {
+			if (
+				r === 'line-overlay' ||
+				r === 'lines' ||
+				r === 'line-half-left' ||
+				r === 'line-half-right'
+			) {
 				return visual;
 			}
-			return this.isVisualPlacementBoundsConsistent(obj, visual, rawBounds) ? visual : null;
+			if ( !rawBounds ) {
+				return visual;
+			}
+			return this.isVisualPlacementBoundsConsistent( obj, visual, rawBounds ) ? visual : null;
 		}
 
 		postNormalizeIconPlacement(obj, box, role) {
@@ -667,6 +779,51 @@
 			}
 		}
 
+		/**
+		 * Preview-only width boost for narrow line SVGs (export strips via pckzPreviewLineDisplayBoost).
+		 *
+		 * @param {object} obj Fabric line object.
+		 * @param {object} box Lines layer canvas box.
+		 * @returns {number} Combined boost factor applied (>= 1).
+		 */
+		applyLinePreviewDisplayWidthBoost(obj, box) {
+			if ( !obj || !box ) {
+				return 1;
+			}
+			const draw = obj.pckzSvgDrawBounds;
+			const viewport = obj.pckzSvgViewport;
+			let grow = 1;
+			if ( draw && viewport ) {
+				grow = this.linePreviewWidthBoostForDraw( draw, viewport.width );
+			}
+			if ( grow <= 1.005 && typeof obj.getBoundingRect === 'function' ) {
+				const b = obj.getBoundingRect( true, true );
+				const targetW = box.width * LINE_PREVIEW_TARGET_WIDTH;
+				if ( b && b.width > 0 && b.width < targetW * LINE_PREVIEW_WIDTH_COVERAGE ) {
+					grow = Math.max(
+						grow,
+						Math.min( LINE_PREVIEW_MAX_DISPLAY_BOOST, targetW / b.width )
+					);
+					const maxH = box.height * LINE_PREVIEW_TARGET_HEIGHT;
+					if ( b.height * grow > maxH && b.height > 0 ) {
+						grow = Math.max( grow, maxH / b.height );
+					}
+				}
+			}
+			grow = Math.max( 1, Math.min( LINE_PREVIEW_MAX_DISPLAY_BOOST, grow ) );
+			if ( grow <= 1.005 ) {
+				return 1;
+			}
+			obj.set( {
+				scaleX: ( obj.scaleX || 1 ) * grow,
+				scaleY: ( obj.scaleY || 1 ) * grow,
+			} );
+			if ( typeof obj.setCoords === 'function' ) {
+				obj.setCoords();
+			}
+			return grow;
+		}
+
 		postNormalizeLinePlacement(obj, box, role) {
 			if ( !obj || !box || ( role !== 'line-overlay' && role !== 'lines' ) ) {
 				return;
@@ -677,6 +834,8 @@
 			if ( typeof obj.getBoundingRect !== 'function' ) {
 				return;
 			}
+			const baseScaleX = obj.scaleX || 1;
+			const baseScaleY = obj.scaleY || 1;
 			let b = obj.getBoundingRect( true, true );
 			if ( !b || !( b.width > 0 ) || !( b.height > 0 ) ) {
 				return;
@@ -695,6 +854,29 @@
 			if ( !b || !( b.width > 0 ) || !( b.height > 0 ) ) {
 				return;
 			}
+			this.applyLinePreviewDisplayWidthBoost( obj, box );
+			b = obj.getBoundingRect( true, true );
+			if ( !b || !( b.width > 0 ) || !( b.height > 0 ) ) {
+				return;
+			}
+			const fitShrink = Math.min(
+				1,
+				( box.width * LINE_PREVIEW_TARGET_WIDTH ) / b.width,
+				( box.height * LINE_PREVIEW_TARGET_HEIGHT ) / b.height
+			);
+			if ( isFinite( fitShrink ) && fitShrink > 0 && fitShrink < 0.995 ) {
+				obj.set( {
+					scaleX: ( obj.scaleX || 1 ) * fitShrink,
+					scaleY: ( obj.scaleY || 1 ) * fitShrink,
+				} );
+				if ( typeof obj.setCoords === 'function' ) {
+					obj.setCoords();
+				}
+				b = obj.getBoundingRect( true, true );
+			}
+			if ( !b || !( b.width > 0 ) || !( b.height > 0 ) ) {
+				return;
+			}
 			const cx = b.left + b.width / 2;
 			const cy = b.top + b.height / 2;
 			obj.set( {
@@ -704,6 +886,10 @@
 			if ( typeof obj.setCoords === 'function' ) {
 				obj.setCoords();
 			}
+			const finalScaleX = obj.scaleX || 1;
+			const netBoostX = baseScaleX > 0 ? finalScaleX / baseScaleX : 1;
+			obj.pckzPreviewLineDisplayBoost =
+				isFinite( netBoostX ) && netBoostX > 1.001 ? netBoostX : 1;
 		}
 
 		/**
@@ -745,7 +931,9 @@
 							group.setCoords();
 						}
 						const drawBounds =
-							this.computeSvgObjectsBounds([group]) || this.computeSvgObjectsBounds(objects);
+							this.resolveLineSvgDrawBounds( objects, options ) ||
+							this.computeSvgObjectsBounds( [ group ] ) ||
+							this.computeSvgObjectsBounds( objects );
 						if (drawBounds) {
 							group.pckzSvgDrawBounds = drawBounds;
 							group.pckzSvgViewport = this.resolveSvgViewport(options || {}, drawBounds);
