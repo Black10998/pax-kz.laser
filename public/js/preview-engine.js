@@ -24,6 +24,7 @@
 			this.designH = this.cfg.designHeight || DEFAULT_DESIGN.height;
 			this.layers = this.cfg.layers || {};
 			this.lineTypes = this.cfg.lineTypes || {};
+			this.lineCatalog = this.cfg.lineCatalog || {};
 			this.iconCatalog = this.cfg.iconCatalog || {};
 			this.bgBounds = { left: 0, top: 0, width: 1, height: 1 };
 			this.plateCalibration = null;
@@ -584,6 +585,77 @@
 			return obj;
 		}
 
+		/**
+		 * Compose a left-half SVG with its mirrored right continuation (seamless center join).
+		 *
+		 * @param {string} url SVG URL.
+		 * @param {object} ref Lines layer ref.
+		 * @returns {Promise<fabric.Object|null>}
+		 */
+		async buildConnectedLineGroup(url, ref) {
+			const base = await this.loadSvgAsset(url, null, false);
+			if (!base) {
+				return null;
+			}
+			const left = await this.cloneCached(base);
+			const right = await this.cloneCached(base);
+			if (!left || !right) {
+				return null;
+			}
+			const box = this.refToCanvas(ref);
+			const seamX = box.left + box.width / 2;
+			const halfW = box.width / 2;
+
+			const fitHalfAtSeam = (obj, side) => {
+				if (typeof obj.setCoords === 'function') {
+					obj.setCoords();
+				}
+				const bounds =
+					this.computeSvgObjectsBounds([obj]) ||
+					(typeof obj.getBoundingRect === 'function' ? obj.getBoundingRect(true, true) : null);
+				const w = bounds && bounds.width ? bounds.width : (obj.width || 1) * Math.abs(obj.scaleX || 1);
+				const h = bounds && bounds.height ? bounds.height : (obj.height || 1) * Math.abs(obj.scaleY || 1);
+				const scale = Math.min(halfW / Math.max(w, 0.001), box.height / Math.max(h, 0.001));
+				const flip = side === 'right';
+				obj.set({
+					originX: flip ? 'left' : 'right',
+					originY: 'center',
+					left: seamX,
+					top: box.cy,
+					scaleX: flip ? -scale : scale,
+					scaleY: scale,
+					flipX: false,
+					flipY: false,
+					selectable: false,
+					evented: false,
+				});
+				if (typeof obj.setCoords === 'function') {
+					obj.setCoords();
+				}
+				return obj;
+			};
+
+			fitHalfAtSeam(left, 'left');
+			fitHalfAtSeam(right, 'right');
+
+			if (typeof fabric.Group !== 'function') {
+				return left;
+			}
+			const group = new fabric.Group([left, right], {
+				selectable: false,
+				evented: false,
+				originX: 'center',
+				originY: 'center',
+				left: box.cx,
+				top: box.cy,
+			});
+			if (typeof group.setCoords === 'function') {
+				group.setCoords();
+			}
+			group.pckzConnectedLine = true;
+			return group;
+		}
+
 		visualCenterY(obj, role) {
 			if (!obj) {
 				return null;
@@ -666,10 +738,20 @@
 			this.removeRole('line');
 			const lineKey = state.linien || 'none';
 			if (lineKey && lineKey !== 'none' && this.lineTypes[lineKey]) {
-				const lineImg = await this.loadSvgAsset(this.lineTypes[lineKey], null, false);
+				const lineMeta = this.lineCatalog[lineKey] || {};
+				const lineUrl = this.lineTypes[lineKey];
+				let lineImg = null;
+				if (lineMeta.connected_right) {
+					lineImg = await this.buildConnectedLineGroup(lineUrl, linesRef);
+				} else {
+					lineImg = await this.loadSvgAsset(lineUrl, null, false);
+					if (lineImg) {
+						this.placeInRef(lineImg, linesRef, 'line-overlay');
+					}
+				}
 				if (lineImg) {
 					lineImg.pckzRole = 'line-overlay';
-					this.placeInRef(lineImg, linesRef, 'line-overlay');
+					lineImg.pckzLineSlug = lineKey;
 					this.objects.line = lineImg;
 					this.canvas.add(lineImg);
 				}

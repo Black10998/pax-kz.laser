@@ -9,31 +9,94 @@
 		const form = document.getElementById(config.formId);
 		const payloadInput = document.getElementById(config.payloadId);
 		const bulkInput = document.getElementById(config.bulkInputId);
+		const tbody = table ? table.querySelector('tbody') : null;
 
 		if (!table || !form || !payloadInput) {
 			return;
+		}
+
+		function rows() {
+			if (!tbody) {
+				return [];
+			}
+			return Array.prototype.slice.call(tbody.querySelectorAll('tr[' + config.rowSlugAttr + ']'));
 		}
 
 		function customBulkBoxes() {
 			return table.querySelectorAll('.' + config.bulkCheckboxClass);
 		}
 
+		function collectOrder() {
+			return rows()
+				.map(function (row) {
+					return row.getAttribute(config.rowSlugAttr) || '';
+				})
+				.filter(function (slug) {
+					return !!slug;
+				});
+		}
+
+		function refreshOrderIndexes() {
+			if (!config.orderEnabled) {
+				return;
+			}
+			rows().forEach(function (row, index) {
+				const badge = row.querySelector('.pckz-line-order-index');
+				if (badge) {
+					badge.textContent = String(index + 1);
+				}
+			});
+		}
+
+		function moveRow(row, direction) {
+			if (!row || !tbody) {
+				return;
+			}
+			const list = rows();
+			const index = list.indexOf(row);
+			if (index < 0) {
+				return;
+			}
+			const targetIndex = direction === 'up' ? index - 1 : index + 1;
+			if (targetIndex < 0 || targetIndex >= list.length) {
+				return;
+			}
+			const target = list[targetIndex];
+			if (direction === 'up') {
+				tbody.insertBefore(row, target);
+			} else {
+				tbody.insertBefore(target, row);
+			}
+			refreshOrderIndexes();
+			syncPayload();
+		}
+
 		function collectPayload() {
 			const items = {};
-			table.querySelectorAll('tbody tr[' + config.rowSlugAttr + ']').forEach(function (row) {
+			rows().forEach(function (row) {
 				const slug = row.getAttribute(config.rowSlugAttr);
 				if (!slug) {
 					return;
 				}
 				const enabled = row.querySelector('.' + config.enabledClass);
 				const labelInput = row.querySelector('.' + config.labelClass);
-				items[slug] = {
+				const item = {
 					enabled: !!(enabled && enabled.checked),
 					label: labelInput ? String(labelInput.value || '') : '',
 				};
+				if (config.connectedClass) {
+					const connected = row.querySelector('.' + config.connectedClass);
+					if (connected) {
+						item.connected_right = !!connected.checked;
+					}
+				}
+				items[slug] = item;
 			});
 			const out = {};
 			out[config.payloadKey] = items;
+			if (config.orderEnabled) {
+				out.order = collectOrder();
+			}
 			return out;
 		}
 
@@ -104,6 +167,9 @@
 			if (target.classList.contains(config.enabledClass)) {
 				syncPayload();
 			}
+			if (config.connectedClass && target.classList.contains(config.connectedClass)) {
+				syncPayload();
+			}
 			if (target.classList.contains(config.bulkCheckboxClass)) {
 				syncBulkInput();
 				if (headerSelect) {
@@ -122,6 +188,79 @@
 				syncPayload();
 			}
 		});
+
+		table.addEventListener('click', function (event) {
+			const target = event.target;
+			if (!target || !config.orderEnabled) {
+				return;
+			}
+			const row = target.closest('tr[' + config.rowSlugAttr + ']');
+			if (!row) {
+				return;
+			}
+			if (target.classList.contains('pckz-line-move-up')) {
+				event.preventDefault();
+				moveRow(row, 'up');
+			}
+			if (target.classList.contains('pckz-line-move-down')) {
+				event.preventDefault();
+				moveRow(row, 'down');
+			}
+		});
+
+		if (config.orderEnabled && tbody) {
+			let dragRow = null;
+
+			tbody.addEventListener('dragstart', function (event) {
+				const row = event.target && event.target.closest('tr[' + config.rowSlugAttr + ']');
+				if (!row) {
+					return;
+				}
+				dragRow = row;
+				row.classList.add('is-dragging');
+				if (event.dataTransfer) {
+					event.dataTransfer.effectAllowed = 'move';
+					event.dataTransfer.setData('text/plain', row.getAttribute(config.rowSlugAttr) || '');
+				}
+			});
+
+			tbody.addEventListener('dragend', function () {
+				if (dragRow) {
+					dragRow.classList.remove('is-dragging');
+				}
+				dragRow = null;
+				rows().forEach(function (row) {
+					row.classList.remove('is-drop-target');
+				});
+				refreshOrderIndexes();
+				syncPayload();
+			});
+
+			tbody.addEventListener('dragover', function (event) {
+				if (!dragRow) {
+					return;
+				}
+				event.preventDefault();
+				const over = event.target && event.target.closest('tr[' + config.rowSlugAttr + ']');
+				if (!over || over === dragRow) {
+					return;
+				}
+				rows().forEach(function (row) {
+					row.classList.toggle('is-drop-target', row === over);
+				});
+				const rect = over.getBoundingClientRect();
+				const before = event.clientY < rect.top + rect.height / 2;
+				if (before) {
+					tbody.insertBefore(dragRow, over);
+				} else {
+					tbody.insertBefore(dragRow, over.nextSibling);
+				}
+			});
+
+			tbody.addEventListener('drop', function (event) {
+				event.preventDefault();
+			});
+		}
 
 		const bulkDeleteBtn = document.getElementById(config.bulkDeleteId);
 		if (bulkDeleteBtn) {
@@ -171,6 +310,7 @@
 			}
 		});
 
+		refreshOrderIndexes();
 		syncPayload();
 		syncBulkInput();
 	}

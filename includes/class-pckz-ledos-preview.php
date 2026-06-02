@@ -29,6 +29,7 @@ class PCKZ_Ledos_Preview {
 			'designHeight' => self::DESIGN_HEIGHT,
 			'layers'       => self::layer_refs(),
 			'lineTypes'    => self::line_types(),
+			'lineCatalog'  => self::line_catalog_for_js(),
 			'iconCatalog'  => self::icon_catalog(),
 			'colors'       => self::color_swatches(),
 		);
@@ -203,12 +204,35 @@ class PCKZ_Ledos_Preview {
 	}
 
 	/**
+	 * Line catalog for JS preview engine (metadata per slug).
+	 *
+	 * @return array<string,array>
+	 */
+	public static function line_catalog_for_js() {
+		$catalog = array();
+		foreach ( self::line_catalog( false, false ) as $slug => $data ) {
+			if ( 'none' === $slug ) {
+				continue;
+			}
+			$catalog[ $slug ] = array(
+				'url'             => $data['url'] ?? '',
+				'preview'         => $data['preview'] ?? ( $data['url'] ?? '' ),
+				'label'           => $data['label'] ?? $slug,
+				'custom'          => ! empty( $data['custom'] ),
+				'connected_right' => ! empty( $data['connected_right'] ),
+			);
+		}
+		return $catalog;
+	}
+
+	/**
 	 * Line catalog for admin/customer UI (labels, previews, visibility).
 	 *
 	 * @param bool $for_customer When true, omit admin-disabled lines.
+	 * @param bool $apply_order  When true, apply admin display order.
 	 * @return array<string,array>
 	 */
-	public static function line_catalog( $for_customer = true ) {
+	public static function line_catalog( $for_customer = true, $apply_order = true ) {
 		$none_preview = PCKZCE_PLUGIN_URL . 'public/images/icons/lines-black.svg';
 		$items        = array(
 			'none' => array(
@@ -241,10 +265,11 @@ class PCKZ_Ledos_Preview {
 					continue;
 				}
 				$items[ $slug ] = array(
-					'url'     => $url,
-					'preview' => $url,
-					'label'   => PCKZ_Line_Library::label_for_slug( $slug, self::default_line_label( $slug ) ),
-					'custom'  => true,
+					'url'             => $url,
+					'preview'         => $url,
+					'label'           => PCKZ_Line_Library::label_for_slug( $slug, self::default_line_label( $slug ) ),
+					'custom'          => true,
+					'connected_right' => PCKZ_Line_Library::connected_right_for_slug( $slug ),
 				);
 			}
 			foreach ( $items as $slug => $data ) {
@@ -257,6 +282,10 @@ class PCKZ_Ledos_Preview {
 
 		if ( $for_customer && class_exists( 'PCKZ_Line_Library' ) ) {
 			$items = PCKZ_Line_Library::filter_visible_catalog( $items );
+		}
+
+		if ( $apply_order && class_exists( 'PCKZ_Line_Library' ) ) {
+			$items = PCKZ_Line_Library::sort_catalog_items( $items );
 		}
 
 		return $items;

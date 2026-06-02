@@ -485,6 +485,7 @@ class PCKZ_Admin {
 						'payloadKey'         => 'lines',
 						'enabledClass'       => 'pckz-line-enabled',
 						'labelClass'         => 'pckz-line-label',
+						'connectedClass'     => 'pckz-line-connected-right',
 						'bulkCheckboxClass'  => 'pckz-library-bulk-select',
 						'enableAllId'        => 'pckz-line-enable-all',
 						'disableAllId'       => 'pckz-line-disable-all',
@@ -493,10 +494,11 @@ class PCKZ_Admin {
 						'headerSelectId'     => 'pckz-line-header-select',
 						'bulkDeleteId'       => 'pckz-line-bulk-delete',
 						'singleDeleteName'   => 'pckz_line_delete',
+						'orderEnabled'       => true,
 						'messages'           => array(
 							'emptyPayload'       => __( 'Line library save payload is empty. Please reload the page and try again.', 'pckz-canonical-engine' ),
 							'selectItems'        => __( 'Select one or more custom lines to delete.', 'pckz-canonical-engine' ),
-							'confirmBulkDelete'  => __( 'Delete {count} selected line design(s)? This cannot be undone.', 'pckz-canonical-engine' ),
+							'confirmBulkDelete'  => __( 'Delete {count} selected line design(s) permanently? This cannot be undone.', 'pckz-canonical-engine' ),
 						),
 					),
 				)

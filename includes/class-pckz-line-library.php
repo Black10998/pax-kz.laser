@@ -15,6 +15,7 @@ class PCKZ_Line_Library {
 	const OPTION_DISABLED = 'pckz_line_disabled_slugs';
 	const OPTION_CUSTOM   = 'pckz_line_custom';
 	const OPTION_LABELS   = 'pckz_line_labels';
+	const OPTION_ORDER    = 'pckz_line_display_order';
 	const UPLOAD_SUBDIR   = 'pckz-canonical-engine/lines';
 
 	/**
@@ -72,6 +73,8 @@ class PCKZ_Line_Library {
 				'label'            => sanitize_text_field( $row['label'] ?? $slug ),
 				'file'             => sanitize_file_name( $row['file'] ),
 				'customer_visible' => $visible,
+				'connected_right'  => ! empty( $row['connected_right'] ),
+				'source'           => in_array( $row['source'] ?? '', array( 'upload', 'url' ), true ) ? $row['source'] : 'upload',
 			);
 		}
 		return $out;
@@ -127,6 +130,121 @@ class PCKZ_Line_Library {
 	 */
 	public static function is_custom( $slug ) {
 		return isset( self::custom_manifest()[ $slug ] );
+	}
+
+	/**
+	 * Saved admin display order (slug list).
+	 *
+	 * @return string[]
+	 */
+	public static function display_order() {
+		$raw = self::option_get( self::OPTION_ORDER, array() );
+		if ( ! is_array( $raw ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $raw as $slug ) {
+			$s = sanitize_key( (string) $slug );
+			if ( $s && 'none' !== $s ) {
+				$out[] = $s;
+			}
+		}
+		return array_values( array_unique( $out ) );
+	}
+
+	/**
+	 * Whether a custom line uses connected left/right continuation.
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function connected_right_for_slug( $slug ) {
+		$slug   = sanitize_key( $slug );
+		$custom = self::custom_manifest();
+		return ! empty( $custom[ $slug ]['connected_right'] );
+	}
+
+	/**
+	 * Sort catalog items by admin-defined display order.
+	 *
+	 * @param array<string,array> $items Catalog entries keyed by slug.
+	 * @return array<string,array>
+	 */
+	public static function sort_catalog_items( $items ) {
+		if ( ! is_array( $items ) || empty( $items ) ) {
+			return is_array( $items ) ? $items : array();
+		}
+		$order   = self::display_order();
+		$sorted  = array();
+		$seen    = array();
+		if ( isset( $items['none'] ) ) {
+			$sorted['none'] = $items['none'];
+			$seen['none']   = true;
+		}
+		foreach ( $order as $slug ) {
+			if ( isset( $items[ $slug ] ) ) {
+				$sorted[ $slug ] = $items[ $slug ];
+				$seen[ $slug ]   = true;
+			}
+		}
+		foreach ( $items as $slug => $data ) {
+			if ( ! empty( $seen[ $slug ] ) ) {
+				continue;
+			}
+			$sorted[ $slug ] = $data;
+		}
+		return $sorted;
+	}
+
+	/**
+	 * Persist admin display order.
+	 *
+	 * @param array $slugs Ordered slug list.
+	 */
+	public static function save_display_order( $slugs ) {
+		$clean = array();
+		foreach ( (array) $slugs as $slug ) {
+			$s = sanitize_key( (string) $slug );
+			if ( $s && 'none' !== $s ) {
+				$clean[] = $s;
+			}
+		}
+		self::option_update( self::OPTION_ORDER, array_values( array_unique( $clean ) ) );
+	}
+
+	/**
+	 * Remove slug from saved display order.
+	 *
+	 * @param string $slug Line slug.
+	 */
+	public static function remove_from_display_order( $slug ) {
+		$slug = sanitize_key( $slug );
+		if ( ! $slug ) {
+			return;
+		}
+		self::save_display_order(
+			array_values(
+				array_diff( self::display_order(), array( $slug ) )
+			)
+		);
+	}
+
+	/**
+	 * Append slug to display order if missing.
+	 *
+	 * @param string $slug Line slug.
+	 */
+	public static function append_to_display_order( $slug ) {
+		$slug = sanitize_key( $slug );
+		if ( ! $slug || 'none' === $slug ) {
+			return;
+		}
+		$order = self::display_order();
+		if ( in_array( $slug, $order, true ) ) {
+			return;
+		}
+		$order[] = $slug;
+		self::save_display_order( $order );
 	}
 
 	/**
@@ -215,17 +333,34 @@ class PCKZ_Line_Library {
 	 * @return array{lines:array<string,array{enabled:bool,label:string}>}
 	 */
 	public static function build_admin_save_payload() {
+		$catalog = self::admin_catalog_entries();
+		if ( class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			$catalog = PCKZ_Ledos_Preview::line_catalog( false, true );
+		}
 		$lines = array();
-		foreach ( self::admin_catalog_entries() as $slug => $data ) {
+		foreach ( $catalog as $slug => $data ) {
 			if ( 'none' === $slug ) {
 				continue;
 			}
-			$lines[ $slug ] = array(
+			$row = array(
 				'enabled' => self::is_visible( $slug ),
 				'label'   => (string) ( $data['label'] ?? self::label_for_slug( $slug, $slug ) ),
 			);
+			if ( ! empty( $data['custom'] ) ) {
+				$row['connected_right'] = self::connected_right_for_slug( $slug );
+			}
+			$lines[ $slug ] = $row;
 		}
-		return array( 'lines' => $lines );
+		$order = array();
+		foreach ( array_keys( $catalog ) as $slug ) {
+			if ( 'none' !== $slug ) {
+				$order[] = $slug;
+			}
+		}
+		return array(
+			'lines' => $lines,
+			'order' => $order,
+		);
 	}
 
 	/**
@@ -273,7 +408,7 @@ class PCKZ_Line_Library {
 		if ( ! class_exists( 'PCKZ_Ledos_Preview' ) ) {
 			return array();
 		}
-		return PCKZ_Ledos_Preview::line_catalog( false );
+		return PCKZ_Ledos_Preview::line_catalog( false, true );
 	}
 
 	/**
@@ -374,6 +509,7 @@ class PCKZ_Line_Library {
 			'label'            => sanitize_text_field( $label ),
 			'file'             => $filename,
 			'customer_visible' => true,
+			'connected_right'  => false,
 			'source'           => in_array( $source, array( 'upload', 'url' ), true ) ? $source : 'upload',
 		);
 		self::option_update( self::OPTION_CUSTOM, $custom );
@@ -382,6 +518,8 @@ class PCKZ_Line_Library {
 			array_diff( self::disabled_slugs(), array( $slug ) )
 		);
 		self::option_update( self::OPTION_DISABLED, $disabled );
+
+		self::append_to_display_order( $slug );
 
 		return array( 'slug' => $slug );
 	}
@@ -428,6 +566,7 @@ class PCKZ_Line_Library {
 			unset( $labels[ $slug ] );
 			self::option_update( self::OPTION_LABELS, $labels );
 		}
+		self::remove_from_display_order( $slug );
 		return true;
 	}
 
@@ -474,7 +613,7 @@ class PCKZ_Line_Library {
 	 * Parse compact JSON payload from line library save form.
 	 *
 	 * @param mixed $payload Decoded or raw payload.
-	 * @return array{enabled:string[],labels:array<string,string>}|null
+	 * @return array{enabled:string[],labels:array<string,string>,connected:array<string,bool>,order:string[]}|null
 	 */
 	public static function parse_admin_save_payload( $payload ) {
 		if ( is_string( $payload ) ) {
@@ -495,6 +634,7 @@ class PCKZ_Line_Library {
 		$custom  = array_keys( self::custom_manifest() );
 		$enabled = array();
 		$labels  = array();
+		$connected = array();
 
 		foreach ( $payload['lines'] as $slug => $row ) {
 			$slug = sanitize_key( (string) $slug );
@@ -513,11 +653,26 @@ class PCKZ_Line_Library {
 					$labels[ $slug ] = $label;
 				}
 			}
+			if ( in_array( $slug, $custom, true ) ) {
+				$connected[ $slug ] = ! empty( $row['connected_right'] );
+			}
+		}
+
+		$order = array();
+		if ( ! empty( $payload['order'] ) && is_array( $payload['order'] ) ) {
+			foreach ( $payload['order'] as $slug ) {
+				$s = sanitize_key( (string) $slug );
+				if ( $s && 'none' !== $s ) {
+					$order[] = $s;
+				}
+			}
 		}
 
 		return array(
-			'enabled' => array_values( array_unique( $enabled ) ),
-			'labels'  => $labels,
+			'enabled'   => array_values( array_unique( $enabled ) ),
+			'labels'    => $labels,
+			'connected' => $connected,
+			'order'     => array_values( array_unique( $order ) ),
 		);
 	}
 
@@ -540,7 +695,7 @@ class PCKZ_Line_Library {
 			);
 		}
 
-		self::save_admin_state( $parsed['enabled'], $parsed['labels'] );
+		self::save_admin_state( $parsed['enabled'], $parsed['labels'], $parsed['connected'] ?? array(), $parsed['order'] ?? array() );
 		return true;
 	}
 
@@ -549,8 +704,10 @@ class PCKZ_Line_Library {
 	 *
 	 * @param array $enabled_slugs Enabled slugs.
 	 * @param array $labels        Slug => label.
+	 * @param array $connected     Slug => connected_right bool (custom only).
+	 * @param array $order         Ordered slug list.
 	 */
-	public static function save_admin_state( $enabled_slugs, $labels ) {
+	public static function save_admin_state( $enabled_slugs, $labels, $connected = array(), $order = array() ) {
 		$all      = array_keys( self::admin_catalog_entries() );
 		$enabled  = array();
 		foreach ( (array) $enabled_slugs as $slug ) {
@@ -593,8 +750,15 @@ class PCKZ_Line_Library {
 				if ( isset( $clean[ $slug ] ) ) {
 					$custom_raw[ $slug ]['label'] = $clean[ $slug ];
 				}
+				if ( is_array( $connected ) && array_key_exists( $slug, $connected ) ) {
+					$custom_raw[ $slug ]['connected_right'] = ! empty( $connected[ $slug ] );
+				}
 			}
 			self::option_update( self::OPTION_CUSTOM, $custom_raw );
+		}
+
+		if ( is_array( $order ) && ! empty( $order ) ) {
+			self::save_display_order( $order );
 		}
 	}
 }

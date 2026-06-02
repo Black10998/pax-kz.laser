@@ -10,10 +10,10 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$payload_json  = wp_json_encode( $payload ?? PCKZ_Line_Library::build_admin_save_payload() );
+$payload_json    = wp_json_encode( $payload ?? PCKZ_Line_Library::build_admin_save_payload() );
 $custom_manifest = PCKZ_Line_Library::custom_manifest();
 $hero_title       = __( 'Line Library', 'pckz-canonical-engine' );
-$hero_description = __( 'Upload SVG line designs, import from URL, rename labels, and control customer visibility. Built-in line types cannot be deleted.', 'pckz-canonical-engine' );
+$hero_description = __( 'Upload SVG line designs, import from URL, rename labels, control display order, connected left/right designs, and customer visibility. Built-in line types cannot be deleted.', 'pckz-canonical-engine' );
 $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 ?>
 <div class="wrap pckz-admin-wrap pckz-line-library-admin">
@@ -91,37 +91,49 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 			<button type="button" class="button button-link-delete" id="pckz-line-bulk-delete"><?php esc_html_e( 'Delete selected', 'pckz-canonical-engine' ); ?></button>
 		</p>
 
-		<table class="widefat striped pckz-line-library-table">
+		<table class="widefat striped pckz-line-library-table pckz-line-library-table--sortable">
 			<thead>
 				<tr>
 					<th style="width:36px">
 						<input type="checkbox" id="pckz-line-header-select" aria-label="<?php esc_attr_e( 'Select all custom lines', 'pckz-canonical-engine' ); ?>">
 					</th>
+					<th style="width:88px"><?php esc_html_e( 'Order', 'pckz-canonical-engine' ); ?></th>
 					<th style="width:120px"><?php esc_html_e( 'Preview', 'pckz-canonical-engine' ); ?></th>
 					<th><?php esc_html_e( 'Label', 'pckz-canonical-engine' ); ?></th>
 					<th><?php esc_html_e( 'Slug', 'pckz-canonical-engine' ); ?></th>
+					<th style="width:120px"><?php esc_html_e( 'Connected L/R', 'pckz-canonical-engine' ); ?></th>
 					<th style="width:90px"><?php esc_html_e( 'Customer', 'pckz-canonical-engine' ); ?></th>
 					<th style="width:80px"><?php esc_html_e( 'Actions', 'pckz-canonical-engine' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>
-				<?php foreach ( $catalog as $slug => $data ) :
+				<?php
+				$row_index = 0;
+				foreach ( $catalog as $slug => $data ) :
 					if ( 'none' === $slug ) {
 						continue;
 					}
-					$thumb     = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
-					$label     = $data['label'] ?? $slug;
-					$enabled   = PCKZ_Line_Library::is_visible( $slug );
-					$is_custom = ! empty( $data['custom'] );
-					$source    = $is_custom ? ( $custom_manifest[ $slug ]['source'] ?? 'upload' ) : '';
+					++$row_index;
+					$thumb            = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
+					$label            = $data['label'] ?? $slug;
+					$enabled          = PCKZ_Line_Library::is_visible( $slug );
+					$is_custom        = ! empty( $data['custom'] );
+					$source           = $is_custom ? ( $custom_manifest[ $slug ]['source'] ?? 'upload' ) : '';
+					$connected_right  = $is_custom && PCKZ_Line_Library::connected_right_for_slug( $slug );
 					?>
-					<tr data-line-slug="<?php echo esc_attr( $slug ); ?>"<?php echo $is_custom ? ' data-custom="1"' : ''; ?>>
+					<tr data-line-slug="<?php echo esc_attr( $slug ); ?>"<?php echo $is_custom ? ' data-custom="1"' : ''; ?> draggable="true">
 						<td>
 							<?php if ( $is_custom ) : ?>
 								<input type="checkbox" class="pckz-library-bulk-select" value="<?php echo esc_attr( $slug ); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'Select %s', 'pckz-canonical-engine' ), $slug ) ); ?>">
 							<?php else : ?>
 								<span aria-hidden="true">—</span>
 							<?php endif; ?>
+						</td>
+						<td class="pckz-line-order-cell">
+							<span class="pckz-line-order-index" aria-hidden="true"><?php echo (int) $row_index; ?></span>
+							<button type="button" class="button button-small pckz-line-move-up" title="<?php esc_attr_e( 'Move up', 'pckz-canonical-engine' ); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'Move %s up', 'pckz-canonical-engine' ), $slug ) ); ?>">↑</button>
+							<button type="button" class="button button-small pckz-line-move-down" title="<?php esc_attr_e( 'Move down', 'pckz-canonical-engine' ); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'Move %s down', 'pckz-canonical-engine' ), $slug ) ); ?>">↓</button>
+							<span class="pckz-line-drag-handle" title="<?php esc_attr_e( 'Drag to reorder', 'pckz-canonical-engine' ); ?>" aria-hidden="true">⠿</span>
 						</td>
 						<td>
 							<?php if ( $thumb ) : ?>
@@ -140,6 +152,16 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 							<?php endif; ?>
 						</td>
 						<td>
+							<?php if ( $is_custom ) : ?>
+								<label class="pckz-line-connected-label">
+									<input type="checkbox" class="pckz-line-connected-right" <?php checked( $connected_right ); ?>>
+									<?php esc_html_e( 'Extend to right', 'pckz-canonical-engine' ); ?>
+								</label>
+							<?php else : ?>
+								<span aria-hidden="true">—</span>
+							<?php endif; ?>
+						</td>
+						<td>
 							<label>
 								<input type="checkbox" class="pckz-line-enabled" <?php checked( $enabled ); ?>>
 								<?php esc_html_e( 'On', 'pckz-canonical-engine' ); ?>
@@ -147,7 +169,7 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 						</td>
 						<td>
 							<?php if ( $is_custom ) : ?>
-								<button type="submit" class="button-link-delete" name="pckz_line_delete" value="<?php echo esc_attr( $slug ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this line design?', 'pckz-canonical-engine' ) ); ?>');">
+								<button type="submit" class="button-link-delete" name="pckz_line_delete" value="<?php echo esc_attr( $slug ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this line design permanently? This cannot be undone.', 'pckz-canonical-engine' ) ); ?>');">
 									<?php esc_html_e( 'Delete', 'pckz-canonical-engine' ); ?>
 								</button>
 							<?php else : ?>

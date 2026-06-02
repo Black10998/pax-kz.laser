@@ -340,6 +340,45 @@
 	border-radius: 3px;
 }
 
+.pckz-line-order-cell {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	white-space: nowrap;
+}
+
+.pckz-line-order-index {
+	display: inline-block;
+	min-width: 1.25rem;
+	font-size: 12px;
+	font-weight: 600;
+	color: #646970;
+}
+
+.pckz-line-drag-handle {
+	cursor: grab;
+	color: #787c82;
+	font-size: 14px;
+	line-height: 1;
+	user-select: none;
+}
+
+.pckz-line-library-table--sortable tbody tr.is-dragging {
+	opacity: 0.55;
+}
+
+.pckz-line-library-table--sortable tbody tr.is-drop-target {
+	outline: 1px dashed #2271b1;
+}
+
+.pckz-line-connected-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	line-height: 1.3;
+}
+
 .pckz-font-library-admin,
 .pckz-icon-library-admin,
 .pckz-line-library-admin {
