@@ -1,14 +1,9 @@
 # Decorative line models batch 2 (types 82–91)
 
-Place the LightBurn export here (10 models on one sheet, 2×5 layout), for example:
-
-`vector line models 2.ai`
-
-Then from the repo root:
+Bundled SVGs are generated as vector paths (reference sheet) via:
 
 ```bash
-chmod +x tools/import-vector-line-models-batch2.sh
-./tools/import-vector-line-models-batch2.sh
+python3 tools/generate-line-models-82-91.py
 ```
 
-After import, set `BUNDLED_LINE_TYPE_MAX` to `91` in `includes/class-pckz-ledos-preview.php` and run smoke tests.
+Optional LightBurn `.ai` sources can still be converted with `tools/import-vector-line-models-batch2.sh` if provided here.
