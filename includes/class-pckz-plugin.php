@@ -58,6 +58,9 @@ class PCKZ_Plugin {
 		new PCKZ_Post_Type();
 		new PCKZ_Admin();
 		new PCKZ_Public();
+		if ( class_exists( 'PCKZ_Line_Library' ) ) {
+			PCKZ_Line_Library::register_hooks();
+		}
 		new PCKZ_Ajax();
 		new PCKZ_Shortcode();
 		new PCKZ_Order_Tracking();

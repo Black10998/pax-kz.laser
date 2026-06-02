@@ -298,6 +298,18 @@ class PCKZ_Ledos_Preview {
 			$items = PCKZ_Line_Library::sort_catalog_items( $items );
 		}
 
+		if ( class_exists( 'PCKZ_Line_Library' ) ) {
+			foreach ( $items as $slug => $data ) {
+				if ( 'none' === $slug ) {
+					continue;
+				}
+				$picker = PCKZ_Line_Library::picker_preview_url( $slug );
+				if ( $picker ) {
+					$items[ $slug ]['preview'] = $picker;
+				}
+			}
+		}
+
 		return $items;
 	}
 

@@ -565,11 +565,9 @@ class PCKZ_Line_Library {
 		}
 		$choices = array();
 		foreach ( PCKZ_Ledos_Preview::line_catalog( true ) as $slug => $data ) {
-			// Customer picker uses original artwork URL for large, recognizable thumbnails.
-			// Plate preview/export continue to use normalized placement via lineTypes url + preview engine.
-			if ( ! empty( $data['custom'] ) && ! empty( $data['url'] ) ) {
-				$thumb = $data['url'];
-			} else {
+			// Picker thumbnails use display-only scaled previews; plate/export keep lineTypes URLs.
+			$thumb = self::picker_preview_url( $slug );
+			if ( '' === $thumb ) {
 				$thumb = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
 			}
 			$preserve = ! empty( $data['custom'] ) && ! empty( $data['preserve_colors'] );
@@ -1108,5 +1106,131 @@ class PCKZ_Line_Library {
 		if ( is_array( $order ) && ! empty( $order ) ) {
 			self::save_display_order( $order );
 		}
+	}
+
+	/**
+	 * Register frontend hooks (picker preview SVG endpoint).
+	 */
+	public static function register_hooks() {
+		add_action( 'template_redirect', array( __CLASS__, 'maybe_serve_picker_preview' ), 0 );
+	}
+
+	/**
+	 * Public URL for picker-only SVG preview (display scaling; source assets unchanged).
+	 *
+	 * @param string $slug Line slug.
+	 * @return string
+	 */
+	public static function picker_preview_url( $slug ) {
+		$slug = sanitize_key( $slug );
+		if ( ! $slug || 'none' === $slug ) {
+			return '';
+		}
+		$base = home_url( '/' );
+		if ( ! function_exists( 'add_query_arg' ) ) {
+			return $base . '?pckz_line_picker=' . rawurlencode( $slug ) . '&pckz_v=' . rawurlencode( (string) self::picker_preview_version( $slug ) );
+		}
+		return add_query_arg(
+			array(
+				'pckz_line_picker' => $slug,
+				'pckz_v'           => self::picker_preview_version( $slug ),
+			),
+			$base
+		);
+	}
+
+	/**
+	 * Cache-buster for picker preview responses.
+	 *
+	 * @param string $slug Line slug.
+	 * @return string
+	 */
+	public static function picker_preview_version( $slug ) {
+		$slug = sanitize_key( $slug );
+		if ( self::is_custom( $slug ) ) {
+			$custom = self::custom_manifest();
+			$file   = ! empty( $custom[ $slug ]['file'] ) ? self::upload_dir() . '/' . sanitize_file_name( $custom[ $slug ]['file'] ) : '';
+			return ( $file && is_readable( $file ) ) ? (string) filemtime( $file ) : '1';
+		}
+		if ( class_exists( 'PCKZ_Ledos_Preview' ) && preg_match( '/^type_(\d+)$/', $slug, $m ) ) {
+			$path = PCKZ_Ledos_Preview::line_assets_dir() . $slug . '.svg';
+			if ( is_readable( $path ) ) {
+				return (string) filemtime( $path );
+			}
+		}
+		$url = class_exists( 'PCKZ_Ledos_Preview' ) ? ( PCKZ_Ledos_Preview::line_types()[ $slug ] ?? '' ) : '';
+		return $url ? substr( md5( $url ), 0, 12 ) : '1';
+	}
+
+	/**
+	 * Serve dynamic picker preview SVG when ?pckz_line_picker=slug is requested.
+	 */
+	public static function maybe_serve_picker_preview() {
+		if ( empty( $_GET['pckz_line_picker'] ) ) {
+			return;
+		}
+		$slug = sanitize_key( wp_unslash( $_GET['pckz_line_picker'] ) );
+		if ( ! $slug || 'none' === $slug || self::is_retired_bundled_slug( $slug ) ) {
+			status_header( 404 );
+			exit;
+		}
+		$svg = self::read_source_svg_for_slug( $slug );
+		if ( ! $svg || ! class_exists( 'PCKZ_Svg_Library' ) ) {
+			status_header( 404 );
+			exit;
+		}
+		$connected = self::connected_right_for_slug( $slug );
+		$body      = PCKZ_Svg_Library::normalize_line_svg_for_picker_preview( $svg, $connected );
+		if ( function_exists( 'nocache_headers' ) ) {
+			nocache_headers();
+		}
+		header( 'Content-Type: image/svg+xml; charset=utf-8' );
+		header( 'Cache-Control: public, max-age=86400' );
+		if ( ! empty( $_GET['pckz_v'] ) ) {
+			header( 'ETag: "' . sanitize_text_field( wp_unslash( $_GET['pckz_v'] ) ) . '"' );
+		}
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG served as image payload.
+		echo $body;
+		exit;
+	}
+
+	/**
+	 * Load original line SVG source for a slug (export assets are not modified).
+	 *
+	 * @param string $slug Line slug.
+	 * @return string|false
+	 */
+	public static function read_source_svg_for_slug( $slug ) {
+		$slug = sanitize_key( $slug );
+		if ( ! $slug || 'none' === $slug || ! class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			return false;
+		}
+		$url = PCKZ_Ledos_Preview::line_types()[ $slug ] ?? '';
+		if ( ! $url ) {
+			return false;
+		}
+		if ( self::is_custom( $slug ) ) {
+			$custom = self::custom_manifest();
+			$file   = ! empty( $custom[ $slug ]['file'] ) ? self::upload_dir() . '/' . sanitize_file_name( $custom[ $slug ]['file'] ) : '';
+			if ( $file && is_readable( $file ) ) {
+				$body = file_get_contents( $file );
+				return is_string( $body ) ? $body : false;
+			}
+		}
+		$plugin_url = trailingslashit( PCKZCE_PLUGIN_URL );
+		if ( 0 === strpos( $url, $plugin_url ) ) {
+			$path = PCKZCE_PLUGIN_DIR . ltrim( substr( $url, strlen( $plugin_url ) ), '/' );
+			if ( is_readable( $path ) ) {
+				$body = file_get_contents( $path );
+				return is_string( $body ) ? $body : false;
+			}
+		}
+		if ( preg_match( '#^https?://#i', $url ) && class_exists( 'PCKZ_Svg_Library' ) ) {
+			$fetched = PCKZ_Svg_Library::fetch_from_url( $url );
+			if ( is_string( $fetched ) ) {
+				return $fetched;
+			}
+		}
+		return false;
 	}
 }
