@@ -2286,6 +2286,42 @@ select.pckz-field__control {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
 
+	/* Line picker: keep wide SVG thumbs inside tile (no crop/distort); desktop rules unchanged */
+	.pckz-visual-picker--line-grid .pckz-visual-picker__thumb.o--img,
+	.pckz-visual-picker--line-grid .pckz-visual-picker__option .o--img {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+		max-width: 100%;
+		box-sizing: border-box;
+	}
+
+	.pckz-visual-picker--line-grid .pckz-visual-picker__thumb.o--img {
+		flex: 1 1 auto;
+		min-width: 0;
+		height: 44px;
+		padding: 4px 8px;
+	}
+
+	.pckz-visual-picker--line-grid .pckz-visual-picker__option .o--img {
+		height: 44px;
+	}
+
+	.pckz-visual-picker--line-grid .pckz-visual-picker__thumb img,
+	.pckz-visual-picker--line-grid .pckz-visual-picker__option .o--img img {
+		width: auto;
+		max-width: 100%;
+		height: auto;
+		max-height: 32px;
+		object-fit: contain;
+		object-position: center;
+	}
+
+	.pckz-visual-picker--line-grid .pckz-visual-picker__option {
+		padding: 8px 10px;
+	}
+
 	.pckz-color-grid--compact {
 		grid-template-columns: repeat(5, minmax(0, 1fr));
 	}
