@@ -249,6 +249,9 @@ class PCKZ_Ledos_Preview {
 			if ( 'none' === $slug || '' === $url ) {
 				continue;
 			}
+			if ( class_exists( 'PCKZ_Line_Library' ) && PCKZ_Line_Library::is_retired_bundled_slug( $slug ) ) {
+				continue;
+			}
 			$items[ $slug ] = array(
 				'url'     => esc_url_raw( $url ),
 				'preview' => esc_url_raw( $url ),

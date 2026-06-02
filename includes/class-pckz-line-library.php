@@ -12,11 +12,17 @@ defined( 'ABSPATH' ) || exit;
  */
 class PCKZ_Line_Library {
 
-	const OPTION_DISABLED = 'pckz_line_disabled_slugs';
-	const OPTION_CUSTOM   = 'pckz_line_custom';
-	const OPTION_LABELS   = 'pckz_line_labels';
-	const OPTION_ORDER    = 'pckz_line_display_order';
-	const UPLOAD_SUBDIR   = 'pckz-canonical-engine/lines';
+	const OPTION_DISABLED     = 'pckz_line_disabled_slugs';
+	const OPTION_ADMIN_HIDDEN = 'pckz_line_admin_hidden_slugs';
+	const OPTION_INACTIVE     = 'pckz_line_inactive_slugs';
+	const OPTION_CUSTOM       = 'pckz_line_custom';
+	const OPTION_LABELS       = 'pckz_line_labels';
+	const OPTION_ORDER        = 'pckz_line_display_order';
+	const UPLOAD_SUBDIR       = 'pckz-canonical-engine/lines';
+
+	/** Bundled line types permanently retired from admin and customer UIs (assets remain for legacy orders). */
+	const RETIRED_BUNDLED_TYPE_MIN = 21;
+	const RETIRED_BUNDLED_TYPE_MAX = 40;
 
 	/**
 	 * Safe option getter for CLI smoke environments.
@@ -130,6 +136,116 @@ class PCKZ_Line_Library {
 	 */
 	public static function is_custom( $slug ) {
 		return isset( self::custom_manifest()[ $slug ] );
+	}
+
+	/**
+	 * Bundled type_21–type_40: hidden everywhere except internal line_types() for legacy designs.
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function is_retired_bundled_slug( $slug ) {
+		if ( ! preg_match( '/^type_(\d+)$/', (string) $slug, $m ) ) {
+			return false;
+		}
+		$n = (int) $m[1];
+		return $n >= self::RETIRED_BUNDLED_TYPE_MIN && $n <= self::RETIRED_BUNDLED_TYPE_MAX;
+	}
+
+	/**
+	 * Slugs hidden from admin line inventory (persisted).
+	 *
+	 * @return string[]
+	 */
+	public static function admin_hidden_slugs() {
+		return self::sanitize_slug_list( self::option_get( self::OPTION_ADMIN_HIDDEN, array() ) );
+	}
+
+	/**
+	 * Slugs marked inactive (no new orders; hidden from admin + customer catalogs).
+	 *
+	 * @return string[]
+	 */
+	public static function inactive_slugs() {
+		return self::sanitize_slug_list( self::option_get( self::OPTION_INACTIVE, array() ) );
+	}
+
+	/**
+	 * Sanitize a list of line slugs from option storage.
+	 *
+	 * @param mixed $raw Raw option value.
+	 * @return string[]
+	 */
+	private static function sanitize_slug_list( $raw ) {
+		if ( ! is_array( $raw ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $raw as $slug ) {
+			$s = sanitize_key( (string) $slug );
+			if ( $s && 'none' !== $s ) {
+				$out[] = $s;
+			}
+		}
+		return array_values( array_unique( $out ) );
+	}
+
+	/**
+	 * Whether slug is active (inactive models are hidden from all pickers and admin inventory).
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function is_active( $slug ) {
+		if ( 'none' === $slug || '' === $slug || self::is_retired_bundled_slug( $slug ) ) {
+			return true;
+		}
+		return ! in_array( sanitize_key( $slug ), self::inactive_slugs(), true );
+	}
+
+	/**
+	 * Whether slug is flagged visible in admin (inventory toggle; independent of active state).
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function admin_visible_flag( $slug ) {
+		if ( 'none' === $slug || '' === $slug || self::is_retired_bundled_slug( $slug ) ) {
+			return false;
+		}
+		return ! in_array( sanitize_key( $slug ), self::admin_hidden_slugs(), true );
+	}
+
+	/**
+	 * Whether slug appears in admin-only pickers/lists (active + admin visible).
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function is_admin_visible( $slug ) {
+		if ( 'none' === $slug || '' === $slug ) {
+			return true;
+		}
+		return self::is_active( $slug ) && self::admin_visible_flag( $slug );
+	}
+
+	/**
+	 * All manageable slugs (for save validation), excluding retired bundled types.
+	 *
+	 * @return string[]
+	 */
+	public static function known_line_slugs() {
+		$slugs = array();
+		if ( class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			foreach ( PCKZ_Ledos_Preview::line_types() as $slug => $url ) {
+				unset( $url );
+				if ( 'none' === $slug || self::is_retired_bundled_slug( $slug ) ) {
+					continue;
+				}
+				$slugs[] = sanitize_key( $slug );
+			}
+		}
+		return array_values( array_unique( array_filter( $slugs ) ) );
 	}
 
 	/**
@@ -373,18 +489,7 @@ class PCKZ_Line_Library {
 	 * @return string[]
 	 */
 	public static function disabled_slugs() {
-		$raw = self::option_get( self::OPTION_DISABLED, array() );
-		if ( ! is_array( $raw ) ) {
-			return array();
-		}
-		$out = array();
-		foreach ( $raw as $slug ) {
-			$s = sanitize_key( $slug );
-			if ( $s && 'none' !== $s ) {
-				$out[] = $s;
-			}
-		}
-		return array_values( array_unique( $out ) );
+		return self::sanitize_slug_list( self::option_get( self::OPTION_DISABLED, array() ) );
 	}
 
 	/**
@@ -398,6 +503,9 @@ class PCKZ_Line_Library {
 			return true;
 		}
 		$slug = sanitize_key( $slug );
+		if ( self::is_retired_bundled_slug( $slug ) || ! self::is_active( $slug ) ) {
+			return false;
+		}
 		if ( self::is_custom( $slug ) ) {
 			$custom = self::custom_manifest();
 			if ( isset( $custom[ $slug ] ) ) {
@@ -424,8 +532,10 @@ class PCKZ_Line_Library {
 				continue;
 			}
 			$row = array(
-				'enabled' => self::is_visible( $slug ),
-				'label'   => (string) ( $data['label'] ?? self::label_for_slug( $slug, $slug ) ),
+				'enabled'       => self::is_visible( $slug ),
+				'admin_visible' => self::admin_visible_flag( $slug ),
+				'active'        => self::is_active( $slug ),
+				'label'         => (string) ( $data['label'] ?? self::label_for_slug( $slug, $slug ) ),
 			);
 			if ( ! empty( $data['custom'] ) ) {
 				$row['connected_right'] = self::connected_right_for_slug( $slug );
@@ -481,7 +591,7 @@ class PCKZ_Line_Library {
 	 */
 	public static function filter_visible_catalog( $items ) {
 		foreach ( $items as $slug => $data ) {
-			if ( ! self::is_visible( $slug ) ) {
+			if ( self::is_retired_bundled_slug( $slug ) || ! self::is_visible( $slug ) ) {
 				unset( $items[ $slug ] );
 			}
 		}
@@ -489,7 +599,37 @@ class PCKZ_Line_Library {
 	}
 
 	/**
-	 * All catalog slugs for admin (unfiltered).
+	 * Filter catalog entries for admin line inventory.
+	 *
+	 * @param array<string,array> $items Line catalog.
+	 * @return array<string,array>
+	 */
+	public static function filter_admin_catalog( $items ) {
+		foreach ( $items as $slug => $data ) {
+			if ( self::is_retired_bundled_slug( $slug ) || ! self::is_admin_visible( $slug ) ) {
+				unset( $items[ $slug ] );
+			}
+		}
+		return $items;
+	}
+
+	/**
+	 * Strip retired bundled types from a catalog map.
+	 *
+	 * @param array<string,array> $items Line catalog.
+	 * @return array<string,array>
+	 */
+	public static function strip_retired_from_catalog( $items ) {
+		foreach ( $items as $slug => $data ) {
+			if ( self::is_retired_bundled_slug( $slug ) ) {
+				unset( $items[ $slug ] );
+			}
+		}
+		return $items;
+	}
+
+	/**
+	 * Catalog entries for admin line inventory (retired types excluded; all visibility states editable).
 	 *
 	 * @return array<string,array>
 	 */
@@ -674,41 +814,97 @@ class PCKZ_Line_Library {
 	}
 
 	/**
-	 * Delete multiple custom lines (built-in items are skipped).
+	 * Hide built-in line slugs from admin and customer (files remain on disk).
 	 *
-	 * @param array $slugs Slugs to delete.
-	 * @return array{deleted:int,failed:int,skipped:int}|WP_Error
+	 * @param string[] $slugs Line slugs.
 	 */
-	public static function delete_custom_bulk( $slugs ) {
+	public static function hide_bundled_slugs( $slugs ) {
+		$admin_hidden = self::admin_hidden_slugs();
+		$inactive     = self::inactive_slugs();
+		$disabled     = self::disabled_slugs();
+		foreach ( (array) $slugs as $slug ) {
+			$slug = sanitize_key( (string) $slug );
+			if ( ! $slug || 'none' === $slug || self::is_retired_bundled_slug( $slug ) || self::is_custom( $slug ) ) {
+				continue;
+			}
+			if ( ! in_array( $slug, $admin_hidden, true ) ) {
+				$admin_hidden[] = $slug;
+			}
+			if ( ! in_array( $slug, $inactive, true ) ) {
+				$inactive[] = $slug;
+			}
+			if ( ! in_array( $slug, $disabled, true ) ) {
+				$disabled[] = $slug;
+			}
+		}
+		self::option_update( self::OPTION_ADMIN_HIDDEN, array_values( array_unique( $admin_hidden ) ) );
+		self::option_update( self::OPTION_INACTIVE, array_values( array_unique( $inactive ) ) );
+		self::option_update( self::OPTION_DISABLED, array_values( array_unique( $disabled ) ) );
+	}
+
+	/**
+	 * Delete custom uploads and hide built-in models from the library.
+	 *
+	 * @param array $slugs Slugs to process.
+	 * @return array{deleted:int,hidden:int,failed:int,skipped:int}|WP_Error
+	 */
+	public static function delete_selected_bulk( $slugs ) {
 		if ( ! is_array( $slugs ) || empty( $slugs ) ) {
 			return new WP_Error( 'bulk_empty', __( 'Keine Linien zum Löschen ausgewählt.', 'pckz-canonical-engine' ) );
 		}
 		$deleted = 0;
+		$hidden  = 0;
 		$failed  = 0;
 		$skipped = 0;
+		$to_hide = array();
 		foreach ( $slugs as $slug ) {
 			$slug = sanitize_key( (string) $slug );
-			if ( ! $slug ) {
-				continue;
-			}
-			if ( ! self::is_custom( $slug ) ) {
+			if ( ! $slug || 'none' === $slug || self::is_retired_bundled_slug( $slug ) ) {
 				++$skipped;
 				continue;
 			}
-			$result = self::delete_custom( $slug );
-			if ( is_wp_error( $result ) ) {
-				++$failed;
-			} else {
-				++$deleted;
+			if ( self::is_custom( $slug ) ) {
+				$result = self::delete_custom( $slug );
+				if ( is_wp_error( $result ) ) {
+					++$failed;
+				} else {
+					++$deleted;
+				}
+				continue;
 			}
+			$to_hide[] = $slug;
 		}
-		if ( 0 === $deleted && 0 === $failed ) {
-			return new WP_Error( 'bulk_none', __( 'Keine benutzerdefinierten Linien konnten gelöscht werden.', 'pckz-canonical-engine' ) );
+		if ( ! empty( $to_hide ) ) {
+			self::hide_bundled_slugs( $to_hide );
+			$hidden = count( $to_hide );
+		}
+		if ( 0 === $deleted && 0 === $hidden && 0 === $failed ) {
+			return new WP_Error( 'bulk_none', __( 'Keine Linien konnten verarbeitet werden.', 'pckz-canonical-engine' ) );
 		}
 		return array(
 			'deleted' => $deleted,
+			'hidden'  => $hidden,
 			'failed'  => $failed,
 			'skipped' => $skipped,
+		);
+	}
+
+	/**
+	 * Delete multiple custom lines (built-in items are skipped).
+	 *
+	 * @param array $slugs Slugs to delete.
+	 * @return array{deleted:int,failed:int,skipped:int}|WP_Error
+	 * @deprecated Use delete_selected_bulk().
+	 */
+	public static function delete_custom_bulk( $slugs ) {
+		$result = self::delete_selected_bulk( $slugs );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return array(
+			'deleted' => (int) $result['deleted'],
+			'failed'  => (int) $result['failed'],
+			'skipped' => (int) $result['skipped'] + (int) ( $result['hidden'] ?? 0 ),
 		);
 	}
 
@@ -716,7 +912,7 @@ class PCKZ_Line_Library {
 	 * Parse compact JSON payload from line library save form.
 	 *
 	 * @param mixed $payload Decoded or raw payload.
-	 * @return array{enabled:string[],labels:array<string,string>,connected:array<string,bool>,order:string[]}|null
+	 * @return array{enabled:string[],admin_visible:string[],active:string[],labels:array<string,string>,connected:array<string,bool>,order:string[]}|null
 	 */
 	public static function parse_admin_save_payload( $payload ) {
 		if ( is_string( $payload ) ) {
@@ -733,15 +929,17 @@ class PCKZ_Line_Library {
 			return null;
 		}
 
-		$known   = self::admin_catalog_entries();
-		$custom  = array_keys( self::custom_manifest() );
-		$enabled = array();
-		$labels  = array();
-		$connected = array();
+		$known         = array_fill_keys( self::known_line_slugs(), true );
+		$custom        = array_keys( self::custom_manifest() );
+		$enabled       = array();
+		$admin_visible = array();
+		$active        = array();
+		$labels        = array();
+		$connected     = array();
 
 		foreach ( $payload['lines'] as $slug => $row ) {
 			$slug = sanitize_key( (string) $slug );
-			if ( ! $slug || 'none' === $slug ) {
+			if ( ! $slug || 'none' === $slug || self::is_retired_bundled_slug( $slug ) ) {
 				continue;
 			}
 			if ( ! isset( $known[ $slug ] ) && ! in_array( $slug, $custom, true ) ) {
@@ -749,6 +947,12 @@ class PCKZ_Line_Library {
 			}
 			if ( ! empty( $row['enabled'] ) ) {
 				$enabled[] = $slug;
+			}
+			if ( ! empty( $row['admin_visible'] ) ) {
+				$admin_visible[] = $slug;
+			}
+			if ( ! empty( $row['active'] ) ) {
+				$active[] = $slug;
 			}
 			if ( isset( $row['label'] ) ) {
 				$label = sanitize_text_field( (string) $row['label'] );
@@ -772,10 +976,12 @@ class PCKZ_Line_Library {
 		}
 
 		return array(
-			'enabled'   => array_values( array_unique( $enabled ) ),
-			'labels'    => $labels,
-			'connected' => $connected,
-			'order'     => array_values( array_unique( $order ) ),
+			'enabled'       => array_values( array_unique( $enabled ) ),
+			'admin_visible' => array_values( array_unique( $admin_visible ) ),
+			'active'        => array_values( array_unique( $active ) ),
+			'labels'        => $labels,
+			'connected'     => $connected,
+			'order'         => array_values( array_unique( $order ) ),
 		);
 	}
 
@@ -798,38 +1004,73 @@ class PCKZ_Line_Library {
 			);
 		}
 
-		self::save_admin_state( $parsed['enabled'], $parsed['labels'], $parsed['connected'] ?? array(), $parsed['order'] ?? array() );
+		self::save_admin_state(
+			$parsed['enabled'],
+			$parsed['labels'],
+			$parsed['connected'] ?? array(),
+			$parsed['order'] ?? array(),
+			$parsed['admin_visible'] ?? array(),
+			$parsed['active'] ?? array()
+		);
 		return true;
 	}
 
 	/**
 	 * Save visibility + labels from admin.
 	 *
-	 * @param array $enabled_slugs Enabled slugs.
-	 * @param array $labels        Slug => label.
-	 * @param array $connected     Slug => connected_right bool (custom only).
-	 * @param array $order         Ordered slug list.
+	 * @param array $enabled_slugs       Customer-visible slugs.
+	 * @param array $labels              Slug => label.
+	 * @param array $connected           Slug => connected_right bool (custom only).
+	 * @param array $order               Ordered slug list.
+	 * @param array $admin_visible_slugs Slugs shown in admin inventory.
+	 * @param array $active_slugs        Active slugs.
 	 */
-	public static function save_admin_state( $enabled_slugs, $labels, $connected = array(), $order = array() ) {
-		$all      = array_keys( self::admin_catalog_entries() );
-		$enabled  = array();
+	public static function save_admin_state( $enabled_slugs, $labels, $connected = array(), $order = array(), $admin_visible_slugs = array(), $active_slugs = array() ) {
+		$all_slugs = self::known_line_slugs();
+		$enabled   = array();
 		foreach ( (array) $enabled_slugs as $slug ) {
 			$slug = sanitize_key( (string) $slug );
-			if ( $slug && 'none' !== $slug ) {
+			if ( $slug && 'none' !== $slug && ! self::is_retired_bundled_slug( $slug ) ) {
 				$enabled[] = $slug;
 			}
 		}
-		$enabled  = array_values( array_unique( $enabled ) );
-		$disabled = array();
-		foreach ( $all as $slug ) {
-			if ( 'none' === $slug ) {
-				continue;
+		$enabled = array_values( array_unique( $enabled ) );
+
+		$admin_visible = array();
+		foreach ( (array) $admin_visible_slugs as $slug ) {
+			$slug = sanitize_key( (string) $slug );
+			if ( $slug && 'none' !== $slug && ! self::is_retired_bundled_slug( $slug ) ) {
+				$admin_visible[] = $slug;
 			}
+		}
+		$admin_visible = array_values( array_unique( $admin_visible ) );
+
+		$active = array();
+		foreach ( (array) $active_slugs as $slug ) {
+			$slug = sanitize_key( (string) $slug );
+			if ( $slug && 'none' !== $slug && ! self::is_retired_bundled_slug( $slug ) ) {
+				$active[] = $slug;
+			}
+		}
+		$active = array_values( array_unique( $active ) );
+
+		$disabled = array();
+		$admin_hidden = array();
+		$inactive = array();
+		foreach ( $all_slugs as $slug ) {
 			if ( ! in_array( $slug, $enabled, true ) ) {
 				$disabled[] = $slug;
 			}
+			if ( ! in_array( $slug, $admin_visible, true ) ) {
+				$admin_hidden[] = $slug;
+			}
+			if ( ! in_array( $slug, $active, true ) ) {
+				$inactive[] = $slug;
+			}
 		}
 		self::option_update( self::OPTION_DISABLED, $disabled );
+		self::option_update( self::OPTION_ADMIN_HIDDEN, $admin_hidden );
+		self::option_update( self::OPTION_INACTIVE, $inactive );
 		$clean = array();
 		if ( is_array( $labels ) ) {
 			foreach ( $labels as $slug => $label ) {
