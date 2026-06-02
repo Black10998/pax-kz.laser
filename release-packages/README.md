@@ -1,5 +1,19 @@
 ## Production installation packages
 
+Canonical package for v2.27.29:
+
+- `pckz-canonical-engine-2.27.29-protected.zip`
+
+SHA256:
+
+- (see build)
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.27.29/pckz-canonical-engine-2.27.29-protected.zip`
+
+Previous release (v2.27.28):
+
 Canonical package for v2.27.28:
 
 - `pckz-canonical-engine-2.27.28-protected.zip`
