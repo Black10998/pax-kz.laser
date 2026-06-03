@@ -590,7 +590,18 @@ class PCKZ_Admin {
 			if ( is_wp_error( $result ) ) {
 				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
 			} else {
-				echo '<div class="notice notice-success"><p>' . esc_html__( 'Line design uploaded.', 'pckz-canonical-engine' ) . '</p></div>';
+				$slug = is_array( $result ) && ! empty( $result['slug'] ) ? $result['slug'] : '';
+				if ( $slug && PCKZ_Line_Library::is_line_in_catalog( $slug, false ) ) {
+					echo '<div class="notice notice-success"><p>' . esc_html(
+						sprintf(
+							/* translators: %s: line slug e.g. type_102 */
+							__( 'Line design uploaded as %s and added to the library.', 'pckz-canonical-engine' ),
+							$slug
+						)
+					) . '</p></div>';
+				} else {
+					echo '<div class="notice notice-error"><p>' . esc_html__( 'Upload could not be registered in the line library.', 'pckz-canonical-engine' ) . '</p></div>';
+				}
 			}
 		}
 
@@ -621,7 +632,18 @@ class PCKZ_Admin {
 			if ( is_wp_error( $result ) ) {
 				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
 			} else {
-				echo '<div class="notice notice-success"><p>' . esc_html__( 'Line design imported from URL.', 'pckz-canonical-engine' ) . '</p></div>';
+				$slug = is_array( $result ) && ! empty( $result['slug'] ) ? $result['slug'] : '';
+				if ( $slug && PCKZ_Line_Library::is_line_in_catalog( $slug, false ) ) {
+					echo '<div class="notice notice-success"><p>' . esc_html(
+						sprintf(
+							/* translators: %s: line slug */
+							__( 'Line design imported from URL as %s.', 'pckz-canonical-engine' ),
+							$slug
+						)
+					) . '</p></div>';
+				} else {
+					echo '<div class="notice notice-error"><p>' . esc_html__( 'URL import could not be registered in the line library.', 'pckz-canonical-engine' ) . '</p></div>';
+				}
 			}
 		}
 

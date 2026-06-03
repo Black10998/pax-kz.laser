@@ -55,6 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.27.38 =
+
+* Line Library: fix SVG upload success with invisible lines — custom uploads at type_102+ no longer hidden by permanent-delete markers from the old purge.
+* Upload and URL import only report success when the line is registered in admin and customer catalogs.
+
 = 2.27.37 =
 
 * Line Library: restore standard SVG file upload and URL import exactly as before (direct store, no conversion).

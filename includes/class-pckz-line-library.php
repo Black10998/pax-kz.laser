@@ -51,7 +51,10 @@ class PCKZ_Line_Library {
 	 */
 	private static function option_update( $key, $value ) {
 		if ( function_exists( 'update_option' ) ) {
-			update_option( $key, $value );
+			update_option( $key, $value, false );
+			if ( function_exists( 'wp_cache_delete' ) ) {
+				wp_cache_delete( $key, 'options' );
+			}
 		}
 	}
 
@@ -182,7 +185,30 @@ class PCKZ_Line_Library {
 		if ( ! $slug || 'none' === $slug ) {
 			return false;
 		}
-		return in_array( $slug, self::permanently_deleted_slugs(), true );
+		if ( ! in_array( $slug, self::permanently_deleted_slugs(), true ) ) {
+			return false;
+		}
+		// Custom upload at this slug overrides a bundled permanent-delete marker.
+		return ! self::has_stored_custom_line( $slug );
+	}
+
+	/**
+	 * Whether a custom line exists on disk (raw manifest, not filtered by delete list).
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function has_stored_custom_line( $slug ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( ! $slug ) {
+			return false;
+		}
+		$raw = self::option_get( self::OPTION_CUSTOM, array() );
+		if ( ! is_array( $raw ) || empty( $raw[ $slug ]['file'] ) ) {
+			return false;
+		}
+		$path = self::upload_dir() . '/' . sanitize_file_name( $raw[ $slug ]['file'] );
+		return is_readable( $path );
 	}
 
 	/**
@@ -1011,6 +1037,9 @@ class PCKZ_Line_Library {
 		);
 		self::option_update( self::OPTION_CUSTOM, $custom );
 
+		self::clear_permanently_deleted( $slug );
+		self::ensure_custom_line_visibility_flags( $slug );
+
 		$disabled = array_values(
 			array_diff( self::disabled_slugs(), array( $slug ) )
 		);
@@ -1020,7 +1049,49 @@ class PCKZ_Line_Library {
 
 		self::regenerate_preview_svg( $slug );
 
+		if ( ! self::is_line_in_catalog( $slug, false ) ) {
+			return new WP_Error(
+				'register_fail',
+				__(
+					'Die Linie wurde gespeichert, konnte aber nicht in der Bibliothek registriert werden. Bitte Seite neu laden oder Support kontaktieren.',
+					'pckz-canonical-engine'
+				)
+			);
+		}
+
 		return array( 'slug' => $slug );
+	}
+
+	/**
+	 * Ensure a new custom line is visible in admin and customer catalogs.
+	 *
+	 * @param string $slug Line slug.
+	 */
+	private static function ensure_custom_line_visibility_flags( $slug ) {
+		$slug = sanitize_key( $slug );
+		if ( ! $slug ) {
+			return;
+		}
+		$inactive = array_values( array_diff( self::inactive_slugs(), array( $slug ) ) );
+		self::option_update( self::OPTION_INACTIVE, $inactive );
+		$hidden = array_values( array_diff( self::admin_hidden_slugs(), array( $slug ) ) );
+		self::option_update( self::OPTION_ADMIN_HIDDEN, $hidden );
+	}
+
+	/**
+	 * Whether slug appears in the live line catalog after filters.
+	 *
+	 * @param string $slug          Line slug.
+	 * @param bool   $for_customer  When true, use customer visibility filters.
+	 * @return bool
+	 */
+	public static function is_line_in_catalog( $slug, $for_customer = false ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( ! $slug || ! class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			return false;
+		}
+		$catalog = PCKZ_Ledos_Preview::line_catalog( $for_customer, true );
+		return isset( $catalog[ $slug ] );
 	}
 
 	/**

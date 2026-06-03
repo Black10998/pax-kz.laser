@@ -73,6 +73,16 @@ if ( empty( $manifest[ $slug ] ) || 'upload' !== ( $manifest[ $slug ]['source'] 
 	exit( 1 );
 }
 
+if ( ! PCKZ_Line_Library::is_line_in_catalog( $slug, false ) ) {
+	fwrite( STDERR, "FAIL uploaded line missing from admin catalog\n" );
+	exit( 1 );
+}
+
+if ( ! PCKZ_Line_Library::is_line_in_catalog( $slug, true ) ) {
+	fwrite( STDERR, "FAIL uploaded line missing from customer catalog\n" );
+	exit( 1 );
+}
+
 PCKZ_Line_Library::delete_custom( $slug );
 
 echo "OK line-svg-upload-smoke\n";
