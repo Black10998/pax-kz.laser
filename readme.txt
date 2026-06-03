@@ -55,12 +55,17 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.27.40 =
+
+* Removed customer SVG download from the configurator preview (not requested).
+* Checkout section “Lassen Sie uns Ihre Wünsche wissen”: optional customer artwork upload (SVG, PNG, JPG, JPEG, WEBP) attached to orders for production; admin download on order detail.
+
 = 2.27.39 =
 
 * Removed customer line color control (Linienfarbe); line models keep native/preserve colors in preview and export.
 * Frontend: deter casual SVG copying (context menu/drag); picker URLs only in JS (no direct upload paths).
 * Mobile: lazy-load line/icon picker thumbnails, debounced preview updates, magnifier off on small screens.
-* Customer SVG download button; PayPal stays clickable while export validates in background.
+* Customer SVG download button (removed in 2.27.40); PayPal stays clickable while export validates in background.
 
 = 2.27.38 =
 

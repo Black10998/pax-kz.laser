@@ -18,6 +18,7 @@ class PCKZ_Ajax {
 	public function __construct() {
 		$actions = array(
 			'pckzce_upload_image',
+			'pckzce_upload_customer_artwork',
 			'pckzce_save_design',
 			'pckzce_export_design',
 			'pckzce_add_to_cart',
@@ -156,6 +157,24 @@ class PCKZ_Ajax {
 			exit;
 		}
 		exit;
+	}
+
+	/**
+	 * Optional customer artwork upload (checkout — logo, vector, etc.).
+	 */
+	public function handle_upload_customer_artwork() {
+		if ( ! $this->verify_nonce() ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
+		}
+		if ( empty( $_FILES['file'] ) || ! class_exists( 'PCKZ_Customer_Artwork' ) ) {
+			wp_send_json_error( array( 'message' => __( 'No file uploaded.', 'pckz-canonical-engine' ) ), 400 );
+		}
+		$design_id = isset( $_POST['design_id'] ) ? absint( $_POST['design_id'] ) : 0;
+		$result    = PCKZ_Customer_Artwork::handle_upload( $_FILES['file'], $design_id );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+		}
+		wp_send_json_success( $result );
 	}
 
 	/**
@@ -576,14 +595,15 @@ class PCKZ_Ajax {
 		$quantity  = isset( $_POST['quantity'] ) ? max( 1, absint( $_POST['quantity'] ) ) : 1;
 
 		if ( class_exists( 'PCKZ_Commerce' ) ) {
-			$email_in = isset( $_POST['customer_email'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_email'] ) ) : '';
-			$email    = PCKZ_Commerce::validate_email( $email_in );
-			if ( is_wp_error( $email ) ) {
-				wp_send_json_error( array( 'message' => $email->get_error_message() ), 400 );
+			$details = PCKZ_Commerce::parse_customer_details_from_request();
+			$valid   = PCKZ_Commerce::validate_customer_details( $details );
+			if ( is_wp_error( $valid ) ) {
+				wp_send_json_error( array( 'message' => $valid->get_error_message() ), 400 );
 			}
-			$wishes = isset( $_POST['customer_wishes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['customer_wishes'] ) ) : '';
+			$email  = $details['email'];
+			$wishes = $details['wishes'];
 			if ( $design_id ) {
-				PCKZ_Commerce::attach_customer_meta_to_design( $design_id, $email, $wishes );
+				PCKZ_Commerce::attach_customer_meta_to_design( $design_id, $email, $wishes, $details );
 			}
 		}
 

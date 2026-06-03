@@ -351,6 +351,17 @@ class PCKZ_WooCommerce {
 		if ( ! empty( $details['wishes'] ) || $customer_wishes ) {
 			echo '<p><strong>' . esc_html__( 'Wünsche / Hinweise:', 'pckz-canonical-engine' ) . '</strong><br>' . esc_html( $details['wishes'] ?: $customer_wishes ) . '</p>';
 		}
+		if ( ! empty( $details['customer_artwork'] ) && class_exists( 'PCKZ_Customer_Artwork' ) ) {
+			$artwork = PCKZ_Customer_Artwork::resolve_file_meta( $details['customer_artwork'] );
+			if ( $artwork ) {
+				echo '<p><strong>' . esc_html__( 'Kundengrafik (Upload):', 'pckz-canonical-engine' ) . '</strong> ';
+				echo esc_html( $artwork['filename'] ?? '' );
+				if ( ! empty( $artwork['size'] ) ) {
+					echo ' <span class="description">(' . esc_html( size_format( (int) $artwork['size'] ) ) . ')</span>';
+				}
+				echo '</p>';
+			}
+		}
 		echo '</div>';
 	}
 

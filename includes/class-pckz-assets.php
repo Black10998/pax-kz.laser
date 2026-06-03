@@ -270,10 +270,15 @@ class PCKZ_Assets {
 					'exportWaitingText'     => 'Bitte geben Sie einen Text ein — danach wird die Zahlung freigegeben.',
 					'exportValidating'      => 'Exportdaten werden geprüft — bitte kurz warten.',
 					'exportReadyPaypal'     => 'Sie können jetzt bezahlen. Die Bestelldaten werden beim Klick geprüft.',
-					'downloadSvgReady'      => 'Lädt die Vorschau als SVG herunter.',
-					'downloadSvgWaiting'    => 'Verfügbar, sobald Ihre Vorschau bereit ist.',
-					'downloadSvgDone'       => 'SVG wurde heruntergeladen.',
 					'uploadError'           => 'Upload fehlgeschlagen. Bitte Dateityp oder Größe prüfen.',
+					'customerArtworkNone'   => 'Keine Datei ausgewählt',
+					'customerArtworkUploading' => 'Datei wird hochgeladen…',
+					'customerArtworkAttached'  => 'Datei wurde angehängt und wird mit Ihrer Bestellung übermittelt.',
+					'customerArtworkBadType'   => 'Erlaubt sind SVG, PNG, JPG, JPEG und WEBP.',
+					'customerArtworkTooLarge'  => 'Die Datei ist zu groß (max. %d MB).',
+					'customerArtworkMaxMb'     => class_exists( 'PCKZ_Customer_Artwork' )
+						? (string) (int) ( PCKZ_Customer_Artwork::MAX_BYTES / 1048576 )
+						: '5',
 					'requireDesign'         => 'Bitte geben Sie einen Text für den Rahmen ein.',
 					'requireEmail'          => 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
 					'invalidEmail'          => 'Die E-Mail-Adresse ist ungültig.',

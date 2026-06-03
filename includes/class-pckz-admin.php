@@ -21,6 +21,17 @@ class PCKZ_Admin {
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_post_pckz_update_order_status', array( $this, 'handle_update_order_status' ) );
 		add_action( 'admin_post_pckz_update_order_notes', array( $this, 'handle_update_order_notes' ) );
+		add_action( 'admin_post_pckz_download_customer_artwork', array( $this, 'handle_download_customer_artwork' ) );
+	}
+
+	/**
+	 * Download customer-provided artwork for a commerce order (admin only).
+	 */
+	public function handle_download_customer_artwork() {
+		if ( class_exists( 'PCKZ_Customer_Artwork' ) ) {
+			PCKZ_Customer_Artwork::handle_admin_download();
+		}
+		wp_die( esc_html__( 'Kundendatei nicht verfügbar.', 'pckz-canonical-engine' ), '', array( 'response' => 404 ) );
 	}
 
 	/**

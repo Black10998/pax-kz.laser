@@ -77,6 +77,8 @@
 			this._mobileResizeUnlockTimer = null;
 			this._creatorReadyMarked = false;
 			this.iconColorUserSet = { left: false, right: false };
+			this.customerArtworkToken = '';
+			this.customerArtworkFilename = '';
 			this.init();
 		}
 
@@ -90,6 +92,7 @@
 			this.initVisualPickers();
 			this.bindThumbs();
 			this.bindActions();
+			this.bindCustomerArtworkUpload();
 			this.bindGlobalUiClosers();
 			this.initMobileViewportStability();
 			this.initCanvas();
@@ -1014,8 +1017,6 @@
 					}
 					if (btn.dataset.action === 'paypal-checkout') {
 						this.submitPaypal();
-					} else if (btn.dataset.action === 'download-customer-svg') {
-						this.downloadCustomerSvg();
 					} else if (btn.dataset.action === 'add-to-cart') {
 						this.submit(true);
 					} else if (btn.dataset.action === 'submit-design') {
@@ -1150,7 +1151,7 @@
 
 		getCustomerDetailsFromForm() {
 			const val = (sel) => (this.root.querySelector(sel)?.value || '').trim();
-			return {
+			const details = {
 				first_name: val('[data-field="customer_first_name"]'),
 				last_name: val('[data-field="customer_last_name"]'),
 				email: val('[data-field="customer_email"]'),
@@ -1162,6 +1163,10 @@
 				country: val('[data-field="customer_country"]') || 'DE',
 				wishes: val('[data-field="customer_wishes"]'),
 			};
+			if (this.customerArtworkToken) {
+				details.customer_artwork_token = this.customerArtworkToken;
+			}
+			return details;
 		}
 
 		collectCheckoutFields() {
@@ -1176,8 +1181,11 @@
 			body.append('customer_details', JSON.stringify(details));
 			body.append('customer_email', details.email);
 			body.append('customer_wishes', details.wishes);
+			if (details.customer_artwork_token) {
+				body.append('customer_artwork_token', details.customer_artwork_token);
+			}
 			Object.keys(details).forEach((key) => {
-				if (key !== 'wishes') {
+				if (key !== 'wishes' && key !== 'customer_artwork_token') {
 					body.append('customer_' + key, details[key]);
 				}
 			});
@@ -1419,7 +1427,6 @@
 		updateCheckoutInteractable(hintMessage) {
 			const canInteract = this.canBeginCheckout();
 			this.setCheckoutButtonsEnabled(canInteract, hintMessage);
-			this.updateDownloadSvgButton(canInteract && this.exportReady);
 		}
 
 		setCheckoutButtonsEnabled(enabled, hintMessage) {
@@ -1454,77 +1461,132 @@
 			}
 		}
 
-		updateDownloadSvgButton(enabled) {
-			const btn = this.root.querySelector('[data-action="download-customer-svg"]');
-			const hint = this.root.querySelector('[data-download-svg-hint]');
-			if (!btn) {
+		bindCustomerArtworkUpload() {
+			const input = this.root.querySelector('[data-customer-artwork-input]');
+			const clearBtn = this.root.querySelector('[data-customer-artwork-clear]');
+			if (!input) {
 				return;
 			}
-			btn.disabled = !enabled;
-			btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-			btn.classList.toggle('is-disabled', !enabled);
-			if (hint) {
-				hint.textContent = enabled
-					? I18N.downloadSvgReady || 'Lädt die Vorschau als SVG herunter.'
-					: I18N.downloadSvgWaiting || 'Verfügbar, sobald Ihre Vorschau bereit ist.';
+			input.addEventListener('change', () => {
+				const file = input.files && input.files[0];
+				if (!file) {
+					return;
+				}
+				this.uploadCustomerArtwork(file, input);
+			});
+			if (clearBtn) {
+				clearBtn.addEventListener('click', () => this.clearCustomerArtwork(input));
 			}
 		}
 
-		async downloadCustomerSvg() {
-			if (!this.canBeginCheckout()) {
-				this.toast(I18N.requireDesign || 'Bitte geben Sie einen Text ein.', true);
+		setCustomerArtworkUi(state) {
+			const nameEl = this.root.querySelector('[data-customer-artwork-name]');
+			const clearBtn = this.root.querySelector('[data-customer-artwork-clear]');
+			const statusEl = this.root.querySelector('[data-customer-artwork-status]');
+			const wrap = this.root.querySelector('[data-customer-artwork]');
+			if (nameEl) {
+				nameEl.textContent =
+					state.filename ||
+					I18N.customerArtworkNone ||
+					'Keine Datei ausgewählt';
+			}
+			if (clearBtn) {
+				clearBtn.classList.toggle('pckz-hidden', !state.token);
+			}
+			if (wrap) {
+				wrap.classList.toggle('is-uploading', !!state.uploading);
+				wrap.classList.toggle('is-attached', !!state.token);
+			}
+			if (statusEl) {
+				if (state.message) {
+					statusEl.textContent = state.message;
+					statusEl.classList.remove('pckz-hidden');
+					statusEl.classList.toggle('is-error', !!state.error);
+				} else {
+					statusEl.textContent = '';
+					statusEl.classList.add('pckz-hidden');
+					statusEl.classList.remove('is-error');
+				}
+			}
+		}
+
+		clearCustomerArtwork(inputEl) {
+			this.customerArtworkToken = '';
+			this.customerArtworkFilename = '';
+			const input = inputEl || this.root.querySelector('[data-customer-artwork-input]');
+			if (input) {
+				input.value = '';
+			}
+			this.setCustomerArtworkUi({});
+		}
+
+		uploadCustomerArtwork(file, inputEl) {
+			const allowed = /\.(svg|png|jpe?g|webp)$/i;
+			if (!allowed.test(file.name)) {
+				this.toast(
+					I18N.customerArtworkBadType ||
+						'Erlaubt sind SVG, PNG, JPG, JPEG und WEBP.',
+					true
+				);
+				if (inputEl) {
+					inputEl.value = '';
+				}
 				return;
 			}
-			const btn = this.root.querySelector('[data-action="download-customer-svg"]');
-			if (btn) {
-				btn.disabled = true;
-				btn.classList.add('is-loading');
-			}
-			try {
-				await this.ensureExportPayloadReady();
-				let svg = '';
-				if (this.previewEngine.buildFabricProductionSvg) {
-					svg = await this.previewEngine.buildFabricProductionSvg(
-						this.buildCloudliftState(),
-						this.mmW,
-						this.mmH
-					);
-				}
-				const textPaths = await this.previewEngine.buildTextVectorPathsFromFabric(
-					this.previewEngine.objects?.text,
-					this.mmW,
-					this.mmH
+			const maxMb = parseInt(I18N.customerArtworkMaxMb, 10) || 5;
+			if (file.size > maxMb * 1024 * 1024) {
+				this.toast(
+					(I18N.customerArtworkTooLarge || 'Die Datei ist zu groß (max. %d MB).').replace(
+						'%d',
+						String(maxMb)
+					),
+					true
 				);
-				if (textPaths && this.previewEngine.injectTextPathsIntoProductionSvg) {
-					svg = this.previewEngine.injectTextPathsIntoProductionSvg(svg, textPaths);
+				if (inputEl) {
+					inputEl.value = '';
 				}
-				if (!svg || !String(svg).trim()) {
-					throw new Error(I18N.fabricExportMissing || 'SVG export missing');
-				}
-				const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement('a');
-				const safeText = (this.selections.custom_text || 'design')
-					.replace(/[^\w\-]+/g, '-')
-					.replace(/-+/g, '-')
-					.slice(0, 24);
-				a.href = url;
-				a.download = 'rahmen-' + (safeText || 'design') + '.svg';
-				a.rel = 'noopener';
-				document.body.appendChild(a);
-				a.click();
-				a.remove();
-				setTimeout(() => URL.revokeObjectURL(url), 2000);
-				this.toast(I18N.downloadSvgDone || 'SVG wurde heruntergeladen.');
-			} catch (err) {
-				this.toast(err?.message || I18N.fabricExportMissing, true);
-			} finally {
-				if (btn) {
-					btn.disabled = !(this.canBeginCheckout() && this.exportReady);
-					btn.classList.remove('is-loading');
-				}
-				this.updateDownloadSvgButton(this.canBeginCheckout() && this.exportReady);
+				return;
 			}
+			this.setCustomerArtworkUi({
+				filename: file.name,
+				uploading: true,
+				message: I18N.customerArtworkUploading || 'Datei wird hochgeladen…',
+			});
+			const fd = new FormData();
+			fd.append('action', 'pckzce_upload_customer_artwork');
+			fd.append('nonce', pckzceConfig.nonce);
+			fd.append('file', file);
+			if (this.designId) {
+				fd.append('design_id', String(this.designId));
+			}
+			fetch(pckzceConfig.ajaxUrl, { method: 'POST', body: fd })
+				.then((r) => r.json())
+				.then((res) => {
+					if (!res.success) {
+						throw new Error(res.data?.message || I18N.uploadError);
+					}
+					this.customerArtworkToken = res.data.token || '';
+					this.customerArtworkFilename = res.data.filename || file.name;
+					this.setCustomerArtworkUi({
+						filename: this.customerArtworkFilename,
+						token: this.customerArtworkToken,
+						message:
+							I18N.customerArtworkAttached ||
+							'Datei wurde angehängt und wird mit Ihrer Bestellung übermittelt.',
+					});
+				})
+				.catch((err) => {
+					this.customerArtworkToken = '';
+					this.customerArtworkFilename = '';
+					if (inputEl) {
+						inputEl.value = '';
+					}
+					this.setCustomerArtworkUi({
+						error: true,
+						message: err.message || I18N.uploadError,
+					});
+					this.toast(err.message, true);
+				});
 		}
 
 		utf8ToBase64(str) {

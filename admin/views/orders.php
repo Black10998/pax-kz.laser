@@ -83,6 +83,28 @@ $hero_description = __( 'Review customer orders, production files, and fulfillme
 					<textarea name="admin_notes" id="pckz-admin-notes" class="large-text" rows="4"><?php echo esc_textarea( $order['admin_notes'] ?? '' ); ?></textarea>
 					<p><button type="submit" class="button"><?php esc_html_e( 'Save notes', 'pckz-canonical-engine' ); ?></button></p>
 				</form>
+				<?php
+				$customer_artwork = ! empty( $details['customer_artwork'] ) && class_exists( 'PCKZ_Customer_Artwork' )
+					? PCKZ_Customer_Artwork::resolve_file_meta( $details['customer_artwork'] )
+					: null;
+				if ( ! $customer_artwork && ! empty( $order['design_id'] ) && class_exists( 'PCKZ_Customer_Artwork' ) ) {
+					$customer_artwork = PCKZ_Customer_Artwork::get_for_design( (int) $order['design_id'] );
+				}
+				if ( $customer_artwork ) :
+					$art_dl = PCKZ_Customer_Artwork::admin_download_url( (int) $order['id'] );
+					?>
+					<div class="pckz-detail-artwork">
+						<p><strong><?php esc_html_e( 'Kundengrafik (Upload):', 'pckz-canonical-engine' ); ?></strong>
+							<?php echo esc_html( $customer_artwork['filename'] ?? '' ); ?>
+							<?php if ( ! empty( $customer_artwork['size'] ) ) : ?>
+								<span class="description">(<?php echo esc_html( size_format( (int) $customer_artwork['size'] ) ); ?>)</span>
+							<?php endif; ?>
+						</p>
+						<?php if ( $art_dl ) : ?>
+							<p><a class="button button-primary" href="<?php echo esc_url( $art_dl ); ?>"><?php esc_html_e( 'Kundengrafik herunterladen', 'pckz-canonical-engine' ); ?></a></p>
+						<?php endif; ?>
+					</div>
+				<?php endif; ?>
 			</section>
 
 			<?php if ( ! empty( $order['design_id'] ) ) : ?>

@@ -33,7 +33,8 @@ Console check: `window.PCKZCE_GLOBAL === window` must be `true`.
 |--------|---------|
 | `pckzce_save_design` | Save + canonical export |
 | `pckzce_export_design` | PNG export |
-| `pckzce_upload_image` | Customer image upload |
+| `pckzce_upload_image` | Customer image upload (configurator logo) |
+| `pckzce_upload_customer_artwork` | Optional checkout artwork (SVG/PNG/JPG/WEBP) attached to orders |
 | `pckzce_add_to_cart` | WooCommerce cart |
 
 Localized JS global: `pckzceConfig` (not `pckzCreator`).

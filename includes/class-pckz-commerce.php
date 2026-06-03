@@ -408,7 +408,7 @@ class PCKZ_Commerce {
 		if ( ! isset( $countries[ $country ] ) ) {
 			$country = 'DE';
 		}
-		return array(
+		$details = array(
 			'first_name'    => sanitize_text_field( $raw['first_name'] ?? '' ),
 			'last_name'     => sanitize_text_field( $raw['last_name'] ?? '' ),
 			'email'         => sanitize_email( $raw['email'] ?? '' ),
@@ -420,6 +420,13 @@ class PCKZ_Commerce {
 			'country'       => $country,
 			'wishes'        => sanitize_textarea_field( $raw['wishes'] ?? ( $raw['customer_wishes'] ?? '' ) ),
 		);
+		if ( class_exists( 'PCKZ_Customer_Artwork' ) && ! empty( $raw['customer_artwork'] ) ) {
+			$artwork = PCKZ_Customer_Artwork::sanitize_artwork_for_storage( $raw['customer_artwork'] );
+			if ( $artwork ) {
+				$details['customer_artwork'] = $artwork;
+			}
+		}
+		return $details;
 	}
 
 	/**
@@ -431,10 +438,14 @@ class PCKZ_Commerce {
 		if ( ! empty( $_POST['customer_details'] ) ) {
 			$decoded = json_decode( wp_unslash( $_POST['customer_details'] ), true );
 			if ( is_array( $decoded ) ) {
-				return self::sanitize_customer_details( $decoded );
+				$details = self::sanitize_customer_details( $decoded );
+				if ( class_exists( 'PCKZ_Customer_Artwork' ) ) {
+					$details = PCKZ_Customer_Artwork::apply_token_from_request( $details );
+				}
+				return $details;
 			}
 		}
-		return self::sanitize_customer_details(
+		$details = self::sanitize_customer_details(
 			array(
 				'first_name'   => $_POST['customer_first_name'] ?? '',
 				'last_name'    => $_POST['customer_last_name'] ?? '',
@@ -448,6 +459,10 @@ class PCKZ_Commerce {
 				'wishes'       => $_POST['customer_wishes'] ?? '',
 			)
 		);
+		if ( class_exists( 'PCKZ_Customer_Artwork' ) ) {
+			$details = PCKZ_Customer_Artwork::apply_token_from_request( $details );
+		}
+		return $details;
 	}
 
 	/**
@@ -1376,6 +1391,9 @@ class PCKZ_Commerce {
 		$meta['customer_note']  = sanitize_textarea_field( $note );
 		if ( ! empty( $details ) ) {
 			$meta['customer_details'] = $details;
+			if ( class_exists( 'PCKZ_Customer_Artwork' ) ) {
+				PCKZ_Customer_Artwork::sync_with_design( $design_id, $details );
+			}
 		}
 		if ( empty( $meta['selections'] ) || ! is_array( $meta['selections'] ) ) {
 			$meta['selections'] = array();

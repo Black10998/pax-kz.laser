@@ -29,6 +29,9 @@ if ( '' === $shipping_price_label && class_exists( 'PCKZ_Commerce' ) ) {
 		(string) ( $pricing['currency_code'] ?? 'EUR' )
 	);
 }
+$artwork_max_mb = class_exists( 'PCKZ_Customer_Artwork' )
+	? (int) ( PCKZ_Customer_Artwork::MAX_BYTES / 1048576 )
+	: 5;
 ?>
 <div class="pckz-checkout" data-checkout>
 	<header class="pckz-checkout__header">
@@ -116,10 +119,48 @@ if ( '' === $shipping_price_label && class_exists( 'PCKZ_Commerce' ) ) {
 					<?php endforeach; ?>
 				</select>
 			</div>
-			<div class="pckz-field pckz-field--full">
-				<label class="pckz-field__label" for="pckz-customer-wishes">Wünsche oder zusätzliche Informationen</label>
-				<textarea class="pckz-field__control" id="pckz-customer-wishes" name="pckz_customer_wishes" rows="3" placeholder="Besondere Wünsche, Hinweise zur Produktion oder Fragen (optional)" data-field="customer_wishes"></textarea>
+		</div>
+	</section>
+
+	<section class="pckz-checkout__wishes" aria-labelledby="pckz-wishes-heading" data-customer-wishes-section>
+		<h3 id="pckz-wishes-heading" class="pckz-checkout__section-heading">Lassen Sie uns Ihre Wünsche wissen</h3>
+		<p class="pckz-checkout__wishes-lead">
+			<?php esc_html_e( 'Optional: Besondere Wünsche, Hinweise zur Produktion oder Ihre vorhandene Grafik (Logo, Linienzeichnung, Symbol, Firmenlogo, Vektordatei).', 'pckz-canonical-engine' ); ?>
+		</p>
+		<div class="pckz-field pckz-field--full">
+			<label class="pckz-field__label" for="pckz-customer-wishes"><?php esc_html_e( 'Ihre Nachricht', 'pckz-canonical-engine' ); ?></label>
+			<textarea class="pckz-field__control" id="pckz-customer-wishes" name="pckz_customer_wishes" rows="3" placeholder="<?php esc_attr_e( 'Besondere Wünsche, Hinweise zur Produktion oder Fragen (optional)', 'pckz-canonical-engine' ); ?>" data-field="customer_wishes"></textarea>
+		</div>
+		<div class="pckz-customer-artwork" data-customer-artwork>
+			<label class="pckz-customer-artwork__label" for="pckz-customer-artwork-file">
+				<?php esc_html_e( 'Eigene Grafik anhängen (optional)', 'pckz-canonical-engine' ); ?>
+			</label>
+			<div class="pckz-customer-artwork__row">
+				<input
+					type="file"
+					class="pckz-customer-artwork__input"
+					id="pckz-customer-artwork-file"
+					name="pckz_customer_artwork_file"
+					accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp"
+					data-customer-artwork-input
+				>
+				<span class="pckz-customer-artwork__name" data-customer-artwork-name aria-live="polite">
+					<?php esc_html_e( 'Keine Datei ausgewählt', 'pckz-canonical-engine' ); ?>
+				</span>
+				<button type="button" class="pckz-customer-artwork__clear pckz-hidden" data-customer-artwork-clear>
+					<?php esc_html_e( 'Entfernen', 'pckz-canonical-engine' ); ?>
+				</button>
 			</div>
+			<p class="pckz-customer-artwork__hint">
+				<?php
+				printf(
+					/* translators: %d: max file size in MB */
+					esc_html__( 'SVG, PNG, JPG, JPEG oder WEBP — max. %d MB.', 'pckz-canonical-engine' ),
+					$artwork_max_mb
+				);
+				?>
+			</p>
+			<p class="pckz-customer-artwork__status pckz-hidden" data-customer-artwork-status role="status" aria-live="polite"></p>
 		</div>
 	</section>
 
