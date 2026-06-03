@@ -477,6 +477,8 @@ class PCKZ_Icon_Library {
 		);
 		self::option_update( self::OPTION_DISABLED, $disabled );
 
+		do_action( 'pckzce_asset_catalog_changed' );
+
 		return array( 'slug' => $slug );
 	}
 

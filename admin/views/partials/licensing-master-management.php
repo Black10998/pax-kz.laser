@@ -166,7 +166,8 @@ $status_help = array(
 											</p>
 											<p>
 												<label><input type="checkbox" name="perm_export" value="1" <?php checked( ! empty( $license_perms['export'] ) ); ?>> <?php esc_html_e( 'Allow export', 'pckz-canonical-engine' ); ?></label><br>
-												<label><input type="checkbox" name="perm_updates" value="1" <?php checked( ! empty( $license_perms['updates'] ) ); ?>> <?php esc_html_e( 'Allow updates', 'pckz-canonical-engine' ); ?></label>
+												<label><input type="checkbox" name="perm_updates" value="1" <?php checked( ! empty( $license_perms['updates'] ) ); ?>> <?php esc_html_e( 'Allow updates', 'pckz-canonical-engine' ); ?></label><br>
+												<label><input type="checkbox" name="perm_asset_sync" value="1" <?php checked( ! isset( $license_perms['asset_sync'] ) || ! empty( $license_perms['asset_sync'] ) ); ?>> <?php esc_html_e( 'Allow asset sync', 'pckz-canonical-engine' ); ?></label>
 											</p>
 											<p>
 												<label><strong><?php esc_html_e( 'Expires (optional)', 'pckz-canonical-engine' ); ?></strong></label>

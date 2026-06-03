@@ -186,6 +186,8 @@ $status_label = static function ( $status ) {
 			</article>
 		</div>
 	<?php else : ?>
+		<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-fleet.php'; ?>
+
 		<div class="pckz-license-stats">
 			<article class="pckz-license-stat">
 				<h3><?php esc_html_e( 'Licenses', 'pckz-canonical-engine' ); ?></h3>
@@ -225,7 +227,8 @@ $status_label = static function ( $status ) {
 					</p>
 					<p>
 						<label><input type="checkbox" name="perm_export" value="1" checked> <?php esc_html_e( 'Allow export authorization', 'pckz-canonical-engine' ); ?></label><br>
-						<label><input type="checkbox" name="perm_updates" value="1" checked> <?php esc_html_e( 'Allow protected updates', 'pckz-canonical-engine' ); ?></label>
+						<label><input type="checkbox" name="perm_updates" value="1" checked> <?php esc_html_e( 'Allow protected updates', 'pckz-canonical-engine' ); ?></label><br>
+						<label><input type="checkbox" name="perm_asset_sync" value="1" checked> <?php esc_html_e( 'Allow asset synchronization', 'pckz-canonical-engine' ); ?></label>
 					</p>
 					<p><button type="submit" class="button button-primary"><?php esc_html_e( 'Create License', 'pckz-canonical-engine' ); ?></button></p>
 				</form>
@@ -352,6 +355,26 @@ $status_label = static function ( $status ) {
 							<label for="pckz-release-changelog"><strong><?php esc_html_e( 'Changelog', 'pckz-canonical-engine' ); ?></strong></label>
 							<textarea id="pckz-release-changelog" name="changelog" rows="3" class="large-text"><?php echo esc_textarea( $release_meta['changelog'] ?? '' ); ?></textarea>
 						</p>
+						<p>
+							<label for="pckz-release-severity"><strong><?php esc_html_e( 'Update severity', 'pckz-canonical-engine' ); ?></strong></label>
+							<select id="pckz-release-severity" name="update_severity">
+								<option value="" <?php selected( $release_meta['update_severity'] ?? '', '' ); ?>><?php esc_html_e( 'Normal', 'pckz-canonical-engine' ); ?></option>
+								<option value="critical" <?php selected( $release_meta['update_severity'] ?? '', 'critical' ); ?>><?php esc_html_e( 'Critical / security', 'pckz-canonical-engine' ); ?></option>
+							</select>
+						</p>
+						<?php if ( class_exists( 'PCKZ_Asset_Sync' ) ) : ?>
+							<?php $asset_manifest = PCKZ_Asset_Sync::build_manifest( false ); ?>
+							<p class="description">
+								<?php
+								printf(
+									/* translators: 1: revision hash, 2: asset count */
+									esc_html__( 'Asset sync catalog: revision %1$s (%2$d distributable files).', 'pckz-canonical-engine' ),
+									esc_html( $asset_manifest['revision'] ?? '—' ),
+									count( $asset_manifest['assets'] ?? array() )
+								);
+								?>
+							</p>
+						<?php endif; ?>
 						<p><button type="submit" class="button"><?php esc_html_e( 'Save Metadata', 'pckz-canonical-engine' ); ?></button></p>
 					</form>
 				</details>

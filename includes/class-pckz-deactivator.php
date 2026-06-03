@@ -16,6 +16,9 @@ class PCKZ_Deactivator {
 	 * Run on plugin deactivation.
 	 */
 	public static function deactivate() {
+		if ( class_exists( 'PCKZ_Licensing' ) ) {
+			PCKZ_Licensing::report_plugin_deactivated();
+		}
 		wp_clear_scheduled_hook( PCKZ_Licensing::HEARTBEAT_HOOK );
 		flush_rewrite_rules();
 	}

@@ -1059,6 +1059,8 @@ class PCKZ_Line_Library {
 			);
 		}
 
+		do_action( 'pckzce_asset_catalog_changed' );
+
 		return array( 'slug' => $slug );
 	}
 

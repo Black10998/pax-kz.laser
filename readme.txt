@@ -55,6 +55,13 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.28.0 =
+
+* Master Control: fleet overview dashboard with online/offline status, version, license health, update status, security alerts, search/filter/sort.
+* Asset synchronization: custom lines, icons, and presets from paxdesign.at master to licensed installations (migration-safe, checksum verified).
+* Licensing: plugin deactivation telemetry, integrity/security event log, admin menu update badge, critical update admin notices.
+* Existing license protection, PayPal checkout, preview/export pipelines unchanged.
+
 = 2.27.40 =
 
 * Removed customer SVG download from the configurator preview (not requested).

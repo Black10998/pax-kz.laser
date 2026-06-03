@@ -1450,6 +1450,140 @@
 	border-color: #ffb4aa;
 }
 
+.pckz-fleet-dashboard {
+	margin-bottom: 20px;
+}
+
+.pckz-fleet-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+	gap: 12px;
+	margin: 16px 0 20px;
+}
+
+.pckz-fleet-stat {
+	background: #f6f8fa;
+	border: 1px solid #d0d7de;
+	border-radius: 8px;
+	padding: 12px 14px;
+	text-align: center;
+}
+
+.pckz-fleet-stat__value {
+	display: block;
+	font-size: 22px;
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+.pckz-fleet-stat__label {
+	display: block;
+	font-size: 12px;
+	color: #57606a;
+	margin-top: 4px;
+}
+
+.pckz-fleet-stat--success .pckz-fleet-stat__value {
+	color: #116329;
+}
+
+.pckz-fleet-stat--warning .pckz-fleet-stat__value {
+	color: #9a6700;
+}
+
+.pckz-fleet-stat--danger .pckz-fleet-stat__value {
+	color: #a40e26;
+}
+
+.pckz-fleet-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+	margin-bottom: 12px;
+}
+
+.pckz-fleet-alerts {
+	margin: 0 0 16px;
+	padding: 12px 14px;
+	background: #fff8f5;
+	border: 1px solid #ffd8cc;
+	border-radius: 8px;
+}
+
+.pckz-fleet-alert-list {
+	margin: 8px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.pckz-fleet-alert {
+	margin: 0 0 8px;
+	font-size: 13px;
+}
+
+.pckz-fleet-alert--critical strong {
+	color: #a40e26;
+}
+
+.pckz-health-dot {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	margin-right: 6px;
+	vertical-align: middle;
+}
+
+.pckz-health-dot--success {
+	background: #2da44e;
+}
+
+.pckz-health-dot--warning {
+	background: #d4a72c;
+}
+
+.pckz-health-dot--danger {
+	background: #cf222e;
+}
+
+.pckz-health-dot--muted {
+	background: #8c959f;
+}
+
+.pckz-status-pill {
+	display: inline-block;
+	font-size: 11px;
+	font-weight: 600;
+	padding: 2px 8px;
+	border-radius: 999px;
+}
+
+.pckz-status-pill--online {
+	background: #dafbe1;
+	color: #116329;
+}
+
+.pckz-status-pill--offline {
+	background: #f6f8fa;
+	color: #57606a;
+}
+
+.pckz-fleet-warnings {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 12px;
+}
+
+.pckz-fleet-warnings__item--critical {
+	color: #a40e26;
+}
+
+.pckz-fleet-table-wrap {
+	overflow-x: auto;
+}
+
 @media (max-width: 1120px) {
 	.pckz-license-grid {
 		grid-template-columns: repeat(2, minmax(240px, 1fr));
