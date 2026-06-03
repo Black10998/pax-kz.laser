@@ -1,5 +1,17 @@
 ## Production installation packages
 
+Canonical package for v2.27.34:
+
+- `pckz-canonical-engine-2.27.34-protected.zip`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.27.34/pckz-canonical-engine-2.27.34-protected.zip`
+
+**Customer red lines (type_102–111):** commit `import/vector-line-customer-red/reference-sheet.png` or `svg.lbrn2`, run the import script, then rebuild — v2.27.34 ships without bundled 102–111 until source artwork is in the repo.
+
+Previous release (v2.27.33):
+
 Canonical package for v2.27.33:
 
 - `pckz-canonical-engine-2.27.33-protected.zip`

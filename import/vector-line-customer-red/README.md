@@ -1,53 +1,47 @@
 # Customer matte-red line models (type_102–type_111)
 
-Ten bundled lines from the **reference sheet** (designs 1–10). Label digits are not part of the SVG artwork.
+**Do not use procedural or hand-drawn substitutes.** Import only from your source artwork.
 
-## Shipped mapping
+## Required source (pick one)
 
-| Reference | Slug      | Motif                         |
-|-----------|-----------|-------------------------------|
-| 1         | type_102  | Angular / shard               |
-| 2         | type_103  | Tech / hexagonal              |
-| 3         | type_104  | Ornate / filigree scroll      |
-| 4         | type_105  | Futuristic bracket + dot      |
-| 5         | type_106  | Flame / wisps                 |
-| 6         | type_107  | Star / compass                |
-| 7         | type_108  | Tribal / knotwork             |
-| 8         | type_109  | Heavy arrowhead / chevrons    |
-| 9         | type_110  | Molecular hex cluster         |
-| 10        | type_111  | Crescent + sparkle            |
+### A) Reference sheet image (from your numbered PNG/JPG)
 
-Output files: `public/assets/lines/type_102.svg` … `type_111.svg` (950×35, `#B22222`, stretchable center runners).
+Export the sheet you sent in chat (designs **1–10** only) as a lossless PNG with numbers visible; the importer strips digits automatically.
 
-## Replace with native LightBurn vectors (recommended)
+```
+import/vector-line-customer-red/reference-sheet.png
+```
 
-Place your exact source here:
+```bash
+bash tools/import-vector-line-customer-reference-image.sh
+```
+
+### B) LightBurn native vectors (preferred if you have the project)
 
 ```
 import/vector-line-customer-red/svg.lbrn2
 ```
 
-From Windows Downloads:
-
-```
-c:\Users\43681\Downloads\svg.lbrn2
-```
-
-Then run:
-
 ```bash
 bash tools/import-vector-line-customer-lbrn2.sh
 ```
 
-## Illustrator AI fallback
+### C) Illustrator AI export
 
 ```
 import/vector-line-customer-red/svg for line vicor costumer.ai
+```
+
+```bash
 bash tools/import-vector-line-customer-red.sh
 ```
 
-## Notes
+## Output
 
-- Uses `tools/convert-lightburn-ai-to-svg.py` (same pipeline as fire/batch imports).
-- Catalog auto-sets `preserve_colors` for chromatic bundled SVGs (line_color does not recolor them).
-- `PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MAX` is `111`.
+`public/assets/lines/type_102.svg` … `type_111.svg` — 950×35, matte red `#B22222`, stretchable center runners like bundled types 1–20 / 21–40, `preserve_colors` in catalog.
+
+Set `PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MAX` to `111` after a successful import.
+
+## Note for Cloud / CI builds
+
+The reference image attached in Cursor chat is **not** stored on the build VM. You must commit `reference-sheet.png` or `svg.lbrn2` to this folder before import can run in CI or release builds.

@@ -55,12 +55,15 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.27.34 =
+
+* Removed incorrect generated `type_102`–`type_111` models (not from customer reference artwork).
+* Added reference-sheet image import (`reference-sheet.png` → type_102–111 via vtracer; numbers stripped).
+* LBRN2 / AI import paths unchanged; bundled max back to 101 until a successful import adds 102–111.
+
 = 2.27.33 =
 
-* Bundled matte-red customer line models `type_102`–`type_111` (reference sheet designs 1–10, no label digits).
-* `#B22222` preserved in admin/customer preview, SVG export, and LightBurn (`preserve_colors`; not recolored by line_color).
-* Center runners match bundled types 92–101: `M9.5 … L352` and `M598 … L940.5` on 950×35 artboard.
-* Re-import from `import/vector-line-customer-red/svg.lbrn2` when available for native LightBurn paths.
+* (Reverted) Incorrect procedural red lines type_102–111 — removed in 2.27.34.
 
 = 2.27.32 =
 
