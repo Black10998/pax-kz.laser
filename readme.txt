@@ -55,6 +55,13 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.27.33 =
+
+* Bundled matte-red customer line models `type_102`–`type_111` (reference sheet designs 1–10, no label digits).
+* `#B22222` preserved in admin/customer preview, SVG export, and LightBurn (`preserve_colors`; not recolored by line_color).
+* Center runners match bundled types 92–101: `M9.5 … L352` and `M598 … L940.5` on 950×35 artboard.
+* Re-import from `import/vector-line-customer-red/svg.lbrn2` when available for native LightBurn paths.
+
 = 2.27.32 =
 
 * Line library: permanent delete for built-in models (removes SVG + all catalog references).
