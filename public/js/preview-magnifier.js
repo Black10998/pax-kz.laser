@@ -132,6 +132,9 @@
 	}
 
 	function boot() {
+		if (window.matchMedia('(max-width: 989px)').matches) {
+			return;
+		}
 		document.querySelectorAll('[data-stage]').forEach(initStage);
 	}
 

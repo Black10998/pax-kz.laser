@@ -186,22 +186,11 @@
 		 */
 		resolveLineTint(slug, state) {
 			const meta = slug ? this.lineCatalog[slug] || {} : {};
-			if (meta.preserve_colors) {
-				if (!state.line_color_user_set) {
-					return { tintable: false, color: null };
-				}
-				return {
-					tintable: true,
-					color: state.line_color || null,
-				};
-			}
-			if (meta.tintable === false || !meta.custom) {
+			if (meta.preserve_colors || meta.tintable === false) {
 				return { tintable: false, color: null };
 			}
-			return {
-				tintable: true,
-				color: state.line_color || null,
-			};
+			// Customer line color picker removed — keep native SVG colors (white/default art).
+			return { tintable: false, color: null };
 		}
 
 		builtinLinePreviewTargetBounds(box) {
@@ -1812,9 +1801,11 @@
 			}
 
 			if (this.objects.line) {
+				const lineSlug = this.objects.line.pckzLineSlug || selections.linien || 'none';
+				const lineTint = this.resolveLineTint(lineSlug, selections);
 				addObject(this.objects.line, 'lines', {
 					line_type: selections.linien || 'none',
-					fill: selections.line_color || '',
+					fill: lineTint.tintable && lineTint.color ? lineTint.color : '',
 					alignment: 'center',
 				});
 			}
@@ -3365,8 +3356,12 @@ fitTextPathMatrixToFabricBounds(textObj, otPath, baseMatrix) {
 				return;
 			}
 			if (role === 'line-overlay' || role === 'lines') {
-				const fillHex = this.colorToHex(selections.line_color || 'Red') || '#FF0000';
-				this.recolorSvgObject(obj, fillHex);
+				const slug = obj.pckzLineSlug || selections.linien || '';
+				const tint = this.resolveLineTint(slug, selections);
+				if (tint.tintable && tint.color) {
+					const fillHex = this.colorToHex(tint.color) || '#FF0000';
+					this.recolorSvgObject(obj, fillHex);
+				}
 				return;
 			}
 			if (role === 'main-text' || role === 'text') {

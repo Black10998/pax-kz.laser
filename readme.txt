@@ -55,6 +55,13 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.27.39 =
+
+* Removed customer line color control (Linienfarbe); line models keep native/preserve colors in preview and export.
+* Frontend: deter casual SVG copying (context menu/drag); picker URLs only in JS (no direct upload paths).
+* Mobile: lazy-load line/icon picker thumbnails, debounced preview updates, magnifier off on small screens.
+* Customer SVG download button; PayPal stays clickable while export validates in background.
+
 = 2.27.38 =
 
 * Line Library: fix SVG upload success with invisible lines — custom uploads at type_102+ no longer hidden by permanent-delete markers from the old purge.

@@ -15,9 +15,9 @@ if ( ! isset( $line_choices ) && class_exists( 'PCKZ_Line_Library' ) ) {
 	$line_choices = PCKZ_Line_Library::get_customer_line_choices();
 }
 
-foreach ( $customer_options as $option ) :
+	foreach ( $customer_options as $option ) :
 	$id      = $option['id'] ?? '';
-	if ( 'preview_mode' === $id ) {
+	if ( 'preview_mode' === $id || 'line_color' === $id ) {
 		continue;
 	}
 	$type    = $option['type'] ?? 'text';
@@ -200,7 +200,11 @@ foreach ( $customer_options as $option ) :
 						>
 							<span class="o--img">
 								<?php if ( $img ) : ?>
-									<img src="<?php echo esc_url( $img ); ?>" alt="" width="<?php echo (int) $opt_w; ?>" height="<?php echo (int) $opt_h; ?>" loading="lazy" crossorigin="anonymous">
+									<?php if ( $is_line_ui || $is_icon_ui ) : ?>
+										<img data-lazy-img="<?php echo esc_attr( $img ); ?>" alt="" width="<?php echo (int) $opt_w; ?>" height="<?php echo (int) $opt_h; ?>" decoding="async" crossorigin="anonymous">
+									<?php else : ?>
+										<img src="<?php echo esc_url( $img ); ?>" alt="" width="<?php echo (int) $opt_w; ?>" height="<?php echo (int) $opt_h; ?>" loading="lazy" crossorigin="anonymous">
+									<?php endif; ?>
 								<?php else : ?>
 									<span class="pckz-visual-picker__opt-empty">—</span>
 								<?php endif; ?>

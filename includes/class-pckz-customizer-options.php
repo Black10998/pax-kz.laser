@@ -136,6 +136,9 @@ class PCKZ_Customizer_Options {
 			if ( empty( $option['id'] ) || empty( $option['type'] ) ) {
 				continue;
 			}
+			if ( 'line_color' === sanitize_key( $option['id'] ) ) {
+				continue;
+			}
 			if ( ! in_array( $option['type'], $allowed_types, true ) ) {
 				continue;
 			}

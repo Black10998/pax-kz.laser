@@ -62,6 +62,15 @@
 		}
 	}
 
+	function loadLazyImages(root) {
+		root.querySelectorAll('img[data-lazy-img]:not([src])').forEach((img) => {
+			const src = img.getAttribute('data-lazy-img');
+			if (src) {
+				img.src = src;
+			}
+		});
+	}
+
 	function initPicker(root) {
 		const hidden = root.querySelector('.pckz-icon-hidden');
 		const trigger = root.querySelector('[data-visual-trigger]');
@@ -137,6 +146,8 @@
 			trigger.setAttribute('aria-expanded', 'true');
 			setFieldOpenState();
 			positionList(root);
+			loadLazyImages(root);
+			document.dispatchEvent(new CustomEvent('pckz:visual-picker-opened'));
 		}
 
 		function closePicker() {
@@ -178,6 +189,7 @@
 		window.addEventListener('scroll', onReposition, true);
 
 		setValue(hidden.value || '');
+		loadLazyImages(root);
 	}
 
 	function initAll(scope) {

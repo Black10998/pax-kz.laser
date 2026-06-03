@@ -71,12 +71,12 @@
 			this._splideSyncing = false;
 			this.exportReady = false;
 			this._exportReadyTimer = null;
+			this._syncDebounceTimer = null;
 			this._uiClosersBound = false;
 			this._mobileViewportLock = false;
 			this._mobileResizeUnlockTimer = null;
 			this._creatorReadyMarked = false;
 			this.iconColorUserSet = { left: false, right: false };
-			this.lineColorUserSet = false;
 			this.init();
 		}
 
@@ -93,7 +93,9 @@
 			this.bindGlobalUiClosers();
 			this.initMobileViewportStability();
 			this.initCanvas();
-			this.setCheckoutButtonsEnabled(false);
+			this.updateCheckoutInteractable(
+				I18N.exportWaitingPreview || 'Zahlung wird freigegeben, sobald die Vorschau vollständig geladen ist.'
+			);
 			this.showPaymentSuccessIfReturned();
 			window.addEventListener('resize', () => this.handleWindowResize());
 			setTimeout(() => this.markCreatorReady(), 12000);
@@ -972,8 +974,6 @@
 							this.iconColorUserSet.left = true;
 						} else if (optionId === 'icon_color_right') {
 							this.iconColorUserSet.right = true;
-						} else if (optionId === 'line_color') {
-							this.lineColorUserSet = true;
 						}
 						syncMobileColorPreview(btn.dataset.value || '#ffffff');
 						if (mobileColorPicker && mobileColorTrigger) {
@@ -1014,6 +1014,8 @@
 					}
 					if (btn.dataset.action === 'paypal-checkout') {
 						this.submitPaypal();
+					} else if (btn.dataset.action === 'download-customer-svg') {
+						this.downloadCustomerSvg();
 					} else if (btn.dataset.action === 'add-to-cart') {
 						this.submit(true);
 					} else if (btn.dataset.action === 'submit-design') {
@@ -1282,8 +1284,8 @@
 				icon_color_left_user_set: this.iconColorUserSet.left,
 				icon_color_right_user_set: this.iconColorUserSet.right,
 				linien: this.selections.linien || 'none',
-				line_color: this.selections.line_color || '#FF0000',
-				line_color_user_set: this.lineColorUserSet,
+				line_color: '',
+				line_color_user_set: false,
 				led_enabled: this.selections.led_enabled || 'yes',
 				preview_mode: this.selections.preview_mode || 'day',
 				preview_led: this.selections.preview_led || 'day',
@@ -1316,6 +1318,11 @@
 		}
 
 		syncFromForm() {
+			clearTimeout(this._syncDebounceTimer);
+			this._syncDebounceTimer = setTimeout(() => this.syncFromFormNow(), 120);
+		}
+
+		syncFromFormNow() {
 			const prev = { ...this.selections };
 			this.collectSelections();
 			this.applyConditionalFields();
@@ -1325,9 +1332,6 @@
 			}
 			if (this.selections.symbol_rechts !== prev.symbol_rechts) {
 				this.iconColorUserSet.right = false;
-			}
-			if (this.selections.linien !== prev.linien) {
-				this.lineColorUserSet = false;
 			}
 
 			const mode = this.getEffectivePreviewMode();
@@ -1350,7 +1354,6 @@
 					this.selections.symbol_rechts !== prev.symbol_rechts ||
 					this.selections.icon_color_left !== prev.icon_color_left ||
 					this.selections.icon_color_right !== prev.icon_color_right ||
-					this.selections.line_color !== prev.line_color ||
 					this.selections.linien !== prev.linien;
 				if (iconChanged) {
 					this.previewEngine._imageCache = {};
@@ -1400,24 +1403,47 @@
 		scheduleExportReadyCheck() {
 			clearTimeout(this._exportReadyTimer);
 			this.exportReady = false;
-			this.setCheckoutButtonsEnabled(false);
+			this.updateCheckoutInteractable(
+				I18N.exportValidating || 'Exportdaten werden geprüft — bitte kurz warten.'
+			);
 			this._exportReadyTimer = setTimeout(() => {
 				this.refreshExportReadyState();
-			}, 400);
+			}, 180);
+		}
+
+		canBeginCheckout() {
+			const text = (this.selections.custom_text || '').trim();
+			return !!(this.bgLoaded && this.previewEngine && text);
+		}
+
+		updateCheckoutInteractable(hintMessage) {
+			const canInteract = this.canBeginCheckout();
+			this.setCheckoutButtonsEnabled(canInteract, hintMessage);
+			this.updateDownloadSvgButton(canInteract && this.exportReady);
 		}
 
 		setCheckoutButtonsEnabled(enabled, hintMessage) {
+			const paypalOnly = !!COMMERCE.checkoutPaypalOnly;
+			const canInteract = this.canBeginCheckout();
 			const buttons = this.root.querySelectorAll(
 				'[data-action="paypal-checkout"], [data-action="add-to-cart"], [data-action="submit-design"]'
 			);
 			buttons.forEach((btn) => {
+				const isPaypal = btn.dataset.action === 'paypal-checkout';
+				if (isPaypal && paypalOnly) {
+					btn.disabled = false;
+					btn.classList.toggle('is-disabled', !canInteract);
+					btn.setAttribute('aria-disabled', canInteract ? 'false' : 'true');
+					btn.classList.toggle('is-checkout-ready', this.exportReady);
+					return;
+				}
 				btn.disabled = !enabled;
 				btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
 				btn.classList.toggle('is-disabled', !enabled);
 			});
 			const hint = this.root.querySelector('[data-export-ready-hint]');
 			if (hint) {
-				if (enabled) {
+				if (enabled && this.exportReady) {
 					hint.classList.add('pckz-hidden');
 				} else {
 					hint.classList.remove('pckz-hidden');
@@ -1425,6 +1451,79 @@
 						hint.textContent = hintMessage;
 					}
 				}
+			}
+		}
+
+		updateDownloadSvgButton(enabled) {
+			const btn = this.root.querySelector('[data-action="download-customer-svg"]');
+			const hint = this.root.querySelector('[data-download-svg-hint]');
+			if (!btn) {
+				return;
+			}
+			btn.disabled = !enabled;
+			btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+			btn.classList.toggle('is-disabled', !enabled);
+			if (hint) {
+				hint.textContent = enabled
+					? I18N.downloadSvgReady || 'Lädt die Vorschau als SVG herunter.'
+					: I18N.downloadSvgWaiting || 'Verfügbar, sobald Ihre Vorschau bereit ist.';
+			}
+		}
+
+		async downloadCustomerSvg() {
+			if (!this.canBeginCheckout()) {
+				this.toast(I18N.requireDesign || 'Bitte geben Sie einen Text ein.', true);
+				return;
+			}
+			const btn = this.root.querySelector('[data-action="download-customer-svg"]');
+			if (btn) {
+				btn.disabled = true;
+				btn.classList.add('is-loading');
+			}
+			try {
+				await this.ensureExportPayloadReady();
+				let svg = '';
+				if (this.previewEngine.buildFabricProductionSvg) {
+					svg = await this.previewEngine.buildFabricProductionSvg(
+						this.buildCloudliftState(),
+						this.mmW,
+						this.mmH
+					);
+				}
+				const textPaths = await this.previewEngine.buildTextVectorPathsFromFabric(
+					this.previewEngine.objects?.text,
+					this.mmW,
+					this.mmH
+				);
+				if (textPaths && this.previewEngine.injectTextPathsIntoProductionSvg) {
+					svg = this.previewEngine.injectTextPathsIntoProductionSvg(svg, textPaths);
+				}
+				if (!svg || !String(svg).trim()) {
+					throw new Error(I18N.fabricExportMissing || 'SVG export missing');
+				}
+				const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				const safeText = (this.selections.custom_text || 'design')
+					.replace(/[^\w\-]+/g, '-')
+					.replace(/-+/g, '-')
+					.slice(0, 24);
+				a.href = url;
+				a.download = 'rahmen-' + (safeText || 'design') + '.svg';
+				a.rel = 'noopener';
+				document.body.appendChild(a);
+				a.click();
+				a.remove();
+				setTimeout(() => URL.revokeObjectURL(url), 2000);
+				this.toast(I18N.downloadSvgDone || 'SVG wurde heruntergeladen.');
+			} catch (err) {
+				this.toast(err?.message || I18N.fabricExportMissing, true);
+			} finally {
+				if (btn) {
+					btn.disabled = !(this.canBeginCheckout() && this.exportReady);
+					btn.classList.remove('is-loading');
+				}
+				this.updateDownloadSvgButton(this.canBeginCheckout() && this.exportReady);
 			}
 		}
 
@@ -1561,21 +1660,23 @@
 			const waitingText = I18N.exportWaitingText || 'Bitte geben Sie einen Text ein — danach wird die Zahlung freigegeben.';
 			const validating = I18N.exportValidating || 'Exportdaten werden geprüft — bitte kurz warten.';
 			const defaultHint = I18N.exportReadyHint || 'Zahlung wird freigegeben, sobald die Vorschau und Exportdaten bereit sind.';
+			const readyHint =
+				I18N.exportReadyPaypal || 'Sie können jetzt bezahlen. Die Daten werden beim Klick geprüft.';
 
 			if (!this.bgLoaded || !this.previewEngine) {
 				this.exportReady = false;
 				this.root.__pckzExportReady = false;
-				this.setCheckoutButtonsEnabled(false, waitingPreview);
+				this.updateCheckoutInteractable(waitingPreview);
 				return;
 			}
 			const text = (this.selections.custom_text || '').trim();
 			if (!text) {
 				this.exportReady = false;
 				this.root.__pckzExportReady = false;
-				this.setCheckoutButtonsEnabled(false, waitingText);
+				this.updateCheckoutInteractable(waitingText);
 				return;
 			}
-			this.setCheckoutButtonsEnabled(false, validating);
+			this.updateCheckoutInteractable(validating);
 			try {
 				await this.waitForAssetsReady();
 				const fontFamily = this.selections.font_family || 'Russo One';
@@ -1586,14 +1687,14 @@
 				this.root.__pckzExportReady = ok;
 				this._lastExportDebug = validated.res?.data?.export_debug || null;
 				if (ok) {
-					this.setCheckoutButtonsEnabled(true);
+					this.updateCheckoutInteractable(readyHint);
 					this.clearValidationErrors();
 				} else {
 					const lines = validated.res ? this.formatExportDebugLines(validated.res) : [];
 					const failHint = lines.length
 						? lines[0]
 						: I18N.exportNotReady || defaultHint;
-					this.setCheckoutButtonsEnabled(false, failHint);
+					this.updateCheckoutInteractable(failHint);
 					if (validated.res && lines.length) {
 						this.showValidationErrors(validated.res, lines[0]);
 					}
@@ -1602,10 +1703,7 @@
 				this.exportReady = false;
 				this.root.__pckzExportReady = false;
 				this._lastExportDebug = null;
-				this.setCheckoutButtonsEnabled(
-					false,
-					err?.message || I18N.exportNotReady || defaultHint
-				);
+				this.updateCheckoutInteractable(err?.message || I18N.exportNotReady || defaultHint);
 			}
 		}
 
@@ -2071,16 +2169,27 @@
 			if (!this.validateCommerce()) {
 				return;
 			}
-			if (!this.exportReady) {
-				this.toast(I18N.exportNotReady || I18N.loading, true);
+			if (!this.canBeginCheckout()) {
+				this.toast(I18N.requireDesign || 'Bitte geben Sie einen Text ein.', true);
 				return;
 			}
 			this.collectCheckoutFields();
 			this.setSubmitLoading(true, 'paypal-checkout');
-			this.setPaymentStatus(I18N.paymentRedirect || I18N.paypalRedirect || I18N.preparingCheckout, false);
-			this.toast(I18N.preparingCheckout || I18N.paymentRedirect || I18N.paypalRedirect);
+			this.setPaymentStatus(
+				this.exportReady
+					? I18N.paymentRedirect || I18N.paypalRedirect || I18N.preparingCheckout
+					: I18N.exportValidating || 'Exportdaten werden geprüft — bitte kurz warten.',
+				false
+			);
+			if (!this.exportReady) {
+				this.toast(I18N.exportValidating || I18N.preparingCheckout || I18N.loading);
+			} else {
+				this.toast(I18N.preparingCheckout || I18N.paymentRedirect || I18N.paypalRedirect);
+			}
 
-			this.saveDesign()
+			Promise.resolve()
+				.then(() => this.ensureExportPayloadReady())
+				.then(() => this.saveDesign())
 				.then(() => this.exportPng())
 				.then(() => {
 					const qty = parseInt(this.root.querySelector('[data-field="quantity"]')?.value, 10) || 1;
@@ -2110,7 +2219,7 @@
 				})
 				.catch((err) => {
 					this.exportReady = false;
-					this.setCheckoutButtonsEnabled(false);
+					this.updateCheckoutInteractable(err?.message || I18N.exportNotReady);
 					if (err && err.payload) {
 						this.showValidationErrors(err.payload, err.message);
 						return;
@@ -2120,7 +2229,11 @@
 				})
 				.finally(() => {
 					this.setSubmitLoading(false, 'paypal-checkout');
-					this.setCheckoutButtonsEnabled(this.exportReady);
+					this.updateCheckoutInteractable(
+						this.exportReady
+							? I18N.exportReadyPaypal || ''
+							: I18N.exportNotReady || ''
+					);
 				});
 		}
 

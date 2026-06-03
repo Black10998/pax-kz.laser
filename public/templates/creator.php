@@ -49,8 +49,8 @@ $payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz
 				<div class="pckz-product__media-column">
 					<p class="pckz-product__preview-heading">Live-Vorschau Ihres Rahmens</p>
 					<div class="pckz-gallery" data-gallery>
-							<div class="pckz-gallery__stage-wrap">
-								<div class="pckz-gallery__stage" data-stage>
+							<div class="pckz-gallery__stage-wrap" data-pckz-protected-preview>
+								<div class="pckz-gallery__stage" data-stage data-pckz-protected-preview>
 									<?php if ( $img_day ) : ?>
 										<img
 											class="pckz-gallery__fallback"
@@ -107,6 +107,23 @@ $payment_success   = isset( $_GET['pckz_paid'] ) && '1' === (string) $_GET['pckz
 								: esc_html__( 'Text und Symbole erscheinen live im unteren Streifen des Rahmens.', 'pckz-canonical-engine' );
 							?>
 						</p>
+						<?php if ( $use_cloudlift ) : ?>
+							<p class="pckz-gallery__download">
+								<button
+									type="button"
+									class="pckz-btn pckz-btn--download-svg"
+									data-action="download-customer-svg"
+									disabled
+									aria-disabled="true"
+								>
+									<span class="pckz-btn__text"><?php esc_html_e( 'SVG herunterladen', 'pckz-canonical-engine' ); ?></span>
+									<span class="pckz-btn__spinner" aria-hidden="true"></span>
+								</button>
+								<span class="pckz-gallery__download-hint" data-download-svg-hint>
+									<?php esc_html_e( 'Verfügbar, sobald Ihre Vorschau bereit ist.', 'pckz-canonical-engine' ); ?>
+								</span>
+							</p>
+						<?php endif; ?>
 				</div>
 
 				<div class="pckz-product__config-column">

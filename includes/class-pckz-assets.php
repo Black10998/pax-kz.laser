@@ -172,12 +172,21 @@ class PCKZ_Assets {
 
 		$script_deps[] = 'pckzce-fabric-production-pipeline';
 		$script_deps[] = 'pckzce-canonical-scene';
+		$script_deps[] = 'pckzce-creator-protect';
 
 		wp_enqueue_script(
 			'pckzce-preview-magnifier',
 			PCKZCE_PLUGIN_URL . 'public/js/preview-magnifier.js',
 			array(),
 			self::version( 'public/js/preview-magnifier.js' ),
+			true
+		);
+
+		wp_enqueue_script(
+			'pckzce-creator-protect',
+			PCKZCE_PLUGIN_URL . 'public/js/pckz-creator-protect.js',
+			array(),
+			self::version( 'public/js/pckz-creator-protect.js' ),
 			true
 		);
 
@@ -260,6 +269,10 @@ class PCKZ_Assets {
 					'exportWaitingPreview'  => 'Zahlung wird freigegeben, sobald die Vorschau vollständig geladen ist.',
 					'exportWaitingText'     => 'Bitte geben Sie einen Text ein — danach wird die Zahlung freigegeben.',
 					'exportValidating'      => 'Exportdaten werden geprüft — bitte kurz warten.',
+					'exportReadyPaypal'     => 'Sie können jetzt bezahlen. Die Bestelldaten werden beim Klick geprüft.',
+					'downloadSvgReady'      => 'Lädt die Vorschau als SVG herunter.',
+					'downloadSvgWaiting'    => 'Verfügbar, sobald Ihre Vorschau bereit ist.',
+					'downloadSvgDone'       => 'SVG wurde heruntergeladen.',
 					'uploadError'           => 'Upload fehlgeschlagen. Bitte Dateityp oder Größe prüfen.',
 					'requireDesign'         => 'Bitte geben Sie einen Text für den Rahmen ein.',
 					'requireEmail'          => 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',

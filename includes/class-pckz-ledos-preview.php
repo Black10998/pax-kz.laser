@@ -28,7 +28,7 @@ class PCKZ_Ledos_Preview {
 			'designWidth'  => self::DESIGN_WIDTH,
 			'designHeight' => self::DESIGN_HEIGHT,
 			'layers'       => self::layer_refs(),
-			'lineTypes'    => self::line_types(),
+			'lineTypes'    => self::line_types_for_preview_js(),
 			'lineCatalog'  => self::line_catalog_for_js(),
 			'iconCatalog'  => self::icon_catalog(),
 			'colors'       => self::color_swatches(),
@@ -207,7 +207,27 @@ class PCKZ_Ledos_Preview {
 	}
 
 	/**
-	 * Line catalog for JS preview engine (metadata per slug).
+	 * Line asset URLs for frontend preview only (picker endpoint; not direct disk paths).
+	 *
+	 * @return array<string,string>
+	 */
+	public static function line_types_for_preview_js() {
+		$out = array();
+		foreach ( self::line_types() as $slug => $url ) {
+			unset( $url );
+			if ( 'none' === $slug || ! class_exists( 'PCKZ_Line_Library' ) ) {
+				continue;
+			}
+			$picker = PCKZ_Line_Library::picker_preview_url( $slug );
+			if ( $picker ) {
+				$out[ $slug ] = $picker;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Line catalog metadata for JS (no raw upload asset URLs).
 	 *
 	 * @return array<string,array>
 	 */
@@ -217,9 +237,10 @@ class PCKZ_Ledos_Preview {
 			if ( 'none' === $slug ) {
 				continue;
 			}
+			$picker = class_exists( 'PCKZ_Line_Library' ) ? PCKZ_Line_Library::picker_preview_url( $slug ) : '';
 			$catalog[ $slug ] = array(
-				'url'             => $data['url'] ?? '',
-				'preview'         => $data['preview'] ?? ( $data['url'] ?? '' ),
+				'url'             => $picker ? $picker : ( $data['preview'] ?? '' ),
+				'preview'         => $picker ? $picker : ( $data['preview'] ?? '' ),
 				'label'           => $data['label'] ?? $slug,
 				'custom'          => ! empty( $data['custom'] ),
 				'connected_right' => ! empty( $data['connected_right'] ),
@@ -619,14 +640,6 @@ class PCKZ_Ledos_Preview {
 				'choices' => $line_choices,
 				'default' => 'none',
 			),
-			array(
-				'id'      => 'line_color',
-				'type'    => 'swatch_color',
-				'label'   => 'Linienfarbe',
-				'choices' => $colors,
-				'default' => '#FF0000',
-				'show_when' => array( 'linien' => '!none' ),
-			),
 		);
 	}
 
@@ -724,7 +737,7 @@ class PCKZ_Ledos_Preview {
 			$objects[] = array(
 				'role'      => 'lines',
 				'line_type' => $linien,
-				'fill'      => $selections['line_color'] ?? 'Red',
+				'fill'      => '',
 				'svg_url'   => $lines[ $linien ],
 				'mm'        => self::ref_to_mm_box( $refs['lines'], $canvas_w, $canvas_h, $origin ),
 			);
