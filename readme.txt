@@ -55,10 +55,14 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.27.31 =
+
+* Removed incorrect procedural red line models type_102–type_121.
+* Added import pipeline for 10 customer red lines from `svg for line vicor costumer.ai` → type_102–type_111 (`tools/import-vector-line-customer-red.sh`).
+
 = 2.27.30 =
 
-* Line library: bundled matte-red ornaments type_102–type_121 (20 models, reference sheet rows 1–10 × two variants).
-* Same 950×35 artboard and center runners (9.5→352, 598→940.5) as CDN type_1–20; native `#B22222` preserved in customer preview, picker, SVG export, and LightBurn.
+* (Superseded) Procedural red lines type_102–121 — removed in 2.27.31.
 
 = 2.27.10 =
 

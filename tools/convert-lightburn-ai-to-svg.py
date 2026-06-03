@@ -18,7 +18,7 @@ DRAWING_END = "%%PageTrailer"
 # Cloudlift / Shopify line ornaments use a fixed artboard (types 1–20).
 CANVAS_W = 950.0
 CANVAS_H = 35.0
-FILL_COLOR = "white"
+DEFAULT_FILL_COLOR = "white"
 
 # Ledos layer refs — text clearance band on the 950×35 line artboard (types 1–20 use side geometry + open center).
 DESIGN_W = 3651.0
@@ -383,14 +383,14 @@ def is_horizontal_runner(p0: tuple[float, float], p1: tuple[float, float]) -> bo
 	return dx >= 30.0 and dy <= 4.0 and dx > dy * 4.0
 
 
-def stroke_line_path(x1: float, x2: float, y: float, stroke_w: float) -> str:
+def stroke_line_path(x1: float, x2: float, y: float, stroke_w: float, fill_color: str) -> str:
 	if x2 < x1:
 		x1, x2 = x2, x1
 	if x2 - x1 < 0.5:
 		return ""
 	return (
 		f'<path d="M{fmt(x1)} {fmt(y)} L{fmt(x2)} {fmt(y)}" fill="none" '
-		f'stroke="{FILL_COLOR}" stroke-width="{fmt(stroke_w)}" '
+		f'stroke="{fill_color}" stroke-width="{fmt(stroke_w)}" '
 		f'stroke-linecap="round" stroke-linejoin="round"/>'
 	)
 
@@ -402,33 +402,35 @@ def clip_runner_outside_text_band(
 	gap_x0: float,
 	gap_x1: float,
 	stroke_w: float,
+	fill_color: str,
 ) -> list[str]:
 	"""Keep only runner segments outside the text band (no geometry under text)."""
 	if x2 < x1:
 		x1, x2 = x2, x1
-	right_edge = CANVAS_W - PLATE_MARGIN_X
 	out: list[str] = []
 	if x1 < gap_x0 - 0.25:
-		seg = stroke_line_path(x1, min(x2, gap_x0), y, stroke_w)
+		seg = stroke_line_path(x1, min(x2, gap_x0), y, stroke_w, fill_color)
 		if seg:
 			out.append(seg)
 	if x2 > gap_x1 + 0.25:
-		seg = stroke_line_path(max(x1, gap_x1), x2, y, stroke_w)
+		seg = stroke_line_path(max(x1, gap_x1), x2, y, stroke_w, fill_color)
 		if seg:
 			out.append(seg)
 	return out
 
 
-def side_runners_for_text_band(y: float, gap_x0: float, gap_x1: float, stroke_w: float) -> list[str]:
+def side_runners_for_text_band(
+	y: float, gap_x0: float, gap_x1: float, stroke_w: float, fill_color: str
+) -> list[str]:
 	"""Like CDN type 5: runners on plate sides, open center for text (ornaments unchanged)."""
 	out: list[str] = []
 	if gap_x0 > PLATE_MARGIN_X + 1.0:
-		seg = stroke_line_path(PLATE_MARGIN_X, gap_x0, y, stroke_w)
+		seg = stroke_line_path(PLATE_MARGIN_X, gap_x0, y, stroke_w, fill_color)
 		if seg:
 			out.append(seg)
 	right_edge = CANVAS_W - PLATE_MARGIN_X
 	if right_edge > gap_x1 + 1.0:
-		seg = stroke_line_path(gap_x1, right_edge, y, stroke_w)
+		seg = stroke_line_path(gap_x1, right_edge, y, stroke_w, fill_color)
 		if seg:
 			out.append(seg)
 	return out
@@ -459,6 +461,7 @@ def path_to_svg_entries(
 	gap_x0: float,
 	gap_x1: float,
 	stroke_w: float,
+	fill_color: str,
 ) -> list[str]:
 	if path.get("stroked"):
 		endpoints = path_endpoints_canvas(path["ops"], x0, ymax, scale, ox, oy)
@@ -467,14 +470,16 @@ def path_to_svg_entries(
 			y = (endpoints[0][1] + endpoints[1][1]) / 2.0
 			if runner_intersects_text_band(x1, x2, gap_x0, gap_x1):
 				if is_plate_side_runner(x1, x2, gap_x0, gap_x1):
-					return clip_runner_outside_text_band(x1, x2, y, gap_x0, gap_x1, stroke_w)
-				return side_runners_for_text_band(y, gap_x0, gap_x1, stroke_w)
-			return clip_runner_outside_text_band(x1, x2, y, gap_x0, gap_x1, stroke_w)
+					return clip_runner_outside_text_band(
+						x1, x2, y, gap_x0, gap_x1, stroke_w, fill_color
+					)
+				return side_runners_for_text_band(y, gap_x0, gap_x1, stroke_w, fill_color)
+			return clip_runner_outside_text_band(x1, x2, y, gap_x0, gap_x1, stroke_w, fill_color)
 		d = ops_to_d(path["ops"], x0, ymax, scale, ox, oy)
 		if not d:
 			return []
 		return [
-			f'<path d="{d}" fill="none" stroke="{FILL_COLOR}" stroke-width="{fmt(stroke_w)}" '
+			f'<path d="{d}" fill="none" stroke="{fill_color}" stroke-width="{fmt(stroke_w)}" '
 			f'stroke-linecap="round" stroke-linejoin="round"/>'
 		]
 
@@ -482,7 +487,7 @@ def path_to_svg_entries(
 	if not d:
 		return []
 	return [
-		f'<path d="{d}" fill-rule="evenodd" clip-rule="evenodd" fill="{FILL_COLOR}" stroke="none"/>'
+		f'<path d="{d}" fill-rule="evenodd" clip-rule="evenodd" fill="{fill_color}" stroke="none"/>'
 	]
 
 
@@ -492,6 +497,7 @@ def convert_paths(
 	label: str = "",
 	*,
 	strip_numbers: bool = True,
+	fill_color: str = DEFAULT_FILL_COLOR,
 ) -> None:
 	if not paths:
 		raise ValueError(f"No paths found in {label or dest.name}")
@@ -500,7 +506,7 @@ def convert_paths(
 		paths = strip_cluster_label_paths(strip_model_number_paths(paths))
 	points = collect_points(paths)
 	if not points:
-		raise ValueError(f"No coordinates in {src}")
+		raise ValueError(f"No coordinates in {label or dest.name}")
 
 	xs = [p[0] for p in points]
 	ys = [p[1] for p in points]
@@ -541,7 +547,7 @@ def convert_paths(
 						continue
 					seen_side_runner_y.add(y)
 		svg_paths.extend(
-			path_to_svg_entries(path, x0, y1, scale, ox, oy, gap_x0, gap_x1, stroke_w)
+			path_to_svg_entries(path, x0, y1, scale, ox, oy, gap_x0, gap_x1, stroke_w, fill_color)
 		)
 
 	inner = "\n  ".join(svg_paths)
@@ -557,15 +563,21 @@ def convert_paths(
 	dest.write_text(svg, encoding="utf-8")
 
 
-def convert_file(src: Path, dest: Path, *, strip_numbers: bool = True) -> None:
+def convert_file(
+	src: Path,
+	dest: Path,
+	*,
+	strip_numbers: bool = True,
+	fill_color: str = DEFAULT_FILL_COLOR,
+) -> None:
 	content = src.read_text(encoding="utf-8", errors="replace")
 	paths = parse_paths(extract_drawing_tokens(content))
 	if not paths:
 		raise ValueError(f"No paths found in {src}")
 	if not strip_numbers:
-		convert_paths(paths, dest, src.name, strip_numbers=False)
+		convert_paths(paths, dest, src.name, strip_numbers=False, fill_color=fill_color)
 		return
-	convert_paths(paths, dest, src.name)
+	convert_paths(paths, dest, src.name, fill_color=fill_color)
 
 
 def convert_split_file(
@@ -574,6 +586,7 @@ def convert_split_file(
 	*,
 	count: int,
 	start_type: int,
+	fill_color: str = DEFAULT_FILL_COLOR,
 ) -> int:
 	content = src.read_text(encoding="utf-8", errors="replace")
 	paths = parse_paths(extract_drawing_tokens(content))
@@ -590,7 +603,7 @@ def convert_split_file(
 	for i, cluster in enumerate(clusters):
 		num = start_type + i
 		dest = output_dir / f"type_{num}.svg"
-		convert_paths(cluster, dest, f"{src.name}#{num}")
+		convert_paths(cluster, dest, f"{src.name}#{num}", fill_color=fill_color)
 		print(f"OK {src.name} -> type_{num}.svg")
 		ok += 1
 	return ok
@@ -629,7 +642,13 @@ def main() -> int:
 		action="store_true",
 		help="Keep label/number paths in output",
 	)
+	parser.add_argument(
+		"--fill-color",
+		default=DEFAULT_FILL_COLOR,
+		help="SVG fill/stroke color (default white; use #B22222 for matte red customer lines)",
+	)
 	args = parser.parse_args()
+	fill_color = args.fill_color.strip() or DEFAULT_FILL_COLOR
 
 	if args.split > 0:
 		if not args.source.is_file():
@@ -641,6 +660,7 @@ def main() -> int:
 				args.output,
 				count=args.split,
 				start_type=args.start_type,
+				fill_color=fill_color,
 			)
 		except Exception as exc:
 			print(f"FAIL {args.source.name}: {exc}", file=sys.stderr)
@@ -667,7 +687,7 @@ def main() -> int:
 		num = int(m.group(1))
 		dest = args.output / f"type_{num}.svg"
 		try:
-			convert_file(src, dest, strip_numbers=strip_numbers)
+			convert_file(src, dest, strip_numbers=strip_numbers, fill_color=fill_color)
 			print(f"OK {src.name} -> type_{num}.svg")
 			ok += 1
 		except Exception as exc:
