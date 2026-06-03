@@ -590,6 +590,15 @@ class PCKZ_Admin {
 			if ( is_wp_error( $result ) ) {
 				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
 			} else {
+				echo '<div class="notice notice-success"><p>' . esc_html__( 'Line design uploaded.', 'pckz-canonical-engine' ) . '</p></div>';
+			}
+		}
+
+		if ( isset( $_POST['pckz_line_library_vector_import'] ) && check_admin_referer( 'pckz_line_library_vector_import', 'pckz_line_library_vector_import_nonce' ) ) {
+			$result = PCKZ_Line_Library::handle_vector_import( $_FILES['pckz_line_vector_file'] ?? array() );
+			if ( is_wp_error( $result ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+			} else {
 				$slug = is_array( $result ) && ! empty( $result['slug'] ) ? $result['slug'] : '';
 				if ( $slug ) {
 					echo '<div class="notice notice-success"><p>' . esc_html(

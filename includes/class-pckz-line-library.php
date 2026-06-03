@@ -861,17 +861,56 @@ class PCKZ_Line_Library {
 	}
 
 	/**
-	 * Handle vector file upload (SVG, LBRN2, AI, EPS, DXF, PDF).
+	 * Whether an upload temp path is allowed (HTTP upload or CLI smoke test).
+	 *
+	 * @param string $path Temp file path.
+	 * @return bool
+	 */
+	private static function is_valid_line_upload_tmp( $path ) {
+		if ( is_uploaded_file( $path ) ) {
+			return true;
+		}
+		return defined( 'PCKZ_SMOKE_TEST' ) && PCKZ_SMOKE_TEST && is_readable( $path );
+	}
+
+	/**
+	 * Handle SVG upload (direct store, no conversion).
 	 *
 	 * @param array $file $_FILES row.
 	 * @return array|WP_Error
 	 */
 	public static function handle_upload( $file ) {
+		if ( empty( $file['tmp_name'] ) || ! self::is_valid_line_upload_tmp( $file['tmp_name'] ) ) {
+			return new WP_Error( 'no_file', __( 'Keine SVG-Datei empfangen.', 'pckz-canonical-engine' ) );
+		}
+		$check = wp_check_filetype( $file['name'], array( 'svg' => 'image/svg+xml' ) );
+		if ( empty( $check['ext'] ) || 'svg' !== $check['ext'] ) {
+			return new WP_Error( 'bad_type', __( 'Nur SVG-Dateien sind erlaubt.', 'pckz-canonical-engine' ) );
+		}
+		$contents = file_get_contents( $file['tmp_name'] );
+		if ( false === $contents || ! self::is_safe_svg( $contents ) ) {
+			return new WP_Error( 'unsafe_svg', __( 'SVG enthält nicht erlaubte Inhalte.', 'pckz-canonical-engine' ) );
+		}
+		$slug  = self::next_upload_slug();
+		$label = isset( $_POST['line_upload_label'] ) ? sanitize_text_field( wp_unslash( $_POST['line_upload_label'] ) ) : self::default_label_for_slug( $slug );
+		if ( '' === $label ) {
+			$label = self::default_label_for_slug( $slug );
+		}
+		return self::store_custom_svg( $contents, $slug, $label, 'upload' );
+	}
+
+	/**
+	 * Optional vector import (LBRN2, AI, EPS, DXF, PDF, or SVG via converter).
+	 *
+	 * @param array $file $_FILES row.
+	 * @return array|WP_Error
+	 */
+	public static function handle_vector_import( $file ) {
 		if ( ! class_exists( 'PCKZ_Line_Importer' ) ) {
 			return new WP_Error( 'missing_importer', __( 'Line import module is not available.', 'pckz-canonical-engine' ) );
 		}
 		$args = array(
-			'label'           => isset( $_POST['line_upload_label'] ) ? sanitize_text_field( wp_unslash( $_POST['line_upload_label'] ) ) : '',
+			'label'           => isset( $_POST['line_vector_label'] ) ? sanitize_text_field( wp_unslash( $_POST['line_vector_label'] ) ) : '',
 			'preserve_colors' => ! empty( $_POST['line_import_preserve_colors'] ),
 			'fill_color'      => isset( $_POST['line_import_fill_color'] ) ? sanitize_text_field( wp_unslash( $_POST['line_import_fill_color'] ) ) : '',
 			'connected_right' => ! empty( $_POST['line_import_connected_right'] ),

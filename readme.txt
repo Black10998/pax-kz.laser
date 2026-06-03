@@ -55,6 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.27.37 =
+
+* Line Library: restore standard SVG file upload and URL import exactly as before (direct store, no conversion).
+* Optional vector import (LBRN2, AI, EPS, etc.) moved to a separate admin form and does not affect normal SVG uploads.
+
 = 2.27.36 =
 
 * Line Library: fix fatal error when PHP exec() is disabled — import panel shows a warning instead of crashing; library and existing line models unchanged.

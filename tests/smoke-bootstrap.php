@@ -14,6 +14,9 @@ if ( ! defined( 'WP_CONTENT_DIR' ) ) {
 if ( ! defined( 'DAY_IN_SECONDS' ) ) {
 	define( 'DAY_IN_SECONDS', 86400 );
 }
+if ( ! defined( 'PCKZ_SMOKE_TEST' ) ) {
+	define( 'PCKZ_SMOKE_TEST', true );
+}
 
 $GLOBALS['pckz_smoke_line_svg'] = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><ellipse cx="25" cy="10" rx="20" ry="3" fill="#f00"/><ellipse cx="75" cy="10" rx="20" ry="3" fill="#f00"/></svg>';
 $GLOBALS['pckz_smoke_icon_svg']  = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 81 114"><rect x="10" y="10" width="61" height="94" fill="#fff"/></svg>';
