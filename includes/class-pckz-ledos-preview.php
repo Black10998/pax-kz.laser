@@ -94,7 +94,7 @@ class PCKZ_Ledos_Preview {
 	 * First / last bundled line type index (model 21–91 SVGs).
 	 */
 	const BUNDLED_LINE_TYPE_MIN = 21;
-	const BUNDLED_LINE_TYPE_MAX = 101;
+	const BUNDLED_LINE_TYPE_MAX = 111;
 
 	/**
 	 * Absolute path to bundled line SVG directory.
@@ -127,6 +127,9 @@ class PCKZ_Ledos_Preview {
 		}
 		for ( $i = self::BUNDLED_LINE_TYPE_MIN; $i <= self::BUNDLED_LINE_TYPE_MAX; $i++ ) {
 			$key  = 'type_' . $i;
+			if ( class_exists( 'PCKZ_Line_Library' ) && PCKZ_Line_Library::is_permanently_deleted_bundled( $key ) ) {
+				continue;
+			}
 			$file = $dir . $key . '.svg';
 			if ( is_readable( $file ) ) {
 				$out[ $key ] = self::line_assets_url() . $key . '.svg';
@@ -297,6 +300,10 @@ class PCKZ_Ledos_Preview {
 				}
 				$items[ $slug ]['label'] = PCKZ_Line_Library::label_for_slug( $slug, $data['label'] ?? $slug );
 			}
+		}
+
+		if ( class_exists( 'PCKZ_Line_Library' ) ) {
+			$items = PCKZ_Line_Library::strip_retired_from_catalog( $items );
 		}
 
 		if ( $for_customer && class_exists( 'PCKZ_Line_Library' ) ) {

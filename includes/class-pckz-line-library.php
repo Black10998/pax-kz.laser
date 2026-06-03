@@ -18,11 +18,16 @@ class PCKZ_Line_Library {
 	const OPTION_CUSTOM       = 'pckz_line_custom';
 	const OPTION_LABELS       = 'pckz_line_labels';
 	const OPTION_ORDER        = 'pckz_line_display_order';
+	const OPTION_DELETED      = 'pckz_line_permanently_deleted_slugs';
 	const UPLOAD_SUBDIR       = 'pckz-canonical-engine/lines';
 
 	/** Bundled line types permanently retired from admin and customer UIs (assets remain for legacy orders). */
 	const RETIRED_BUNDLED_TYPE_MIN = 21;
 	const RETIRED_BUNDLED_TYPE_MAX = 40;
+
+	/** Incorrect procedural red lines (removed; never register again unless re-imported). */
+	const REMOVED_RED_LINE_TYPE_MIN = 102;
+	const REMOVED_RED_LINE_TYPE_MAX = 121;
 
 	/**
 	 * Safe option getter for CLI smoke environments.
@@ -153,6 +158,168 @@ class PCKZ_Line_Library {
 	}
 
 	/**
+	 * Slugs permanently deleted from disk and all catalogs (not legacy-retained).
+	 *
+	 * @return string[]
+	 */
+	public static function permanently_deleted_slugs() {
+		return self::sanitize_slug_list( self::option_get( self::OPTION_DELETED, array() ) );
+	}
+
+	/**
+	 * Whether a bundled slug was permanently removed from the plugin library.
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function is_permanently_deleted_bundled( $slug ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( ! $slug || 'none' === $slug ) {
+			return false;
+		}
+		return in_array( $slug, self::permanently_deleted_slugs(), true );
+	}
+
+	/**
+	 * Clear permanent-delete marker (e.g. after re-importing a corrected SVG).
+	 *
+	 * @param string $slug Line slug.
+	 */
+	public static function clear_permanently_deleted( $slug ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( ! $slug ) {
+			return;
+		}
+		$list = self::permanently_deleted_slugs();
+		if ( ! in_array( $slug, $list, true ) ) {
+			return;
+		}
+		self::option_update(
+			self::OPTION_DELETED,
+			array_values( array_diff( $list, array( $slug ) ) )
+		);
+	}
+
+	/**
+	 * Remove slug from visibility, order, and label options.
+	 *
+	 * @param string $slug Line slug.
+	 */
+	public static function purge_slug_from_options( $slug ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( ! $slug || 'none' === $slug ) {
+			return;
+		}
+		self::remove_from_display_order( $slug );
+		foreach (
+			array(
+				self::OPTION_DISABLED,
+				self::OPTION_ADMIN_HIDDEN,
+				self::OPTION_INACTIVE,
+			) as $key
+		) {
+			$raw = self::sanitize_slug_list( self::option_get( $key, array() ) );
+			if ( in_array( $slug, $raw, true ) ) {
+				self::option_update( $key, array_values( array_diff( $raw, array( $slug ) ) ) );
+			}
+		}
+		$labels = self::label_overrides();
+		if ( isset( $labels[ $slug ] ) ) {
+			unset( $labels[ $slug ] );
+			self::option_update( self::OPTION_LABELS, $labels );
+		}
+	}
+
+	/**
+	 * Bundled SVG path for a type slug (plugin assets only).
+	 *
+	 * @param string $slug Line slug.
+	 * @return string Empty when not a bundled asset file.
+	 */
+	public static function bundled_asset_path( $slug ) {
+		if ( ! preg_match( '/^type_(\d+)$/', sanitize_key( (string) $slug ), $m ) ) {
+			return '';
+		}
+		if ( ! class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			return '';
+		}
+		$path = PCKZ_Ledos_Preview::line_assets_dir() . 'type_' . (int) $m[1] . '.svg';
+		return is_readable( $path ) ? $path : '';
+	}
+
+	/**
+	 * Permanently delete a built-in bundled line SVG and purge all library references.
+	 *
+	 * @param string $slug Line slug (type_N).
+	 * @return bool|WP_Error
+	 */
+	public static function delete_bundled_permanent( $slug ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( ! $slug || 'none' === $slug ) {
+			return new WP_Error( 'invalid_slug', __( 'Ungültiger Linien-Slug.', 'pckz-canonical-engine' ) );
+		}
+		if ( self::is_custom( $slug ) ) {
+			return new WP_Error( 'is_custom', __( 'Benutzerdefinierte Linien bitte über „Löschen“ im Upload-Bereich entfernen.', 'pckz-canonical-engine' ) );
+		}
+		if ( self::is_retired_bundled_slug( $slug ) ) {
+			return new WP_Error( 'retired', __( 'Dieses Modell ist dauerhaft aus dem Katalog entfernt.', 'pckz-canonical-engine' ) );
+		}
+		if ( ! preg_match( '/^type_(\d+)$/', $slug, $m ) ) {
+			return new WP_Error( 'not_bundled', __( 'Nur eingebaute Linienmodelle können hier gelöscht werden.', 'pckz-canonical-engine' ) );
+		}
+		$n = (int) $m[1];
+		if ( $n < PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MIN ) {
+			return new WP_Error( 'cdn_line', __( 'CDN-Linien (Typ 1–20) können nicht gelöscht werden.', 'pckz-canonical-engine' ) );
+		}
+		$path = self::bundled_asset_path( $slug );
+		if ( $path ) {
+			if ( function_exists( 'wp_delete_file' ) ) {
+				wp_delete_file( $path );
+			} else {
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+				@unlink( $path );
+			}
+		}
+		self::purge_slug_from_options( $slug );
+		$deleted = self::permanently_deleted_slugs();
+		if ( ! in_array( $slug, $deleted, true ) ) {
+			$deleted[] = $slug;
+			self::option_update( self::OPTION_DELETED, array_values( array_unique( $deleted ) ) );
+		}
+		return true;
+	}
+
+	/**
+	 * Remove incorrect red line models type_102–type_121 from disk and options.
+	 *
+	 * @return int Number of slugs processed.
+	 */
+	public static function purge_removed_red_line_models() {
+		$count = 0;
+		for ( $i = self::REMOVED_RED_LINE_TYPE_MIN; $i <= self::REMOVED_RED_LINE_TYPE_MAX; $i++ ) {
+			$slug = 'type_' . $i;
+			$result = self::delete_bundled_permanent( $slug );
+			if ( ! is_wp_error( $result ) ) {
+				++$count;
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * After a successful LBRN2/AI import, re-enable type_102–type_111 in catalogs.
+	 */
+	public static function register_imported_customer_red_lines() {
+		for ( $i = 102; $i <= 111; $i++ ) {
+			$slug = 'type_' . $i;
+			if ( self::bundled_asset_path( $slug ) ) {
+				self::clear_permanently_deleted( $slug );
+				self::append_to_display_order( $slug );
+			}
+		}
+	}
+
+	/**
 	 * Slugs hidden from admin line inventory (persisted).
 	 *
 	 * @return string[]
@@ -197,6 +364,9 @@ class PCKZ_Line_Library {
 	 * @return bool
 	 */
 	public static function is_active( $slug ) {
+		if ( self::is_permanently_deleted_bundled( $slug ) ) {
+			return false;
+		}
 		if ( 'none' === $slug || '' === $slug || self::is_retired_bundled_slug( $slug ) ) {
 			return true;
 		}
@@ -239,7 +409,7 @@ class PCKZ_Line_Library {
 		if ( class_exists( 'PCKZ_Ledos_Preview' ) ) {
 			foreach ( PCKZ_Ledos_Preview::line_types() as $slug => $url ) {
 				unset( $url );
-				if ( 'none' === $slug || self::is_retired_bundled_slug( $slug ) ) {
+				if ( 'none' === $slug || self::is_retired_bundled_slug( $slug ) || self::is_permanently_deleted_bundled( $slug ) ) {
 					continue;
 				}
 				$slugs[] = sanitize_key( $slug );
@@ -503,7 +673,7 @@ class PCKZ_Line_Library {
 			return true;
 		}
 		$slug = sanitize_key( $slug );
-		if ( self::is_retired_bundled_slug( $slug ) || ! self::is_active( $slug ) ) {
+		if ( self::is_permanently_deleted_bundled( $slug ) || self::is_retired_bundled_slug( $slug ) || ! self::is_active( $slug ) ) {
 			return false;
 		}
 		if ( self::is_custom( $slug ) ) {
@@ -589,7 +759,7 @@ class PCKZ_Line_Library {
 	 */
 	public static function filter_visible_catalog( $items ) {
 		foreach ( $items as $slug => $data ) {
-			if ( self::is_retired_bundled_slug( $slug ) || ! self::is_visible( $slug ) ) {
+			if ( self::is_retired_bundled_slug( $slug ) || self::is_permanently_deleted_bundled( $slug ) || ! self::is_visible( $slug ) ) {
 				unset( $items[ $slug ] );
 			}
 		}
@@ -604,7 +774,7 @@ class PCKZ_Line_Library {
 	 */
 	public static function filter_admin_catalog( $items ) {
 		foreach ( $items as $slug => $data ) {
-			if ( self::is_retired_bundled_slug( $slug ) || ! self::is_admin_visible( $slug ) ) {
+			if ( self::is_retired_bundled_slug( $slug ) || self::is_permanently_deleted_bundled( $slug ) || ! self::is_admin_visible( $slug ) ) {
 				unset( $items[ $slug ] );
 			}
 		}
@@ -619,7 +789,7 @@ class PCKZ_Line_Library {
 	 */
 	public static function strip_retired_from_catalog( $items ) {
 		foreach ( $items as $slug => $data ) {
-			if ( self::is_retired_bundled_slug( $slug ) ) {
+			if ( self::is_retired_bundled_slug( $slug ) || self::is_permanently_deleted_bundled( $slug ) ) {
 				unset( $items[ $slug ] );
 			}
 		}
@@ -851,10 +1021,8 @@ class PCKZ_Line_Library {
 			return new WP_Error( 'bulk_empty', __( 'Keine Linien zum Löschen ausgewählt.', 'pckz-canonical-engine' ) );
 		}
 		$deleted = 0;
-		$hidden  = 0;
 		$failed  = 0;
 		$skipped = 0;
-		$to_hide = array();
 		foreach ( $slugs as $slug ) {
 			$slug = sanitize_key( (string) $slug );
 			if ( ! $slug || 'none' === $slug || self::is_retired_bundled_slug( $slug ) ) {
@@ -863,25 +1031,21 @@ class PCKZ_Line_Library {
 			}
 			if ( self::is_custom( $slug ) ) {
 				$result = self::delete_custom( $slug );
-				if ( is_wp_error( $result ) ) {
-					++$failed;
-				} else {
-					++$deleted;
-				}
-				continue;
+			} else {
+				$result = self::delete_bundled_permanent( $slug );
 			}
-			$to_hide[] = $slug;
+			if ( is_wp_error( $result ) ) {
+				++$failed;
+			} else {
+				++$deleted;
+			}
 		}
-		if ( ! empty( $to_hide ) ) {
-			self::hide_bundled_slugs( $to_hide );
-			$hidden = count( $to_hide );
-		}
-		if ( 0 === $deleted && 0 === $hidden && 0 === $failed ) {
+		if ( 0 === $deleted && 0 === $failed ) {
 			return new WP_Error( 'bulk_none', __( 'Keine Linien konnten verarbeitet werden.', 'pckz-canonical-engine' ) );
 		}
 		return array(
 			'deleted' => $deleted,
-			'hidden'  => $hidden,
+			'hidden'  => 0,
 			'failed'  => $failed,
 			'skipped' => $skipped,
 		);
@@ -1170,7 +1334,7 @@ class PCKZ_Line_Library {
 			return;
 		}
 		$slug = sanitize_key( wp_unslash( $_GET['pckz_line_picker'] ) );
-		if ( ! $slug || 'none' === $slug || self::is_retired_bundled_slug( $slug ) ) {
+		if ( ! $slug || 'none' === $slug || self::is_retired_bundled_slug( $slug ) || self::is_permanently_deleted_bundled( $slug ) ) {
 			status_header( 404 );
 			exit;
 		}

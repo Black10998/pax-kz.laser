@@ -65,6 +65,10 @@
 		if (submitter && submitter.name === 'pckz_line_delete') {
 			return;
 		}
+		const bulkFlag = document.getElementById('pckz-line-bulk-delete-flag');
+		if (bulkFlag && bulkFlag.value === '1') {
+			return;
+		}
 		syncPayload();
 		if (!payloadInput.value || payloadInput.value.length < 3) {
 			event.preventDefault();

@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 $payload_json    = wp_json_encode( $payload ?? PCKZ_Line_Library::build_admin_save_payload() );
 $custom_manifest = PCKZ_Line_Library::custom_manifest();
 $hero_title       = __( 'Line Library', 'pckz-canonical-engine' );
-$hero_description = __( 'Manage line models: customer and admin visibility, active state, order, uploads, and bulk remove. Built-in SVGs stay on disk for existing orders; custom uploads are deleted permanently.', 'pckz-canonical-engine' );
+$hero_description = __( 'Manage line models: visibility, order, uploads, and permanent delete. Selected models are removed from disk and all catalogs (admin, customer preview, SVG export, LightBurn).', 'pckz-canonical-engine' );
 $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 ?>
 <div class="wrap pckz-admin-wrap pckz-line-library-admin">
@@ -83,7 +83,7 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 		><?php echo esc_textarea( $payload_json ); ?></textarea>
 
 		<p class="description">
-			<?php esc_html_e( 'Types 21–40 are retired and no longer listed. Use visibility toggles to hide models without deleting files. Custom uploads are removed permanently when deleted; built-in models are hidden from the library.', 'pckz-canonical-engine' ); ?>
+			<?php esc_html_e( 'Types 21–40 are retired. Delete removes built-in SVG files permanently and clears all library references. Incorrect red models type_102–121 are purged automatically on upgrade.', 'pckz-canonical-engine' ); ?>
 		</p>
 
 		<p class="pckz-library-toolbar">
@@ -186,13 +186,9 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 							</label>
 						</td>
 						<td>
-							<?php if ( $is_custom ) : ?>
-								<button type="submit" class="button-link-delete" name="pckz_line_delete" value="<?php echo esc_attr( $slug ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this line design permanently? This cannot be undone.', 'pckz-canonical-engine' ) ); ?>');">
-									<?php esc_html_e( 'Delete', 'pckz-canonical-engine' ); ?>
-								</button>
-							<?php else : ?>
-								<span class="description"><?php esc_html_e( 'Bulk', 'pckz-canonical-engine' ); ?></span>
-							<?php endif; ?>
+							<button type="submit" class="button-link-delete" name="pckz_line_delete" value="<?php echo esc_attr( $slug ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this line design permanently? This cannot be undone.', 'pckz-canonical-engine' ) ); ?>');">
+								<?php esc_html_e( 'Delete', 'pckz-canonical-engine' ); ?>
+							</button>
 						</td>
 					</tr>
 				<?php endforeach; ?>

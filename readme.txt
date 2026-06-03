@@ -55,6 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.27.32 =
+
+* Line library: permanent delete for built-in models (removes SVG + all catalog references).
+* Purges incorrect red models type_102–type_121 on upgrade; LBRN2 import tool for 10 reference models (`svg.lbrn2` → type_102–type_111).
+
 = 2.27.31 =
 
 * Removed incorrect procedural red line models type_102–type_121.

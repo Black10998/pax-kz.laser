@@ -501,7 +501,7 @@ class PCKZ_Admin {
 						'messages'           => array(
 							'emptyPayload'       => __( 'Line library save payload is empty. Please reload the page and try again.', 'pckz-canonical-engine' ),
 							'selectItems'        => __( 'Select one or more line models.', 'pckz-canonical-engine' ),
-							'confirmBulkDelete'  => __( 'Remove {count} selected model(s)? Custom uploads are deleted permanently. Built-in models are hidden from the library (existing orders keep working).', 'pckz-canonical-engine' ),
+							'confirmBulkDelete'  => __( 'Permanently delete {count} selected model(s)? Built-in SVG files are removed from disk and disappear from admin, customer preview, and export.', 'pckz-canonical-engine' ),
 						),
 					),
 				)
@@ -616,21 +616,20 @@ class PCKZ_Admin {
 					/* translators: %d: number of deleted custom lines */
 					$parts[] = sprintf( __( '%d custom upload(s) deleted.', 'pckz-canonical-engine' ), (int) $result['deleted'] );
 				}
-				if ( ! empty( $result['hidden'] ) ) {
-					/* translators: %d: number of hidden built-in lines */
-					$parts[] = sprintf( __( '%d built-in model(s) hidden from the library.', 'pckz-canonical-engine' ), (int) $result['hidden'] );
-				}
 				if ( empty( $parts ) ) {
 					$parts[] = __( 'Selection processed.', 'pckz-canonical-engine' );
 				}
 				echo '<div class="notice notice-success"><p>' . esc_html( implode( ' ', $parts ) ) . '</p></div>';
 			}
 		} elseif ( isset( $_POST['pckz_line_delete'] ) && check_admin_referer( 'pckz_line_library_save', 'pckz_line_library_nonce' ) ) {
-			$del = PCKZ_Line_Library::delete_custom( sanitize_key( wp_unslash( $_POST['pckz_line_delete'] ) ) );
+			$slug = sanitize_key( wp_unslash( $_POST['pckz_line_delete'] ) );
+			$del  = PCKZ_Line_Library::is_custom( $slug )
+				? PCKZ_Line_Library::delete_custom( $slug )
+				: PCKZ_Line_Library::delete_bundled_permanent( $slug );
 			if ( is_wp_error( $del ) ) {
 				echo '<div class="notice notice-error"><p>' . esc_html( $del->get_error_message() ) . '</p></div>';
 			} else {
-				echo '<div class="notice notice-success"><p>' . esc_html__( 'Line design deleted.', 'pckz-canonical-engine' ) . '</p></div>';
+				echo '<div class="notice notice-success"><p>' . esc_html__( 'Line design deleted permanently.', 'pckz-canonical-engine' ) . '</p></div>';
 			}
 		} elseif ( isset( $_POST['pckz_line_library_save'] ) && check_admin_referer( 'pckz_line_library_save', 'pckz_line_library_nonce' ) ) {
 			$result = PCKZ_Line_Library::save_admin_state_from_post( wp_unslash( $_POST ) );

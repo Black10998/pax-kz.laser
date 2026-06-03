@@ -9,6 +9,7 @@ $root = dirname( __DIR__ );
 require_once $root . '/tests/smoke-bootstrap.php';
 
 require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-icon-library.php';
+require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-ledos-preview.php';
 require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-line-library.php';
 
 $icon_dir = PCKZ_Icon_Library::upload_dir();
@@ -46,9 +47,17 @@ if ( PCKZ_Icon_Library::is_custom( $icon_a ) || PCKZ_Icon_Library::is_custom( $i
 	exit( 1 );
 }
 
-$line_result = PCKZ_Line_Library::delete_custom_bulk( array( $line_a, 'type_1' ) );
-if ( is_wp_error( $line_result ) || (int) ( $line_result['deleted'] ?? 0 ) !== 1 || (int) ( $line_result['skipped'] ?? 0 ) !== 1 ) {
-	fwrite( STDERR, "FAIL line bulk delete counts\n" );
+$bundled_slug = 'type_198';
+$bundled_path = PCKZ_Ledos_Preview::line_assets_dir() . $bundled_slug . '.svg';
+file_put_contents( $bundled_path, $svg );
+
+$line_result = PCKZ_Line_Library::delete_selected_bulk( array( $line_a, $bundled_slug, 'type_1' ) );
+if ( is_wp_error( $line_result ) ) {
+	fwrite( STDERR, "FAIL line bulk delete wp_error\n" );
+	exit( 1 );
+}
+if ( (int) ( $line_result['deleted'] ?? 0 ) !== 2 || (int) ( $line_result['failed'] ?? 0 ) !== 1 ) {
+	fwrite( STDERR, "FAIL line bulk delete counts deleted=" . (int) ( $line_result['deleted'] ?? 0 ) . " failed=" . (int) ( $line_result['failed'] ?? 0 ) . "\n" );
 	exit( 1 );
 }
 if ( PCKZ_Line_Library::is_custom( $line_a ) ) {
