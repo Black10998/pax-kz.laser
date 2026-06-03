@@ -80,12 +80,17 @@ class PCKZ_Line_Library {
 			} else {
 				$visible = ! in_array( $slug, $disabled, true );
 			}
+			$source = (string) ( $row['source'] ?? 'upload' );
+			if ( ! self::is_valid_custom_source( $source ) ) {
+				$source = 'upload';
+			}
 			$out[ $slug ] = array(
 				'label'            => sanitize_text_field( $row['label'] ?? $slug ),
 				'file'             => sanitize_file_name( $row['file'] ),
 				'customer_visible' => $visible,
 				'connected_right'  => ! empty( $row['connected_right'] ),
-				'source'           => in_array( $row['source'] ?? '', array( 'upload', 'url' ), true ) ? $row['source'] : 'upload',
+				'source'           => $source,
+				'source_file'      => sanitize_file_name( $row['source_file'] ?? '' ),
 			);
 		}
 		return $out;
@@ -832,29 +837,73 @@ class PCKZ_Line_Library {
 	}
 
 	/**
-	 * Handle SVG upload.
+	 * Allowed manifest source values for custom lines.
+	 *
+	 * @param string $source Source key.
+	 * @return bool
+	 */
+	public static function is_valid_custom_source( $source ) {
+		return in_array(
+			$source,
+			array(
+				'upload',
+				'url',
+				'import_svg',
+				'import_lbrn2',
+				'import_ai',
+				'import_eps',
+				'import_dxf',
+				'import_pdf',
+				'import_vector',
+			),
+			true
+		);
+	}
+
+	/**
+	 * Handle vector file upload (SVG, LBRN2, AI, EPS, DXF, PDF).
 	 *
 	 * @param array $file $_FILES row.
 	 * @return array|WP_Error
 	 */
 	public static function handle_upload( $file ) {
-		if ( empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
-			return new WP_Error( 'no_file', __( 'Keine SVG-Datei empfangen.', 'pckz-canonical-engine' ) );
+		if ( ! class_exists( 'PCKZ_Line_Importer' ) ) {
+			return new WP_Error( 'missing_importer', __( 'Line import module is not available.', 'pckz-canonical-engine' ) );
 		}
-		$check = wp_check_filetype( $file['name'], array( 'svg' => 'image/svg+xml' ) );
-		if ( empty( $check['ext'] ) || 'svg' !== $check['ext'] ) {
-			return new WP_Error( 'bad_type', __( 'Nur SVG-Dateien sind erlaubt.', 'pckz-canonical-engine' ) );
+		$args = array(
+			'label'           => isset( $_POST['line_upload_label'] ) ? sanitize_text_field( wp_unslash( $_POST['line_upload_label'] ) ) : '',
+			'preserve_colors' => ! empty( $_POST['line_import_preserve_colors'] ),
+			'fill_color'      => isset( $_POST['line_import_fill_color'] ) ? sanitize_text_field( wp_unslash( $_POST['line_import_fill_color'] ) ) : '',
+			'connected_right' => ! empty( $_POST['line_import_connected_right'] ),
+			'source_file'     => isset( $file['name'] ) ? sanitize_file_name( wp_unslash( $file['name'] ) ) : '',
+		);
+		return PCKZ_Line_Importer::import_upload( $file, $args );
+	}
+
+	/**
+	 * Persist validated custom line SVG and register manifest entry (public for importer).
+	 *
+	 * @param string $contents SVG source.
+	 * @param string $slug     Unique slug.
+	 * @param string $label    Display label.
+	 * @param string $source   Manifest source key.
+	 * @param array  $args     Optional preserve_colors, connected_right, source_file, fill_color.
+	 * @return array|WP_Error
+	 */
+	public static function store_custom_line_svg( $contents, $slug, $label, $source = 'upload', $args = array() ) {
+		$extra = array();
+		if ( ! empty( $args['preserve_colors'] ) ) {
+			$extra['color_mode'] = 'preserve';
+		} elseif ( class_exists( 'PCKZ_Svg_Library' ) ) {
+			$extra['color_mode'] = PCKZ_Svg_Library::line_color_mode_for_svg( $contents );
 		}
-		$contents = file_get_contents( $file['tmp_name'] );
-		if ( false === $contents || ! self::is_safe_svg( $contents ) ) {
-			return new WP_Error( 'unsafe_svg', __( 'SVG enthält nicht erlaubte Inhalte.', 'pckz-canonical-engine' ) );
+		if ( array_key_exists( 'connected_right', $args ) ) {
+			$extra['connected_right'] = (bool) $args['connected_right'];
 		}
-		$slug  = self::next_upload_slug();
-		$label = isset( $_POST['line_upload_label'] ) ? sanitize_text_field( wp_unslash( $_POST['line_upload_label'] ) ) : self::default_label_for_slug( $slug );
-		if ( '' === $label ) {
-			$label = self::default_label_for_slug( $slug );
+		if ( ! empty( $args['source_file'] ) ) {
+			$extra['source_file'] = sanitize_file_name( $args['source_file'] );
 		}
-		return self::store_custom_svg( $contents, $slug, $label, 'upload' );
+		return self::store_custom_svg( $contents, $slug, $label, $source, $extra );
 	}
 
 	/**
@@ -888,10 +937,11 @@ class PCKZ_Line_Library {
 	 * @param string $contents SVG source.
 	 * @param string $slug     Unique slug.
 	 * @param string $label    Display label.
-	 * @param string $source   upload|url.
+	 * @param string $source   upload|url|import_* .
+	 * @param array  $extra    Optional color_mode, connected_right, source_file.
 	 * @return array|WP_Error
 	 */
-	private static function store_custom_svg( $contents, $slug, $label, $source = 'upload' ) {
+	private static function store_custom_svg( $contents, $slug, $label, $source = 'upload', $extra = array() ) {
 		$slug     = sanitize_key( $slug );
 		$filename = $slug . '.svg';
 		$dest     = self::upload_dir() . '/' . $filename;
@@ -902,16 +952,23 @@ class PCKZ_Line_Library {
 		if ( ! is_array( $custom ) ) {
 			$custom = array();
 		}
-		$color_mode = class_exists( 'PCKZ_Svg_Library' )
-			? PCKZ_Svg_Library::line_color_mode_for_svg( $contents )
-			: 'tintable';
+		$color_mode = 'tintable';
+		if ( ! empty( $extra['color_mode'] ) && in_array( $extra['color_mode'], array( 'preserve', 'tintable' ), true ) ) {
+			$color_mode = $extra['color_mode'];
+		} elseif ( class_exists( 'PCKZ_Svg_Library' ) ) {
+			$color_mode = PCKZ_Svg_Library::line_color_mode_for_svg( $contents );
+		}
+		if ( ! self::is_valid_custom_source( $source ) ) {
+			$source = 'upload';
+		}
 		$custom[ $slug ] = array(
 			'label'            => sanitize_text_field( $label ),
 			'file'             => $filename,
 			'customer_visible' => true,
-			'connected_right'  => false,
+			'connected_right'  => ! empty( $extra['connected_right'] ),
 			'color_mode'       => $color_mode,
-			'source'           => in_array( $source, array( 'upload', 'url' ), true ) ? $source : 'upload',
+			'source'           => $source,
+			'source_file'      => ! empty( $extra['source_file'] ) ? sanitize_file_name( $extra['source_file'] ) : '',
 		);
 		self::option_update( self::OPTION_CUSTOM, $custom );
 

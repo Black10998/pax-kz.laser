@@ -21,25 +21,62 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 
 	<div class="pckz-panel">
 		<header class="pckz-panel__header">
-			<h2><?php esc_html_e( 'Add line design (SVG)', 'pckz-canonical-engine' ); ?></h2>
+			<h2><?php esc_html_e( 'Import line design (vector)', 'pckz-canonical-engine' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Export from LightBurn or Illustrator, upload here — the design is converted to the standard 950×35 line artboard and registered immediately in the library (preview, customer picker, SVG export, LightBurn).', 'pckz-canonical-engine' ); ?>
+			</p>
 		</header>
 		<div class="pckz-panel__body pckz-library-add-grid">
 			<div class="pckz-library-upload-card">
-				<h3><?php esc_html_e( 'Upload file', 'pckz-canonical-engine' ); ?></h3>
+				<h3><?php esc_html_e( 'Upload vector file', 'pckz-canonical-engine' ); ?></h3>
+				<?php if ( class_exists( 'PCKZ_Line_Importer' ) && ! PCKZ_Line_Importer::converter_available() ) : ?>
+					<p class="notice notice-warning inline">
+						<?php esc_html_e( 'Python 3 is required on the server to convert LBRN2, AI, EPS, DXF, and PDF. SVG upload still works when already 950×35.', 'pckz-canonical-engine' ); ?>
+					</p>
+				<?php endif; ?>
 				<form method="post" enctype="multipart/form-data">
 					<?php wp_nonce_field( 'pckz_line_library_upload', 'pckz_line_library_upload_nonce' ); ?>
 					<input type="hidden" name="pckz_line_library_upload" value="1">
 					<table class="form-table" role="presentation">
 						<tr>
-							<th scope="row"><?php esc_html_e( 'SVG file', 'pckz-canonical-engine' ); ?></th>
-							<td><input type="file" name="pckz_line_file" accept=".svg,image/svg+xml" required></td>
+							<th scope="row"><?php esc_html_e( 'Source file', 'pckz-canonical-engine' ); ?></th>
+							<td>
+								<input type="file" name="pckz_line_file" accept="<?php echo esc_attr( class_exists( 'PCKZ_Line_Importer' ) ? PCKZ_Line_Importer::accept_attribute() : '.svg' ); ?>" required>
+								<p class="description">
+									<?php esc_html_e( 'LBRN2, SVG, AI, EPS, DXF, PDF. Geometry is taken from your file only — not regenerated.', 'pckz-canonical-engine' ); ?>
+								</p>
+							</td>
 						</tr>
 						<tr>
 							<th scope="row"><?php esc_html_e( 'Display label', 'pckz-canonical-engine' ); ?></th>
 							<td><input type="text" class="regular-text" name="line_upload_label" placeholder="<?php esc_attr_e( 'e.g. Typ 72', 'pckz-canonical-engine' ); ?>"></td>
 						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Colors', 'pckz-canonical-engine' ); ?></th>
+							<td>
+								<label>
+									<input type="checkbox" name="line_import_preserve_colors" value="1">
+									<?php esc_html_e( 'Preserve original colors (do not apply customer line color)', 'pckz-canonical-engine' ); ?>
+								</label>
+								<p class="description">
+									<label>
+										<?php esc_html_e( 'Optional fill/stroke for conversion:', 'pckz-canonical-engine' ); ?>
+										<input type="text" class="small-text" name="line_import_fill_color" placeholder="#B22222" pattern="^#?[0-9A-Fa-f]{3,8}$">
+									</label>
+								</p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Connected line', 'pckz-canonical-engine' ); ?></th>
+							<td>
+								<label>
+									<input type="checkbox" name="line_import_connected_right" value="1">
+									<?php esc_html_e( 'Mirror right ornament (connected L/R design)', 'pckz-canonical-engine' ); ?>
+								</label>
+							</td>
+						</tr>
 					</table>
-					<?php submit_button( __( 'Upload line', 'pckz-canonical-engine' ), 'secondary' ); ?>
+					<?php submit_button( __( 'Import line model', 'pckz-canonical-engine' ), 'primary' ); ?>
 				</form>
 			</div>
 			<div class="pckz-library-upload-card">
@@ -152,7 +189,13 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 						<td>
 							<code><?php echo esc_html( $slug ); ?></code>
 							<?php if ( $is_custom ) : ?>
-								<br><span class="pckz-badge"><?php echo 'url' === $source ? esc_html__( 'URL', 'pckz-canonical-engine' ) : esc_html__( 'Upload', 'pckz-canonical-engine' ); ?></span>
+								<br><span class="pckz-badge"><?php echo esc_html( class_exists( 'PCKZ_Line_Importer' ) ? PCKZ_Line_Importer::format_label_for_source( $source ) : $source ); ?></span>
+								<?php
+								$src_file = $custom_manifest[ $slug ]['source_file'] ?? '';
+								if ( $src_file ) :
+									?>
+									<br><span class="description"><?php echo esc_html( $src_file ); ?></span>
+								<?php endif; ?>
 							<?php else : ?>
 								<br><span class="pckz-badge pckz-badge--muted"><?php esc_html_e( 'Built-in', 'pckz-canonical-engine' ); ?></span>
 							<?php endif; ?>

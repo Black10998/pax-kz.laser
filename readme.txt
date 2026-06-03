@@ -55,6 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.27.35 =
+
+* Line Library: import vector files from admin (LBRN2, SVG, AI, EPS, DXF, PDF) — native paths converted to 950×35, auto-registered with preview and customer picker.
+* Optional preserve-colors and connected L/R mirror on import; supports LightBurn → upload → full preview/export workflow.
+
 = 2.27.34 =
 
 * Removed incorrect generated `type_102`–`type_111` models (not from customer reference artwork).

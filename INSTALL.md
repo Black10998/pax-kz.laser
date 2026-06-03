@@ -38,6 +38,22 @@ Console check: `window.PCKZCE_GLOBAL === window` must be `true`.
 
 Localized JS global: `pckzceConfig` (not `pckzCreator`).
 
+## Custom line import (admin)
+
+**Product Creator → Line Library → Import line design (vector)**
+
+1. Design in LightBurn (or Illustrator), export as **LBRN2**, **SVG**, **AI**, **EPS**, **DXF**, or **PDF**.
+2. Upload in the Line Library panel (requires **Python 3** on the server for non-canonical SVG / LBRN2 / AI / EPS / DXF / PDF).
+3. The plugin converts to the standard **950×35** artboard and registers a new `type_N` slug automatically (customer preview, SVG export, LightBurn output).
+
+Optional on import: **Preserve original colors**, **fill color** (e.g. `#B22222`), **connected L/R mirror**.
+
+CLI equivalent:
+
+```bash
+python3 tools/pckz-line-import-convert.py your-design.lbrn2 /tmp/out.svg --fill-color white
+```
+
 ## Line models (Typ 21–91)
 
 Bundled divider ornaments are included as `public/assets/lines/type_21.svg` … `type_91.svg`.  

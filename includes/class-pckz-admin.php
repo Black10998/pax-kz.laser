@@ -590,7 +590,18 @@ class PCKZ_Admin {
 			if ( is_wp_error( $result ) ) {
 				echo '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
 			} else {
-				echo '<div class="notice notice-success"><p>' . esc_html__( 'Line design uploaded.', 'pckz-canonical-engine' ) . '</p></div>';
+				$slug = is_array( $result ) && ! empty( $result['slug'] ) ? $result['slug'] : '';
+				if ( $slug ) {
+					echo '<div class="notice notice-success"><p>' . esc_html(
+						sprintf(
+							/* translators: %s: line slug e.g. type_102 */
+							__( 'Line model imported as %s. It is now available in the library and customer preview.', 'pckz-canonical-engine' ),
+							$slug
+						)
+					) . '</p></div>';
+				} else {
+					echo '<div class="notice notice-success"><p>' . esc_html__( 'Line model imported.', 'pckz-canonical-engine' ) . '</p></div>';
+				}
 			}
 		}
 
