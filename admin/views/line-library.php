@@ -29,11 +29,14 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 		<div class="pckz-panel__body pckz-library-add-grid">
 			<div class="pckz-library-upload-card">
 				<h3><?php esc_html_e( 'Upload vector file', 'pckz-canonical-engine' ); ?></h3>
-				<?php if ( class_exists( 'PCKZ_Line_Importer' ) && ! PCKZ_Line_Importer::converter_available() ) : ?>
-					<p class="notice notice-warning inline">
-						<?php esc_html_e( 'Python 3 is required on the server to convert LBRN2, AI, EPS, DXF, and PDF. SVG upload still works when already 950×35.', 'pckz-canonical-engine' ); ?>
-					</p>
-				<?php endif; ?>
+				<?php
+				if ( class_exists( 'PCKZ_Line_Importer' ) ) {
+					$import_env_notice = PCKZ_Line_Importer::environment_notice();
+					if ( '' !== $import_env_notice ) {
+						echo '<p class="notice notice-warning inline">' . esc_html( $import_env_notice ) . '</p>';
+					}
+				}
+				?>
 				<form method="post" enctype="multipart/form-data">
 					<?php wp_nonce_field( 'pckz_line_library_upload', 'pckz_line_library_upload_nonce' ); ?>
 					<input type="hidden" name="pckz_line_library_upload" value="1">
@@ -41,9 +44,15 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 						<tr>
 							<th scope="row"><?php esc_html_e( 'Source file', 'pckz-canonical-engine' ); ?></th>
 							<td>
-								<input type="file" name="pckz_line_file" accept="<?php echo esc_attr( class_exists( 'PCKZ_Line_Importer' ) ? PCKZ_Line_Importer::accept_attribute() : '.svg' ); ?>" required>
+								<input type="file" name="pckz_line_file" accept="<?php echo esc_attr( class_exists( 'PCKZ_Line_Importer' ) ? PCKZ_Line_Importer::accept_attribute_for_environment() : '.svg' ); ?>" required>
 								<p class="description">
-									<?php esc_html_e( 'LBRN2, SVG, AI, EPS, DXF, PDF. Geometry is taken from your file only — not regenerated.', 'pckz-canonical-engine' ); ?>
+									<?php
+									if ( class_exists( 'PCKZ_Line_Importer' ) && ! PCKZ_Line_Importer::converter_available() ) {
+										esc_html_e( 'Canonical 950×35 SVG only in this environment. Geometry is taken from your file — not regenerated.', 'pckz-canonical-engine' );
+									} else {
+										esc_html_e( 'LBRN2, SVG, AI, EPS, DXF, PDF. Geometry is taken from your file only — not regenerated.', 'pckz-canonical-engine' );
+									}
+									?>
 								</p>
 							</td>
 						</tr>

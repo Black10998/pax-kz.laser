@@ -55,6 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
+= 2.27.36 =
+
+* Line Library: fix fatal error when PHP exec() is disabled — import panel shows a warning instead of crashing; library and existing line models unchanged.
+* Vector import (LBRN2, AI, EPS, DXF, PDF) remains optional; canonical 950×35 SVG upload still works without exec().
+
 = 2.27.35 =
 
 * Line Library: import vector files from admin (LBRN2, SVG, AI, EPS, DXF, PDF) — native paths converted to 950×35, auto-registered with preview and customer picker.
