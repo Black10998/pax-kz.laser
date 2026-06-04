@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.1
+Stable tag: 2.28.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,14 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.2 =
+
+* Master Control routing: added legacy-path compatibility redirect so requests to `/wp-admin/pckz-license-server` are normalized to `wp-admin/admin.php?page=pckz-license-server` instead of falling through to frontend error templates.
+* Settings hardening: normalize `licensing_master_url` to a base site URL (strip accidental `/wp-admin/...` and `/wp-json/...` endpoint paths) so client heartbeat/update/asset-sync calls always target the correct master root.
+* Payments: fixed Stripe `payment_intent` array/object handling in `class-pckz-payments.php` (line 360 warning) to prevent "Array to string conversion" and preserve checkout/order finalization flow.
+* Master Control DB resilience: added a wpdb connection-state normalizer before schema/dashboard queries to recover safely after intermittent mysqli “Commands out of sync” incidents.
+* Architecture and protections unchanged: PaxDesign.at remains master; clients remain connected via licensed REST checks, update authorization, asset permissions, and domain restrictions.
 
 = 2.28.1 =
 

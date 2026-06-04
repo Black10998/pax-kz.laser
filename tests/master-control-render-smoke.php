@@ -64,7 +64,7 @@ if ( ! defined( 'PCKZCE_PLUGIN_DIR' ) ) {
 	define( 'PCKZCE_PLUGIN_DIR', dirname( __DIR__ ) . '/' );
 }
 if ( ! defined( 'PCKZCE_VERSION' ) ) {
-	define( 'PCKZCE_VERSION', '2.28.1' );
+	define( 'PCKZCE_VERSION', '2.28.2' );
 }
 $_GET = array();
 
@@ -76,7 +76,7 @@ $package_error  = '';
 $admin_notice   = null;
 $client_notice  = null;
 $release_meta   = array(
-	'version'             => '2.28.1',
+	'version'             => '2.28.2',
 	'package_url'         => 'https://example.test/protected.zip',
 	'changelog'           => '',
 	'requires'            => '6.0',
@@ -91,13 +91,13 @@ $client_summary = array(
 	'connected_server'  => 'https://paxdesign.at',
 	'domain'            => 'paxdesign.at',
 	'license_type'      => 'Master',
-	'installed_version' => '2.28.1',
-	'installed_build'   => '2.28.1-build',
+	'installed_version' => '2.28.2',
+	'installed_build'   => '2.28.2-build',
 	'last_check_in_time'=> '',
 	'last_check_in_human' => '',
 	'update_status'     => 'ok',
 	'update_label'      => 'Up to date',
-	'latest_version'    => '2.28.1',
+	'latest_version'    => '2.28.2',
 	'update_detail'     => '',
 	'can_update_now'    => false,
 );
@@ -166,7 +166,7 @@ $security_events = array(
 );
 $customer_packages  = array();
 $protected_releases = array(
-	array( 'filename' => 'pckz-canonical-engine-2.28.1-protected.zip', 'version' => '2.28.1', 'size' => 1234567 ),
+	array( 'filename' => 'pckz-canonical-engine-2.28.2-protected.zip', 'version' => '2.28.2', 'size' => 1234567 ),
 );
 
 $failed = false;

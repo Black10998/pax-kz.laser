@@ -25,6 +25,7 @@ class PCKZ_Licensing {
 	 * Constructor.
 	 */
 	public function __construct() {
+		add_action( 'init', array( $this, 'maybe_redirect_legacy_master_control_path' ), 1 );
 		add_action( 'init', array( $this, 'bootstrap' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 		add_action( self::HEARTBEAT_HOOK, array( $this, 'heartbeat_task' ) );
@@ -157,6 +158,59 @@ class PCKZ_Licensing {
 		$this->maybe_sync_master_release_meta();
 		$this->apply_embedded_client_package_config();
 		$this->schedule_heartbeat();
+	}
+
+	/**
+	 * Backward-compatible route handler for legacy admin path access.
+	 *
+	 * Master Control is an admin submenu (`admin.php?page=pckz-license-server`).
+	 * Some environments/users still open `/wp-admin/pckz-license-server`, which
+	 * can be routed by the web server to the frontend error template instead of
+	 * wp-admin. This shim redirects to the canonical admin URL.
+	 */
+	public function maybe_redirect_legacy_master_control_path() {
+		if ( 'GET' !== strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) ) ) {
+			return;
+		}
+		if ( ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) ) {
+			return;
+		}
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			return;
+		}
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+		if ( '' === $request_uri ) {
+			return;
+		}
+		$request_path = (string) wp_parse_url( $request_uri, PHP_URL_PATH );
+		if ( '' === $request_path ) {
+			return;
+		}
+		$legacy_path = (string) wp_parse_url( admin_url( 'pckz-license-server' ), PHP_URL_PATH );
+		if ( '' === $legacy_path ) {
+			return;
+		}
+		$normalized_request_path = rtrim( $request_path, '/' );
+		$normalized_legacy_path  = rtrim( $legacy_path, '/' );
+		if ( $normalized_request_path !== $normalized_legacy_path ) {
+			return;
+		}
+		$args = array();
+		if ( ! empty( $_GET ) && is_array( $_GET ) ) {
+			$args = wp_unslash( $_GET );
+			if ( isset( $args['page'] ) ) {
+				unset( $args['page'] );
+			}
+		}
+		$target = admin_url( 'admin.php?page=pckz-license-server' );
+		if ( ! empty( $args ) ) {
+			$target = add_query_arg( $args, $target );
+		}
+		wp_safe_redirect( $target, 302 );
+		if ( defined( 'PCKZ_SMOKE_TEST' ) && PCKZ_SMOKE_TEST ) {
+			return;
+		}
+		exit;
 	}
 
 	/**
@@ -365,6 +419,7 @@ class PCKZ_Licensing {
 	 * Internal renderer for the license/master-control dashboard.
 	 */
 	private function render_admin_page_body() {
+		self::normalize_db_connection_state();
 		if ( self::is_master_mode() ) {
 			self::ensure_master_schema_ready();
 		}
@@ -566,7 +621,7 @@ class PCKZ_Licensing {
 		echo '<p><code>' . esc_html( $error->getMessage() ) . '</code></p>';
 		echo '<p class="description">' . esc_html( sprintf( '%s:%d', $file, $line ) ) . '</p>';
 		echo '<ul><li>' . esc_html__( 'Reload this page.', 'pckz-canonical-engine' ) . '</li>';
-		echo '<li>' . esc_html__( 'Verify that all plugin files for v2.28.1 (or newer) are present.', 'pckz-canonical-engine' ) . '</li>';
+		echo '<li>' . esc_html__( 'Verify that all plugin files for v2.28.2 (or newer) are present.', 'pckz-canonical-engine' ) . '</li>';
 		echo '<li>' . esc_html__( 'Check wp-content/debug.log for the full PHP stack trace.', 'pckz-canonical-engine' ) . '</li>';
 		echo '</ul>';
 		echo '</div>';
@@ -584,6 +639,7 @@ class PCKZ_Licensing {
 	 * never ran) so Master Control becomes usable without a manual repair.
 	 */
 	public static function ensure_master_schema_ready() {
+		self::normalize_db_connection_state();
 		global $wpdb;
 		$expected = array(
 			$wpdb->prefix . 'pckz_license_keys',
@@ -610,6 +666,42 @@ class PCKZ_Licensing {
 			if ( ! $events_exists ) {
 				PCKZ_Master_Control::upgrade_schema();
 			}
+		}
+	}
+
+	/**
+	 * Heal wpdb connection state after "Commands out of sync" incidents.
+	 *
+	 * Some environments report intermittent mysqli "Commands out of sync"
+	 * errors from ActionScheduler/wp_options queries. This helper clears pending
+	 * result sets (if any) and flushes wpdb caches before running dashboard
+	 * queries so Master Control can recover instead of cascading failures.
+	 */
+	private static function normalize_db_connection_state() {
+		global $wpdb;
+		if ( ! isset( $wpdb ) || ! is_object( $wpdb ) ) {
+			return;
+		}
+		if ( method_exists( $wpdb, 'flush' ) ) {
+			$wpdb->flush();
+		}
+		if (
+			isset( $wpdb->dbh ) &&
+			is_object( $wpdb->dbh ) &&
+			function_exists( 'mysqli_more_results' ) &&
+			function_exists( 'mysqli_next_result' ) &&
+			function_exists( 'mysqli_store_result' )
+		) {
+			while ( @mysqli_more_results( $wpdb->dbh ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				@mysqli_next_result( $wpdb->dbh ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				$result = @mysqli_store_result( $wpdb->dbh ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				if ( is_object( $result ) && method_exists( $result, 'free' ) ) {
+					$result->free();
+				}
+			}
+		}
+		if ( method_exists( $wpdb, 'check_connection' ) ) {
+			$wpdb->check_connection( false );
 		}
 	}
 
@@ -3654,8 +3746,21 @@ class PCKZ_Licensing {
 		if ( '' === $url ) {
 			return '';
 		}
-		$url = preg_replace( '#/+$#', '', $url );
-		return esc_url_raw( $url );
+		$url = esc_url_raw( $url );
+		$parts = wp_parse_url( $url );
+		if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
+			$url = preg_replace( '#/+$#', '', $url );
+			return esc_url_raw( $url );
+		}
+		$scheme = ! empty( $parts['scheme'] ) ? strtolower( (string) $parts['scheme'] ) : 'https';
+		$host   = strtolower( (string) $parts['host'] );
+		$port   = isset( $parts['port'] ) ? ':' . absint( $parts['port'] ) : '';
+		$path   = (string) ( $parts['path'] ?? '' );
+		$path   = preg_replace( '#/(wp-admin|wp-json)(/.*)?$#i', '', $path );
+		$path   = preg_replace( '#/admin\.php$#i', '', $path );
+		$path   = preg_replace( '#/pckz-license-server/?$#i', '', $path );
+		$path   = rtrim( (string) $path, '/' );
+		return esc_url_raw( $scheme . '://' . $host . $port . $path );
 	}
 
 	/**
