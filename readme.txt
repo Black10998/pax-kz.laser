@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.2
+Stable tag: 2.28.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.3 =
+
+* Master Control permissions fix: resolved WordPress “Sorry, you are not allowed to access this page.” on `admin.php?page=pckz-license-server` for administrators.
+* Admin menu registration now runs after parent Product Creator menu registration to prevent submenu capability/page-hook mismatch.
+* Added robust fallback parent attachment (`options-general.php`) when the Product Creator parent menu is unavailable due external menu-order interference, while keeping capability as `manage_options`.
+* Capability, architecture, licensing protections, update authorization, asset sync permissions, and master-host lock remain unchanged.
 
 = 2.28.2 =
 

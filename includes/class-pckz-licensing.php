@@ -37,7 +37,8 @@ class PCKZ_Licensing {
 			PCKZ_Master_Control::register_hooks();
 		}
 
-		add_action( 'admin_menu', array( $this, 'register_admin_menu' ), 9 );
+		// Register after main Product Creator menu (priority 10).
+		add_action( 'admin_menu', array( $this, 'register_admin_menu' ), 20 );
 		add_action( 'admin_menu', array( $this, 'register_admin_menu_badge' ), 99 );
 		add_action( 'admin_notices', array( $this, 'maybe_show_admin_notice' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_show_update_notice' ) );
@@ -296,8 +297,24 @@ class PCKZ_Licensing {
 		$master_mode = self::is_master_mode();
 		$page_title = $master_mode ? __( 'Master Control', 'pckz-canonical-engine' ) : __( 'License Dashboard', 'pckz-canonical-engine' );
 		$menu_title = $master_mode ? __( 'Master Control', 'pckz-canonical-engine' ) : __( 'License Dashboard', 'pckz-canonical-engine' );
-		add_submenu_page(
+		$hook = add_submenu_page(
 			'pckz-canonical-engine',
+			$page_title,
+			$menu_title,
+			'manage_options',
+			'pckz-license-server',
+			array( $this, 'render_admin_page' )
+		);
+		if ( false !== $hook ) {
+			return;
+		}
+		/*
+		 * Fallback for environments where another plugin/theme mutates menu
+		 * registration order and parent slug is unavailable at this moment.
+		 * Keep capability unchanged; only parent attachment changes.
+		 */
+		add_submenu_page(
+			'options-general.php',
 			$page_title,
 			$menu_title,
 			'manage_options',
