@@ -60,6 +60,20 @@ if ( ! function_exists( '_n' ) ) {
 if ( ! function_exists( 'wp_kses_post' ) ) {
 	function wp_kses_post( $value ) { return (string) $value; }
 }
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( $field = '' ) { // phpcs:ignore
+		if ( 'version' === $field ) {
+			return '6.7';
+		}
+		return '';
+	}
+}
+if ( ! function_exists( 'esc_attr' ) ) {
+	function esc_attr( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' ); }
+}
+if ( ! function_exists( 'esc_textarea' ) ) {
+	function esc_textarea( $text ) { return htmlspecialchars( (string) $text, ENT_NOQUOTES, 'UTF-8' ); }
+}
 if ( ! defined( 'PCKZCE_PLUGIN_DIR' ) ) {
 	define( 'PCKZCE_PLUGIN_DIR', dirname( __DIR__ ) . '/' );
 }
@@ -84,6 +98,7 @@ $release_meta   = array(
 	'tested'              => '6.7',
 	'min_client_build'    => '',
 	'allow_remote_export' => false,
+	'published_at'        => '2026-06-04 12:00:00',
 );
 $client_state   = array();
 $client_summary = array(

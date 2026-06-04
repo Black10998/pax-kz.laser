@@ -15,6 +15,7 @@ class PCKZ_Licensing {
 	const OPTION_CLIENT_STATE   = 'pckzce_license_state';
 	const OPTION_INSTALL_SECRET = 'pckzce_license_install_secret';
 	const OPTION_RELEASE_META   = 'pckzce_master_release_meta';
+	const CLIENT_UPDATE_CACHE_TTL = 90;
 	const RELEASE_PACKAGE_REPO  = 'https://raw.githubusercontent.com/black10998/pax-kz.laser/main/release-packages';
 	const OPTION_CLIENT_PACKAGE_HASH = 'pckzce_client_package_hash';
 	const OPTION_CLIENT_BOUND_DOMAINS = 'pckzce_client_bound_domains';
@@ -65,7 +66,11 @@ class PCKZ_Licensing {
 		}
 
 		add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'inject_plugin_update' ) );
+		add_filter( 'site_transient_update_plugins', array( $this, 'merge_plugin_update_into_transient' ), 20 );
 		add_filter( 'plugins_api', array( $this, 'inject_plugin_info' ), 10, 3 );
+		add_action( 'load-plugins.php', array( $this, 'prime_client_plugin_update_check' ) );
+		add_action( 'load-update-core.php', array( $this, 'prime_client_plugin_update_check' ) );
+		add_action( 'admin_init', array( $this, 'maybe_poll_master_release_in_admin' ), 5 );
 		add_action( 'admin_post_pckzce_run_plugin_update', array( $this, 'handle_run_plugin_update' ) );
 		add_action( 'upgrader_process_complete', array( $this, 'handle_upgrader_process_complete' ), 10, 2 );
 	}
@@ -333,6 +338,73 @@ class PCKZ_Licensing {
 	}
 
 	/**
+	 * Stable token that changes whenever master publish metadata changes.
+	 *
+	 * @param array $meta Release metadata.
+	 * @return string
+	 */
+	public static function build_release_token( $meta ) {
+		if ( ! is_array( $meta ) ) {
+			$meta = array();
+		}
+		$payload = wp_json_encode(
+			array(
+				'version'        => (string) ( $meta['version'] ?? '' ),
+				'package_sha256' => (string) ( $meta['package_sha256'] ?? '' ),
+				'package_url'    => (string) ( $meta['package_url'] ?? '' ),
+				'published_at'   => (string) ( $meta['published_at'] ?? '' ),
+			)
+		);
+		return substr( hash( 'sha256', (string) $payload ), 0, 32 );
+	}
+
+	/**
+	 * Stamp publish time and release token on master release metadata.
+	 *
+	 * @param array $meta               Release metadata.
+	 * @param bool  $touch_published_at Whether to refresh published_at.
+	 * @return array
+	 */
+	private static function finalize_master_release_meta( $meta, $touch_published_at = true ) {
+		if ( ! is_array( $meta ) ) {
+			$meta = array();
+		}
+		if ( $touch_published_at ) {
+			$meta['published_at'] = current_time( 'mysql' );
+		}
+		$meta['release_token'] = self::build_release_token( $meta );
+		return $meta;
+	}
+
+	/**
+	 * Read published release metadata for client API responses.
+	 *
+	 * @return array
+	 */
+	private static function get_master_release_meta_for_clients() {
+		$meta = get_option( self::OPTION_RELEASE_META, array() );
+		if ( ! is_array( $meta ) ) {
+			return array();
+		}
+		if ( ! empty( $meta['version'] ) && empty( $meta['release_token'] ) ) {
+			$meta = self::finalize_master_release_meta( $meta, ! empty( $meta['published_at'] ) ? false : true );
+			update_option( self::OPTION_RELEASE_META, $meta, false );
+			wp_cache_delete( self::OPTION_RELEASE_META, 'options' );
+		}
+		return $meta;
+	}
+
+	/**
+	 * Clear client-side update caches so WordPress and the dashboard refetch immediately.
+	 */
+	public static function invalidate_client_update_caches() {
+		delete_transient( 'pckzce_update_meta_cache' );
+		if ( function_exists( 'delete_site_transient' ) ) {
+			delete_site_transient( 'update_plugins' );
+		}
+	}
+
+	/**
 	 * Keep master release metadata aligned with the newest available protected package.
 	 *
 	 * Uses the highest version among the installed plugin, bundled release-packages,
@@ -373,6 +445,11 @@ class PCKZ_Licensing {
 		$discovered     = self::discover_latest_available_protected_release_version();
 		if ( $discovered && version_compare( $discovered, $target_version, '>' ) ) {
 			$target_version = $discovered;
+		}
+
+		// Never override a newer manually published release with an older on-disk package.
+		if ( $stored_version && version_compare( $stored_version, $target_version, '>' ) ) {
+			return;
 		}
 
 		$candidate = self::release_package_candidate_for_version( $target_version );
@@ -420,8 +497,10 @@ class PCKZ_Licensing {
 		$meta['package_manifest_signature_alg'] = sanitize_key( (string) ( $validated_archive['manifest_signature_alg'] ?? 'none' ) );
 		$meta['package_manifest_file_count']   = absint( $validated_archive['manifest_file_count'] ?? 0 );
 		$meta['package_validated_at']          = current_time( 'mysql' );
+		$meta                                  = self::finalize_master_release_meta( $meta );
 
 		update_option( self::OPTION_RELEASE_META, $meta, false );
+		wp_cache_delete( self::OPTION_RELEASE_META, 'options' );
 	}
 
 	/**
@@ -516,6 +595,10 @@ class PCKZ_Licensing {
 	public static function client_pending_update_count() {
 		if ( self::is_master_mode() || ! self::can_run_feature( 'updates' ) ) {
 			return 0;
+		}
+		$state = self::get_client_state();
+		if ( ! empty( $state['master_latest_version'] ) && version_compare( (string) $state['master_latest_version'], PCKZCE_VERSION, '>' ) ) {
+			return 1;
 		}
 		$meta = get_transient( 'pckzce_update_meta_cache' );
 		if ( ! is_array( $meta ) ) {
@@ -954,7 +1037,14 @@ class PCKZ_Licensing {
 				$update_detail = $reason ? $reason : __( 'The master server rejected the update request.', 'pckz-canonical-engine' );
 			} else {
 				$latest_version = sanitize_text_field( (string) ( $remote_meta['version'] ?? $remote_meta['latest_version'] ?? '' ) );
-				if ( ! empty( $remote_meta['update_available'] ) ) {
+				if ( '' === $latest_version && ! empty( $client_state['master_latest_version'] ) ) {
+					$latest_version = sanitize_text_field( (string) $client_state['master_latest_version'] );
+				}
+				$remote_update_available = ! empty( $remote_meta['update_available'] );
+				if ( ! $remote_update_available && $latest_version && version_compare( $latest_version, $installed_version, '>' ) ) {
+					$remote_update_available = true;
+				}
+				if ( $remote_update_available ) {
 					$update_status = 'available';
 					$update_label  = __( 'Update available', 'pckz-canonical-engine' );
 					$update_detail = $latest_version
@@ -1731,7 +1821,9 @@ class PCKZ_Licensing {
 			'package_manifest_file_count' => absint( $validated_archive['manifest_file_count'] ?? 0 ),
 			'package_validated_at' => current_time( 'mysql' ),
 		);
+		$meta = self::finalize_master_release_meta( $meta );
 		update_option( self::OPTION_RELEASE_META, $meta, false );
+		wp_cache_delete( self::OPTION_RELEASE_META, 'options' );
 		delete_transient( 'pckzce_update_meta_cache' );
 		return true;
 	}
@@ -2798,7 +2890,9 @@ class PCKZ_Licensing {
 				'update_severity'     => 'critical' === $severity ? 'critical' : '',
 			)
 		);
-		update_option( self::OPTION_RELEASE_META, $meta );
+		$meta = self::finalize_master_release_meta( $meta );
+		update_option( self::OPTION_RELEASE_META, $meta, false );
+		wp_cache_delete( self::OPTION_RELEASE_META, 'options' );
 		delete_transient( 'pckzce_update_meta_cache' );
 		self::set_master_admin_notice( __( 'Release metadata saved.', 'pckz-canonical-engine' ) );
 		self::redirect_master_control();
@@ -2987,7 +3081,6 @@ class PCKZ_Licensing {
 				)
 			);
 		}
-		self::sync_master_release_meta_if_needed();
 		$rate_limit = self::enforce_endpoint_rate_limit( $request, 'client_check_in', 240, 300 );
 		if ( is_wp_error( $rate_limit ) ) {
 			return new WP_REST_Response(
@@ -3035,8 +3128,12 @@ class PCKZ_Licensing {
 			)
 		);
 
-		$release_meta = get_option( self::OPTION_RELEASE_META, array() );
-		$asset_rev    = class_exists( 'PCKZ_Asset_Sync' )
+		$release_meta     = self::get_master_release_meta_for_clients();
+		$latest_version   = sanitize_text_field( (string) ( $release_meta['version'] ?? '' ) );
+		$release_token    = sanitize_text_field( (string) ( $release_meta['release_token'] ?? '' ) );
+		$reported_version = sanitize_text_field( (string) ( $payload['plugin_version'] ?? PCKZCE_VERSION ) );
+		$update_available = $latest_version && $reported_version && version_compare( $latest_version, $reported_version, '>' );
+		$asset_rev        = class_exists( 'PCKZ_Asset_Sync' )
 			? (string) ( PCKZ_Asset_Sync::build_manifest( false )['revision'] ?? '' )
 			: '';
 
@@ -3053,7 +3150,9 @@ class PCKZ_Licensing {
 				'license_id'         => (int) $validated['license']['id'],
 				'min_client_build'   => (string) ( $release_meta['min_client_build'] ?? '' ),
 				'asset_revision'     => $asset_rev,
-				'latest_version'     => (string) ( $release_meta['version'] ?? '' ),
+				'latest_version'     => $latest_version,
+				'release_token'      => $release_token,
+				'update_available'   => (bool) $update_available,
 				'update_severity'    => (string) ( $release_meta['update_severity'] ?? '' ),
 			)
 		);
@@ -3069,7 +3168,6 @@ class PCKZ_Licensing {
 		if ( ! self::is_master_mode() ) {
 			return rest_ensure_response( array( 'ok' => false, 'reason' => 'master_mode_disabled' ) );
 		}
-		self::sync_master_release_meta_if_needed();
 		$rate_limit = self::enforce_endpoint_rate_limit( $request, 'client_update_meta', 180, 300 );
 		if ( is_wp_error( $rate_limit ) ) {
 			return new WP_REST_Response( array( 'ok' => false, 'reason' => $rate_limit->get_error_message() ), 429 );
@@ -3089,8 +3187,9 @@ class PCKZ_Licensing {
 		if ( empty( $validated['permissions']['updates'] ) ) {
 			return rest_ensure_response( array( 'ok' => false, 'reason' => 'updates_not_allowed' ) );
 		}
-		$meta = get_option( self::OPTION_RELEASE_META, array() );
+		$meta = self::get_master_release_meta_for_clients();
 		$latest = sanitize_text_field( (string) ( $meta['version'] ?? '' ) );
+		$release_token = sanitize_text_field( (string) ( $meta['release_token'] ?? '' ) );
 		if ( '' === $latest ) {
 			return rest_ensure_response( array( 'ok' => false, 'reason' => 'no_release' ) );
 		}
@@ -3103,6 +3202,7 @@ class PCKZ_Licensing {
 					'version'          => $latest,
 					'latest_version'   => $latest,
 					'installed_version'=> $current,
+					'release_token'    => $release_token,
 				)
 			);
 		}
@@ -3134,6 +3234,7 @@ class PCKZ_Licensing {
 				'package_manifest_valid' => ! empty( $meta['package_manifest_valid'] ),
 				'package_manifest_signed' => ! empty( $meta['package_manifest_signed'] ),
 				'package_manifest_signature_alg' => sanitize_key( (string) ( $meta['package_manifest_signature_alg'] ?? 'none' ) ),
+				'release_token'    => $release_token,
 			)
 		);
 	}
@@ -3721,6 +3822,10 @@ class PCKZ_Licensing {
 	 */
 	public function heartbeat_task() {
 		self::refresh_entitlement( false );
+		if ( ! self::is_master_mode() && self::can_run_feature( 'updates' ) ) {
+			$instance = new self();
+			$instance->fetch_remote_update_meta( false );
+		}
 	}
 
 	/**
@@ -3747,7 +3852,7 @@ class PCKZ_Licensing {
 			return $state;
 		}
 
-		if ( ! $force && ! empty( $state['checked_at'] ) && ( time() - (int) $state['checked_at'] ) < 120 ) {
+		if ( ! $force && ! empty( $state['checked_at'] ) && ( time() - (int) $state['checked_at'] ) < 30 ) {
 			return $state;
 		}
 
@@ -3800,23 +3905,31 @@ class PCKZ_Licensing {
 		}
 		$authorized = ! empty( $data['authorized'] );
 		$ttl        = max( 60, (int) ( $data['token_ttl'] ?? 300 ) );
-		$state      = array(
-			'authorized'   => $authorized,
-			'status'       => $authorized ? 'authorized' : 'denied',
-			'reason'       => (string) ( $data['reason'] ?? '' ),
-			'checked_at'   => time(),
-			'expires_at'   => time() + $ttl,
-			'grace_until'  => $grace_until,
-			'token'        => (string) ( $data['token'] ?? '' ),
-			'permissions'  => is_array( $data['permissions'] ?? null ) ? $data['permissions'] : array(),
-			'master_url'   => $master,
-			'license_hint' => self::mask_key( $key ),
-			'server_time'  => (int) ( $data['server_time'] ?? 0 ),
+		$latest_version   = sanitize_text_field( (string) ( $data['latest_version'] ?? '' ) );
+		$release_token    = sanitize_text_field( (string) ( $data['release_token'] ?? '' ) );
+		$update_available = ! empty( $data['update_available'] );
+		$state            = array(
+			'authorized'            => $authorized,
+			'status'                => $authorized ? 'authorized' : 'denied',
+			'reason'                => (string) ( $data['reason'] ?? '' ),
+			'checked_at'            => time(),
+			'expires_at'            => time() + $ttl,
+			'grace_until'           => $grace_until,
+			'token'                 => (string) ( $data['token'] ?? '' ),
+			'permissions'           => is_array( $data['permissions'] ?? null ) ? $data['permissions'] : array(),
+			'master_url'            => $master,
+			'license_hint'          => self::mask_key( $key ),
+			'server_time'           => (int) ( $data['server_time'] ?? 0 ),
+			'master_latest_version' => $latest_version,
+			'master_release_token'  => $release_token,
 		);
 		if ( ! empty( $data['install_secret'] ) ) {
 			update_option( self::OPTION_INSTALL_SECRET, sanitize_text_field( (string) $data['install_secret'] ), false );
 		}
 		update_option( self::OPTION_CLIENT_STATE, $state, false );
+		if ( $authorized ) {
+			self::maybe_invalidate_client_updates_from_master( $latest_version, $release_token, $update_available );
+		}
 		if ( $enforce && ! $authorized ) {
 			$state['grace_until'] = 0;
 			update_option( self::OPTION_CLIENT_STATE, $state, false );
@@ -3825,6 +3938,29 @@ class PCKZ_Licensing {
 			PCKZ_Asset_Sync::maybe_sync_client();
 		}
 		return $state;
+	}
+
+	/**
+	 * Invalidate local update caches when master reports a newer release.
+	 *
+	 * @param string $latest_version   Latest version from master.
+	 * @param string $release_token    Release token from master.
+	 * @param bool   $update_available Whether master flagged an update.
+	 */
+	private static function maybe_invalidate_client_updates_from_master( $latest_version, $release_token, $update_available = false ) {
+		if ( self::is_master_mode() ) {
+			return;
+		}
+		$known_token = sanitize_text_field( (string) get_option( 'pckzce_client_release_token', '' ) );
+		$token_changed = '' !== $release_token && $release_token !== $known_token;
+		$version_newer = $latest_version && version_compare( $latest_version, PCKZCE_VERSION, '>' );
+		if ( ! $update_available && ! $version_newer && ! $token_changed ) {
+			return;
+		}
+		if ( $token_changed ) {
+			update_option( 'pckzce_client_release_token', $release_token, false );
+		}
+		self::invalidate_client_update_caches();
 	}
 
 	/**
@@ -4078,10 +4214,30 @@ class PCKZ_Licensing {
 	 * @return array
 	 */
 	private function fetch_remote_update_meta( $force = false ) {
+		$state              = self::get_client_state();
+		$master_release_token = sanitize_text_field( (string) ( $state['master_release_token'] ?? '' ) );
+		$known_release_token  = sanitize_text_field( (string) get_option( 'pckzce_client_release_token', '' ) );
+		if ( ! $force && '' !== $master_release_token && $master_release_token !== $known_release_token ) {
+			$force = true;
+		}
 		if ( ! $force ) {
 			$cache = get_transient( 'pckzce_update_meta_cache' );
 			if ( is_array( $cache ) ) {
-				return $cache;
+				$cached_token = sanitize_text_field( (string) ( $cache['release_token'] ?? '' ) );
+				if ( $master_release_token && $cached_token && $master_release_token !== $cached_token ) {
+					$force = true;
+				} elseif ( ! $force ) {
+					$cached_version = sanitize_text_field( (string) ( $cache['version'] ?? $cache['latest_version'] ?? '' ) );
+					if ( $cached_version && version_compare( $cached_version, PCKZCE_VERSION, '>' ) ) {
+						return $cache;
+					}
+					if ( $cached_version && version_compare( $cached_version, PCKZCE_VERSION, '<=' ) && $master_release_token && $cached_token === $master_release_token ) {
+						return $cache;
+					}
+					if ( $cached_token && $cached_token === $master_release_token ) {
+						return $cache;
+					}
+				}
 			}
 		}
 		$settings = PCKZ_Settings::get_all();
@@ -4091,16 +4247,17 @@ class PCKZ_Licensing {
 			return array();
 		}
 		$payload = array(
-			'license_key'     => $key,
-			'domain'          => self::normalized_domain(),
-			'install_uuid'    => self::get_install_uuid(),
-			'current_version' => PCKZCE_VERSION,
-			'plugin_version'  => PCKZCE_VERSION,
-			'plugin_build'    => defined( 'PCKZCE_BUILD' ) ? PCKZCE_BUILD : PCKZCE_VERSION,
-			'wp_version'      => get_bloginfo( 'version' ),
-			'php_version'     => PHP_VERSION,
-			'integrity_hash'  => self::client_integrity_hash(),
-			'tamper_signals'  => class_exists( 'PCKZ_Security' ) ? PCKZ_Security::tamper_signals() : array(),
+			'license_key'           => $key,
+			'domain'                => self::normalized_domain(),
+			'install_uuid'          => self::get_install_uuid(),
+			'current_version'       => PCKZCE_VERSION,
+			'plugin_version'        => PCKZCE_VERSION,
+			'plugin_build'          => defined( 'PCKZCE_BUILD' ) ? PCKZCE_BUILD : PCKZCE_VERSION,
+			'wp_version'            => get_bloginfo( 'version' ),
+			'php_version'           => PHP_VERSION,
+			'integrity_hash'        => self::client_integrity_hash(),
+			'tamper_signals'        => class_exists( 'PCKZ_Security' ) ? PCKZ_Security::tamper_signals() : array(),
+			'known_release_token'   => $known_release_token,
 		);
 		$body = wp_json_encode( $payload );
 		$resp = wp_remote_post(
@@ -4131,8 +4288,82 @@ class PCKZ_Licensing {
 				);
 			}
 		}
-		set_transient( 'pckzce_update_meta_cache', $data, 8 * MINUTE_IN_SECONDS );
+		if ( ! empty( $data['release_token'] ) ) {
+			update_option( 'pckzce_client_release_token', sanitize_text_field( (string) $data['release_token'] ), false );
+		}
+		if ( ! empty( $data['update_available'] ) || ( ! empty( $data['version'] ) && version_compare( (string) $data['version'], PCKZCE_VERSION, '>' ) ) ) {
+			self::invalidate_client_update_caches();
+		}
+		set_transient( 'pckzce_update_meta_cache', $data, self::CLIENT_UPDATE_CACHE_TTL );
 		return $data;
+	}
+
+	/**
+	 * Poll master during admin requests so new releases appear without waiting for cron.
+	 */
+	public function maybe_poll_master_release_in_admin() {
+		if ( ! is_admin() || self::is_master_mode() || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( get_transient( 'pckzce_release_poll_lock' ) ) {
+			return;
+		}
+		set_transient( 'pckzce_release_poll_lock', 1, 30 );
+		$state = self::get_client_state();
+		if ( ! empty( $state['checked_at'] ) && ( time() - (int) $state['checked_at'] ) < 25 ) {
+			return;
+		}
+		if ( empty( PCKZ_Settings::get_all()['licensing_key'] ) || empty( PCKZ_Settings::get_all()['licensing_master_url'] ) ) {
+			return;
+		}
+		self::refresh_entitlement( false );
+	}
+
+	/**
+	 * Ensure plugin list/update screens see protected updates promptly.
+	 */
+	public function prime_client_plugin_update_check() {
+		if ( ! current_user_can( 'update_plugins' ) || self::is_master_mode() || ! self::can_run_feature( 'updates' ) ) {
+			return;
+		}
+		$state = self::get_client_state();
+		if ( empty( $state['master_latest_version'] ) && empty( $state['master_release_token'] ) ) {
+			self::refresh_entitlement( false );
+			$state = self::get_client_state();
+		}
+		if ( ! empty( $state['master_latest_version'] ) && version_compare( (string) $state['master_latest_version'], PCKZCE_VERSION, '>' ) ) {
+			self::invalidate_client_update_caches();
+			$this->fetch_remote_update_meta( true );
+		}
+	}
+
+	/**
+	 * Merge protected update into an existing WordPress update transient.
+	 *
+	 * @param mixed $transient Update transient.
+	 * @return mixed
+	 */
+	public function merge_plugin_update_into_transient( $transient ) {
+		if ( self::is_master_mode() || ! self::can_run_feature( 'updates' ) ) {
+			return $transient;
+		}
+		if ( ! is_object( $transient ) ) {
+			$transient = new stdClass();
+		}
+		$state = self::get_client_state();
+		if ( empty( $state['master_latest_version'] ) || version_compare( (string) $state['master_latest_version'], PCKZCE_VERSION, '<=' ) ) {
+			return $transient;
+		}
+		$meta = $this->fetch_remote_update_meta( false );
+		$item = $this->build_plugin_update_object( $meta );
+		if ( ! $item ) {
+			return $transient;
+		}
+		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
+			$transient->response = array();
+		}
+		$transient->response[ PCKZCE_PLUGIN_BASENAME ] = $item;
+		return $transient;
 	}
 
 	/**

@@ -125,6 +125,12 @@ if ( ! function_exists( 'update_option' ) ) {
 		return true;
 	}
 }
+if ( ! function_exists( 'wp_cache_delete' ) ) {
+	function wp_cache_delete( $key, $group = '' ) { // phpcs:ignore
+		unset( $key, $group );
+		return true;
+	}
+}
 if ( ! function_exists( 'wp_upload_dir' ) ) {
 	function wp_upload_dir() { // phpcs:ignore
 		return array(

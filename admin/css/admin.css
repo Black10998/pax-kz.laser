@@ -1198,6 +1198,105 @@
 	margin-top: 8px;
 }
 
+.pckz-release-hub {
+	margin-bottom: 20px;
+}
+
+.pckz-release-hub__header {
+	align-items: flex-start;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 20px;
+	justify-content: space-between;
+	margin-bottom: 24px;
+}
+
+.pckz-release-hub__header h2 {
+	margin-top: 0;
+}
+
+.pckz-release-live {
+	background: #f0f6fc;
+	border: 1px solid #c5d9ed;
+	border-radius: 8px;
+	min-width: 220px;
+	padding: 14px 18px;
+}
+
+.pckz-release-live__label {
+	color: #50575e;
+	display: block;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	margin-bottom: 6px;
+	text-transform: uppercase;
+}
+
+.pckz-release-live__version {
+	display: block;
+	font-size: 28px;
+	line-height: 1.2;
+}
+
+.pckz-release-live__meta {
+	color: #646970;
+	display: block;
+	font-size: 12px;
+	margin-top: 6px;
+}
+
+.pckz-release-flow {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.pckz-release-flow__step {
+	display: flex;
+	gap: 16px;
+}
+
+.pckz-release-flow__number {
+	align-items: center;
+	background: #2271b1;
+	border-radius: 50%;
+	color: #fff;
+	display: inline-flex;
+	flex-shrink: 0;
+	font-size: 14px;
+	font-weight: 700;
+	height: 32px;
+	justify-content: center;
+	width: 32px;
+}
+
+.pckz-release-flow__body {
+	flex: 1;
+	min-width: 0;
+}
+
+.pckz-release-flow__body h3 {
+	margin: 0 0 8px;
+}
+
+.pckz-release-inventory--simple {
+	margin-top: 24px;
+}
+
+.pckz-release-inventory--simple table {
+	margin-top: 8px;
+}
+
+.pckz-release-advanced {
+	margin-top: 20px;
+}
+
+.pckz-release-advanced summary {
+	cursor: pointer;
+	font-weight: 600;
+}
+
 .pckz-license-card--release {
 	grid-column: 1 / -1;
 }

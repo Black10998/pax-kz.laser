@@ -1,6 +1,24 @@
 ## Production installation packages
 
-Canonical package for v2.28.11:
+Canonical package for v2.28.12:
+
+- `pckz-canonical-engine-2.28.12-protected.zip`
+
+SHA256:
+
+- `7be136064cbb049b75abb1751dc8196e20785f080cafc9ed3b72c7a9ff262057`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.12/pckz-canonical-engine-2.28.12-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.12-protected.zip`
+
+What changed in v2.28.12: reliable client update discovery via release tokens (check-in + update-meta), faster cache invalidation, WordPress Plugins screen merge, admin polling, and a simplified Master Control Software Updates UI.
+
+Previous release (v2.28.11):
 
 - `pckz-canonical-engine-2.28.11-protected.zip`
 
