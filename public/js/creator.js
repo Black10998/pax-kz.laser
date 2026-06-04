@@ -77,6 +77,10 @@
 			this._mobileResizeUnlockTimer = null;
 			this._creatorReadyMarked = false;
 			this._checkoutInFlight = false;
+			this._preparedExportPayload = null;
+			this._preparedExportFingerprint = '';
+			this._exportValidationPromise = null;
+			this._exportValidationSeq = 0;
 			this.iconColorUserSet = { left: false, right: false };
 			this.customerArtworkToken = '';
 			this.customerArtworkFilename = '';
@@ -916,6 +920,7 @@
 
 		bindOptions() {
 			this.root.querySelectorAll('.pckz-field').forEach((field) => {
+				const isCheckoutField = !!field.closest('[data-checkout]');
 				const mobileColorPicker = field.querySelector('[data-mobile-color-picker]');
 				const mobileColorTrigger = field.querySelector('[data-mobile-color-trigger]');
 				const mobileColorChip = field.querySelector('[data-mobile-color-chip]');
@@ -931,6 +936,10 @@
 					input.addEventListener(evt, () => {
 						if (input.classList.contains('pckz-icon-select__input')) {
 							this.updateIconSelectPreview(input);
+						}
+						if (isCheckoutField) {
+							this.collectCheckoutFields();
+							return;
 						}
 						this.syncFromForm();
 					});
@@ -983,6 +992,10 @@
 						if (mobileColorPicker && mobileColorTrigger) {
 							mobileColorPicker.classList.remove('is-open');
 							mobileColorTrigger.setAttribute('aria-expanded', 'false');
+						}
+						if (isCheckoutField) {
+							this.collectCheckoutFields();
+							return;
 						}
 						this.syncFromForm();
 					});
@@ -1411,6 +1424,8 @@
 
 		scheduleExportReadyCheck() {
 			clearTimeout(this._exportReadyTimer);
+			this._preparedExportPayload = null;
+			this._preparedExportFingerprint = '';
 			this.exportReady = false;
 			this.updateCheckoutInteractable(
 				I18N.exportValidating || 'Bestelldaten werden im Hintergrund geprueft.'
@@ -1594,6 +1609,121 @@
 			return btoa(unescape(encodeURIComponent(String(str || ''))));
 		}
 
+		getExportFingerprint() {
+			const payload = {
+				productId: this.productId,
+				previewMode: this.previewMode,
+				selections: this.selections,
+				mmW: this.mmW,
+				mmH: this.mmH,
+				useCloudlift: this.useCloudlift,
+			};
+			try {
+				return JSON.stringify(payload);
+			} catch (err) {
+				return String(Date.now());
+			}
+		}
+
+		async buildPreparedExportPayload() {
+			const origin = CFG.origin || STD.coordinate_origin || 'bottom-left';
+			let layout = this.getLayoutData();
+			let canonicalScene = null;
+			if (this.previewEngine && this.previewEngine.buildCanonicalSceneJson) {
+				canonicalScene = await this.previewEngine.buildCanonicalSceneJson(
+					this.mmW,
+					this.mmH,
+					origin,
+					{
+						std: STD,
+						selections: this.selections,
+						preview_mode: this.previewMode,
+						product_id: this.productId,
+					}
+				);
+			} else if (PCKZCE_GLOBAL.PCKZCECanonicalScene) {
+				if (this.previewEngine && this.previewEngine.enrichLayoutWithSvgSources) {
+					layout = await this.previewEngine.enrichLayoutWithSvgSources(layout);
+				}
+				canonicalScene = PCKZCE_GLOBAL.PCKZCECanonicalScene.buildFromLayout(layout, {
+					selections: this.selections,
+					preview_mode: this.previewMode,
+					product_id: this.productId,
+				});
+			}
+
+			let productionVectorSvg = '';
+			let textPlatePaths = '';
+			if (this.previewEngine) {
+				const prodLayout = this.previewEngine.getProductionLayout
+					? this.previewEngine.getProductionLayout(this.mmW, this.mmH, origin, {
+							std: STD,
+							selections: this.selections,
+						})
+					: layout;
+				if (this.previewEngine.enrichLayoutWithSvgSources) {
+					await this.previewEngine.enrichLayoutWithSvgSources(prodLayout);
+				}
+				if (this.previewEngine.buildFabricProductionSvg) {
+					productionVectorSvg = await this.previewEngine.buildFabricProductionSvg(
+						this.mmW,
+						this.mmH
+					);
+				} else if (this.previewEngine.buildProductionVectorSvg) {
+					productionVectorSvg = await this.previewEngine.buildProductionVectorSvg(
+						this.mmW,
+						this.mmH
+					);
+				}
+				if (this.previewEngine.buildTextPlatePathsForLbrn) {
+					textPlatePaths = await this.previewEngine.buildTextPlatePathsForLbrn(
+						prodLayout,
+						this.mmW,
+						this.mmH
+					);
+				}
+				if (this.previewEngine.injectTextPathsIntoProductionSvg) {
+					productionVectorSvg = this.previewEngine.injectTextPathsIntoProductionSvg(
+						productionVectorSvg,
+						textPlatePaths,
+						this.mmH
+					);
+				}
+			}
+
+			const needsText = !!(this.selections.custom_text || '').trim();
+			if (!productionVectorSvg || !String(productionVectorSvg).trim()) {
+				throw new Error(
+					I18N.fabricExportMissing ||
+						'Fabric production SVG missing. Re-save after preview fully loads.'
+				);
+			}
+			if (needsText && (!textPlatePaths || !String(textPlatePaths).trim())) {
+				throw new Error(
+					I18N.vectorTextMissing ||
+						'Vector text paths are missing. Wait for the preview to finish loading.'
+				);
+			}
+			if (
+				needsText &&
+				(!textPlatePaths ||
+					textPlatePaths.indexOf('<path') === -1 ||
+					textPlatePaths.indexOf('d="') === -1)
+			) {
+				throw new Error(
+					I18N.vectorTextInvalid ||
+						'Vector text paths failed to build. Try another font or reload the page.'
+				);
+			}
+
+			return {
+				layout,
+				canonicalScene,
+				productionVectorSvg,
+				textPlatePaths,
+			};
+		}
+
 		appendExportCanvasMm(body) {
 			body.append('canvas_width_mm', String(this.mmW));
 			body.append('canvas_height_mm', String(this.mmH));
@@ -1653,55 +1783,18 @@
 			return lines;
 		}
 
-		async runServerExportValidate() {
-			const origin = CFG.origin || STD.coordinate_origin || 'bottom-left';
-			let layout = this.getLayoutData();
-			let canonicalScene = null;
-			if (this.previewEngine && this.previewEngine.buildCanonicalSceneJson) {
-				canonicalScene = await this.previewEngine.buildCanonicalSceneJson(
-					this.mmW,
-					this.mmH,
-					origin,
-					{
-						std: STD,
-						selections: this.selections,
-						preview_mode: this.previewMode,
-						product_id: this.productId,
-					}
-				);
-			}
-			const prodLayout = this.previewEngine.getProductionLayout
-				? this.previewEngine.getProductionLayout(this.mmW, this.mmH, origin, {
-						std: STD,
-						selections: this.selections,
-					})
-				: layout;
-			let productionVectorSvg = await this.previewEngine.buildFabricProductionSvg(
-				this.mmW,
-				this.mmH
-			);
-			const textPlatePaths = await this.previewEngine.buildTextPlatePathsForLbrn(
-				prodLayout,
-				this.mmW,
-				this.mmH
-			);
-			if (this.previewEngine.injectTextPathsIntoProductionSvg) {
-				productionVectorSvg = this.previewEngine.injectTextPathsIntoProductionSvg(
-					productionVectorSvg,
-					textPlatePaths,
-					this.mmH
-				);
-			}
+		async runServerExportValidate(preparedPayload = null) {
+			const prepared = preparedPayload || (await this.buildPreparedExportPayload());
 			const body = new FormData();
 			body.append('action', 'pckzce_export_validate');
 			body.append('nonce', pckzceConfig.nonce);
 			body.append('product_id', this.productId);
 			body.append('selections', JSON.stringify(this.selections));
-			body.append('production_vector_svg', productionVectorSvg || '');
-			this.appendExportTextPaths(body, textPlatePaths);
+			body.append('production_vector_svg', prepared.productionVectorSvg || '');
+			this.appendExportTextPaths(body, prepared.textPlatePaths);
 			this.appendExportCanvasMm(body);
-			if (canonicalScene) {
-				body.append('canonical_scene_json', JSON.stringify(canonicalScene));
+			if (prepared.canonicalScene) {
+				body.append('canonical_scene_json', JSON.stringify(prepared.canonicalScene));
 			}
 			const response = await fetch(pckzceConfig.ajaxUrl, { method: 'POST', body });
 			let res = null;
@@ -1712,9 +1805,7 @@
 			}
 			return {
 				res,
-				productionVectorSvg,
-				textPlatePaths,
-				canonicalScene,
+				preparedPayload: prepared,
 			};
 		}
 
@@ -1739,20 +1830,30 @@
 				this.updateCheckoutInteractable(waitingText);
 				return;
 			}
+			const seq = ++this._exportValidationSeq;
 			this.updateCheckoutInteractable(validating);
 			try {
 				await this.waitForAssetsReady();
 				const fontFamily = this.selections.font_family || 'Russo One';
 				await this.previewEngine.preloadExportFont(fontFamily);
-				const validated = await this.runServerExportValidate();
+				const fingerprint = this.getExportFingerprint();
+				const preparedPayload = await this.buildPreparedExportPayload();
+				const validated = await this.runServerExportValidate(preparedPayload);
+				if (seq !== this._exportValidationSeq) {
+					return;
+				}
 				const ok = !!(validated.res && validated.res.success);
 				this.exportReady = ok;
 				this.root.__pckzExportReady = ok;
 				this._lastExportDebug = validated.res?.data?.export_debug || null;
 				if (ok) {
+					this._preparedExportPayload = preparedPayload;
+					this._preparedExportFingerprint = fingerprint;
 					this.updateCheckoutInteractable(readyHint);
 					this.clearValidationErrors();
 				} else {
+					this._preparedExportPayload = null;
+					this._preparedExportFingerprint = '';
 					const lines = validated.res ? this.formatExportDebugLines(validated.res) : [];
 					const failHint = lines.length
 						? lines[0]
@@ -1763,6 +1864,11 @@
 					}
 				}
 			} catch (err) {
+				if (seq !== this._exportValidationSeq) {
+					return;
+				}
+				this._preparedExportPayload = null;
+				this._preparedExportFingerprint = '';
 				this.exportReady = false;
 				this.root.__pckzExportReady = false;
 				this._lastExportDebug = null;
@@ -1771,8 +1877,13 @@
 		}
 
 		async ensureExportPayloadReady() {
-			if (!this.exportReady) {
-				await this.refreshExportReadyState();
+			if (!this.exportReady || this._preparedExportFingerprint !== this.getExportFingerprint()) {
+				if (!this._exportValidationPromise) {
+					this._exportValidationPromise = this.refreshExportReadyState().finally(() => {
+						this._exportValidationPromise = null;
+					});
+				}
+				await this._exportValidationPromise;
 			}
 			if (!this.exportReady) {
 				throw new Error(
@@ -2020,103 +2131,21 @@
 		async saveDesign() {
 			await this.waitForAssetsReady();
 			await this.ensureExportPayloadReady();
-			const origin = CFG.origin || STD.coordinate_origin || 'bottom-left';
-			let layout = this.getLayoutData();
-			let canonicalScene = null;
-
-			if (this.previewEngine && this.previewEngine.buildCanonicalSceneJson) {
-				canonicalScene = await this.previewEngine.buildCanonicalSceneJson(
-					this.mmW,
-					this.mmH,
-					origin,
-					{
-						std: STD,
-						selections: this.selections,
-						preview_mode: this.previewMode,
-						product_id: this.productId,
-					}
-				);
-			} else if (PCKZCE_GLOBAL.PCKZCECanonicalScene) {
-				if (this.previewEngine && this.previewEngine.enrichLayoutWithSvgSources) {
-					layout = await this.previewEngine.enrichLayoutWithSvgSources(layout);
-				}
-				canonicalScene = PCKZCE_GLOBAL.PCKZCECanonicalScene.buildFromLayout(layout, {
-					selections: this.selections,
-					preview_mode: this.previewMode,
-					product_id: this.productId,
-				});
+			const fingerprint = this.getExportFingerprint();
+			let prepared = this._preparedExportPayload;
+			if (!prepared || this._preparedExportFingerprint !== fingerprint) {
+				prepared = await this.buildPreparedExportPayload();
 			}
-
+			let layout = prepared.layout ? { ...prepared.layout } : this.getLayoutData();
+			const canonicalScene = prepared.canonicalScene || null;
 			if (!canonicalScene || canonicalScene.status === 'FAIL') {
 				const msg =
 					(canonicalScene && canonicalScene.errors && canonicalScene.errors[0]?.message) ||
 					'Canonical scene validation failed.';
 				throw new Error(msg);
 			}
-
-			let productionVectorSvg = '';
-			let textPlatePaths = '';
-			if (this.previewEngine) {
-				const prodLayout = this.previewEngine.getProductionLayout
-					? this.previewEngine.getProductionLayout(this.mmW, this.mmH, origin, {
-							std: STD,
-							selections: this.selections,
-						})
-					: layout;
-				if (this.previewEngine.enrichLayoutWithSvgSources) {
-					await this.previewEngine.enrichLayoutWithSvgSources(prodLayout);
-				}
-				if (this.previewEngine.buildFabricProductionSvg) {
-					productionVectorSvg = await this.previewEngine.buildFabricProductionSvg(
-						this.mmW,
-						this.mmH
-					);
-				} else if (this.previewEngine.buildProductionVectorSvg) {
-					productionVectorSvg = await this.previewEngine.buildProductionVectorSvg(
-						this.mmW,
-						this.mmH
-					);
-				}
-				if (this.previewEngine.buildTextPlatePathsForLbrn) {
-					textPlatePaths = await this.previewEngine.buildTextPlatePathsForLbrn(
-						prodLayout,
-						this.mmW,
-						this.mmH
-					);
-				}
-				if (this.previewEngine.injectTextPathsIntoProductionSvg) {
-					productionVectorSvg = this.previewEngine.injectTextPathsIntoProductionSvg(
-						productionVectorSvg,
-						textPlatePaths,
-						this.mmH
-					);
-				}
-			}
-
-			const needsText = !!(this.selections.custom_text || '').trim();
-			if (!productionVectorSvg || !String(productionVectorSvg).trim()) {
-				throw new Error(
-					I18N.fabricExportMissing ||
-						'Fabric production SVG missing. Re-save after preview fully loads.'
-				);
-			}
-			if (needsText && (!textPlatePaths || !String(textPlatePaths).trim())) {
-				throw new Error(
-					I18N.vectorTextMissing ||
-						'Vector text paths are missing. Wait for the preview to finish loading.'
-				);
-			}
-			if (
-				needsText &&
-				(!textPlatePaths ||
-					textPlatePaths.indexOf('<path') === -1 ||
-					textPlatePaths.indexOf('d="') === -1)
-			) {
-				throw new Error(
-					I18N.vectorTextInvalid ||
-						'Vector text paths failed to build. Try another font or reload the page.'
-				);
-			}
+			const productionVectorSvg = prepared.productionVectorSvg || '';
+			const textPlatePaths = prepared.textPlatePaths || '';
 
 			layout.production_vector_svg = productionVectorSvg;
 			layout.text_plate_paths = textPlatePaths;

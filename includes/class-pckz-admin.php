@@ -21,6 +21,7 @@ class PCKZ_Admin {
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_post_pckz_update_order_status', array( $this, 'handle_update_order_status' ) );
 		add_action( 'admin_post_pckz_update_order_notes', array( $this, 'handle_update_order_notes' ) );
+		add_action( 'admin_post_pckz_update_order_shipment', array( $this, 'handle_update_order_shipment' ) );
 		add_action( 'admin_post_pckz_download_customer_artwork', array( $this, 'handle_download_customer_artwork' ) );
 	}
 
@@ -166,6 +167,142 @@ class PCKZ_Admin {
 		}
 		wp_safe_redirect( add_query_arg( 'pckz_status_updated', '1', $redirect ) );
 		exit;
+	}
+
+	/**
+	 * Save shipment tracking details from order admin detail view.
+	 */
+	public function handle_update_order_shipment() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'pckz-canonical-engine' ) );
+		}
+		check_admin_referer( 'pckz_update_order_shipment', 'pckz_order_shipment_nonce' );
+		$order_id = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
+		$redirect = isset( $_POST['redirect'] ) ? esc_url_raw( wp_unslash( $_POST['redirect'] ) ) : admin_url( 'admin.php?page=pckz-orders' );
+
+		if ( ! $order_id || ! class_exists( 'PCKZ_Commerce' ) || ! function_exists( 'wc_get_order' ) ) {
+			wp_safe_redirect( add_query_arg( 'pckz_shipment_updated', '0', $redirect ) );
+			exit;
+		}
+		$order = PCKZ_Commerce::get_order( $order_id );
+		if ( ! $order || empty( $order['wc_order_id'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pckz_shipment_updated', '0', $redirect ) );
+			exit;
+		}
+		$wc_order = wc_get_order( absint( $order['wc_order_id'] ) );
+		if ( ! $wc_order || ! is_object( $wc_order ) ) {
+			wp_safe_redirect( add_query_arg( 'pckz_shipment_updated', '0', $redirect ) );
+			exit;
+		}
+
+		$carrier = isset( $_POST['shipment_carrier'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_carrier'] ) ) : '';
+		$tracking_number = isset( $_POST['shipment_tracking_number'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_tracking_number'] ) ) : '';
+		$tracking_url = isset( $_POST['shipment_tracking_url'] ) ? esc_url_raw( wp_unslash( $_POST['shipment_tracking_url'] ) ) : '';
+		$shipment_status = isset( $_POST['shipment_status'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_status'] ) ) : '';
+		$current_location = isset( $_POST['shipment_location'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_location'] ) ) : '';
+		$estimated_delivery = isset( $_POST['shipment_estimated_delivery'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_estimated_delivery'] ) ) : '';
+		$shipping_date_input = isset( $_POST['shipment_shipping_date'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_shipping_date'] ) ) : '';
+		$shipping_date_ts = strtotime( $shipping_date_input );
+		if ( false === $shipping_date_ts ) {
+			$shipping_date_ts = 0;
+		}
+		$events = $this->parse_tracking_events_input( $_POST['shipment_events'] ?? '' );
+
+		$wc_order->update_meta_data( '_tracking_provider', $carrier );
+		$wc_order->update_meta_data( '_tracking_number', $tracking_number );
+		$wc_order->update_meta_data( '_tracking_url', $tracking_url );
+		$wc_order->update_meta_data( '_tracking_status', $shipment_status );
+		$wc_order->update_meta_data( '_tracking_location', $current_location );
+		$wc_order->update_meta_data( '_estimated_delivery', $estimated_delivery );
+		$wc_order->update_meta_data( '_pckz_tracking_events', wp_json_encode( $events ) );
+		if ( $shipping_date_ts > 0 ) {
+			$wc_order->update_meta_data( '_pckz_shipping_date', $shipping_date_ts );
+		} else {
+			$wc_order->update_meta_data( '_pckz_shipping_date', '' );
+		}
+
+		$shipment_items = $wc_order->get_meta( '_wc_shipment_tracking_items', true );
+		if ( ! is_array( $shipment_items ) ) {
+			$shipment_items = array();
+		}
+		if ( empty( $shipment_items[0] ) || ! is_array( $shipment_items[0] ) ) {
+			$shipment_items[0] = array();
+		}
+		$shipment_items[0]['tracking_provider'] = $carrier;
+		$shipment_items[0]['tracking_number']   = $tracking_number;
+		$shipment_items[0]['custom_tracking_link'] = $tracking_url;
+		$shipment_items[0]['tracking_status']   = $shipment_status;
+		$shipment_items[0]['tracking_location'] = $current_location;
+		$shipment_items[0]['estimated_delivery'] = $estimated_delivery;
+		$shipment_items[0]['events'] = $events;
+		if ( $shipping_date_ts > 0 ) {
+			$shipment_items[0]['date_shipped'] = $shipping_date_ts;
+		}
+		$wc_order->update_meta_data( '_wc_shipment_tracking_items', $shipment_items );
+		$wc_order->save();
+
+		wp_safe_redirect( add_query_arg( 'pckz_shipment_updated', '1', $redirect ) );
+		exit;
+	}
+
+	/**
+	 * Parse shipment tracking events from admin textarea.
+	 *
+	 * Supported formats:
+	 * - JSON array with objects (date/status/location/message)
+	 * - one event per line: date | status | location | message
+	 *
+	 * @param mixed $raw Raw input.
+	 * @return array<int,array{date:string,status:string,location:string,message:string}>
+	 */
+	private function parse_tracking_events_input( $raw ) {
+		$value = is_string( $raw ) ? trim( wp_unslash( $raw ) ) : '';
+		if ( '' === $value ) {
+			return array();
+		}
+		$decoded = json_decode( $value, true );
+		$rows    = array();
+		if ( is_array( $decoded ) ) {
+			$rows = $decoded;
+		} else {
+			$lines = preg_split( '/\r\n|\r|\n/', $value );
+			if ( is_array( $lines ) ) {
+				foreach ( $lines as $line ) {
+					$line = trim( (string) $line );
+					if ( '' === $line ) {
+						continue;
+					}
+					$parts = array_map( 'trim', explode( '|', $line, 4 ) );
+					$rows[] = array(
+						'date'     => $parts[0] ?? '',
+						'status'   => $parts[1] ?? '',
+						'location' => $parts[2] ?? '',
+						'message'  => $parts[3] ?? '',
+					);
+				}
+			}
+		}
+
+		$out = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$date = sanitize_text_field( (string) ( $row['date'] ?? '' ) );
+			$status = sanitize_text_field( (string) ( $row['status'] ?? '' ) );
+			$location = sanitize_text_field( (string) ( $row['location'] ?? '' ) );
+			$message = sanitize_text_field( (string) ( $row['message'] ?? '' ) );
+			if ( '' === $date && '' === $status && '' === $location && '' === $message ) {
+				continue;
+			}
+			$out[] = array(
+				'date'     => $date,
+				'status'   => $status,
+				'location' => $location,
+				'message'  => $message,
+			);
+		}
+		return array_values( $out );
 	}
 
 	/**

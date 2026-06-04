@@ -14,9 +14,9 @@ defined( 'ABSPATH' ) || exit;
 <div class="pckz-tracking" lang="de">
 	<div class="pckz-tracking__shell">
 		<header class="pckz-tracking__header">
-			<p class="pckz-tracking__eyebrow"><?php esc_html_e( 'PaxDesign Tracking', 'pckz-canonical-engine' ); ?></p>
-			<h2 class="pckz-tracking__title"><?php esc_html_e( 'Bestellung live verfolgen', 'pckz-canonical-engine' ); ?></h2>
-			<p class="pckz-tracking__lead"><?php esc_html_e( 'Geben Sie Ihre Tracking-ID ein und sehen Sie sofort Zahlungs-, Produktions- und Versandstatus in einer klaren Timeline.', 'pckz-canonical-engine' ); ?></p>
+			<p class="pckz-tracking__eyebrow"><?php esc_html_e( 'Tracking', 'pckz-canonical-engine' ); ?></p>
+			<h2 class="pckz-tracking__title"><?php esc_html_e( 'Bestellstatus', 'pckz-canonical-engine' ); ?></h2>
+			<p class="pckz-tracking__lead"><?php esc_html_e( 'Tracking-ID eingeben und den aktuellen Produktions- und Versandstatus auf einen Blick sehen.', 'pckz-canonical-engine' ); ?></p>
 		</header>
 
 		<form class="pckz-tracking__form" method="post" action="">
@@ -57,6 +57,10 @@ defined( 'ABSPATH' ) || exit;
 				}
 			}
 			$progress_percent = $timeline_count > 0 ? (int) floor( ( $current_step_index / $timeline_count ) * 100 ) : 0;
+			$product_title = '';
+			if ( ! empty( $order['product_id'] ) && function_exists( 'get_the_title' ) ) {
+				$product_title = (string) get_the_title( (int) $order['product_id'] );
+			}
 
 			$normalized_status = PCKZ_Commerce::normalize_status_code( $current_status );
 			$timeline_state_labels = array(
@@ -89,6 +93,9 @@ defined( 'ABSPATH' ) || exit;
 				$shipping_stage_label = __( 'Zugestellt', 'pckz-canonical-engine' );
 			} elseif ( 'cancelled' === $normalized_status ) {
 				$shipping_stage_label = __( 'Storniert', 'pckz-canonical-engine' );
+			}
+			if ( ! empty( $shipping['shipment_status'] ) ) {
+				$shipping_stage_label = (string) $shipping['shipment_status'];
 			}
 			?>
 			<section class="pckz-tracking__result">
@@ -129,6 +136,10 @@ defined( 'ABSPATH' ) || exit;
 
 				<div class="pckz-tracking__facts">
 					<article class="pckz-tracking__fact">
+						<p class="pckz-tracking__fact-label"><?php esc_html_e( 'Artikel', 'pckz-canonical-engine' ); ?></p>
+						<p class="pckz-tracking__fact-value"><?php echo esc_html( $product_title ?: '—' ); ?></p>
+					</article>
+					<article class="pckz-tracking__fact">
 						<p class="pckz-tracking__fact-label"><?php esc_html_e( 'Bestelldatum', 'pckz-canonical-engine' ); ?></p>
 						<p class="pckz-tracking__fact-value"><?php echo esc_html( $order['created_at'] ?? '' ); ?></p>
 					</article>
@@ -145,6 +156,10 @@ defined( 'ABSPATH' ) || exit;
 						<p class="pckz-tracking__fact-value"><?php echo esc_html( $shipping['current_location'] ?: '—' ); ?></p>
 					</article>
 					<article class="pckz-tracking__fact">
+						<p class="pckz-tracking__fact-label"><?php esc_html_e( 'Versandstatus', 'pckz-canonical-engine' ); ?></p>
+						<p class="pckz-tracking__fact-value"><?php echo esc_html( $shipping_stage_label ?: '—' ); ?></p>
+					</article>
+					<article class="pckz-tracking__fact">
 						<p class="pckz-tracking__fact-label"><?php esc_html_e( 'Voraussichtliche Lieferung', 'pckz-canonical-engine' ); ?></p>
 						<p class="pckz-tracking__fact-value"><?php echo esc_html( $shipping['estimated_delivery'] ?: '—' ); ?></p>
 					</article>
@@ -156,7 +171,7 @@ defined( 'ABSPATH' ) || exit;
 
 				<?php if ( ! empty( $timeline ) ) : ?>
 					<section class="pckz-tracking__timeline-wrap" aria-label="<?php esc_attr_e( 'Vollständige Timeline', 'pckz-canonical-engine' ); ?>">
-						<h3 class="pckz-tracking__section-title"><?php esc_html_e( 'Timeline', 'pckz-canonical-engine' ); ?></h3>
+						<h3 class="pckz-tracking__section-title"><?php esc_html_e( 'Produktion & Bestellung', 'pckz-canonical-engine' ); ?></h3>
 						<ol class="pckz-tracking__timeline">
 							<?php foreach ( $timeline as $step ) : ?>
 								<li class="pckz-tracking__timeline-item is-<?php echo esc_attr( $step['state'] ); ?>">
@@ -177,10 +192,36 @@ defined( 'ABSPATH' ) || exit;
 					</section>
 				<?php endif; ?>
 
+				<?php if ( ! empty( $shipping['events'] ) && is_array( $shipping['events'] ) ) : ?>
+					<section class="pckz-tracking__timeline-wrap" aria-label="<?php esc_attr_e( 'Versandverlauf', 'pckz-canonical-engine' ); ?>">
+						<h3 class="pckz-tracking__section-title"><?php esc_html_e( 'Versandverlauf', 'pckz-canonical-engine' ); ?></h3>
+						<ol class="pckz-tracking__shipment-events">
+							<?php foreach ( $shipping['events'] as $event ) : ?>
+								<li class="pckz-tracking__shipment-event">
+									<p class="pckz-tracking__shipment-main">
+										<?php echo esc_html( (string) ( $event['status'] ?? '' ) ?: __( 'Update', 'pckz-canonical-engine' ) ); ?>
+									</p>
+									<p class="pckz-tracking__shipment-meta">
+										<?php
+										echo esc_html(
+											trim(
+												(string) ( $event['date'] ?? '' )
+												. ( ! empty( $event['location'] ) ? ' · ' . (string) $event['location'] : '' )
+												. ( ! empty( $event['message'] ) ? ' · ' . (string) $event['message'] : '' )
+											)
+										);
+										?>
+									</p>
+								</li>
+							<?php endforeach; ?>
+						</ol>
+					</section>
+				<?php endif; ?>
+
 				<?php if ( ! empty( $shipping['tracking_url'] ) ) : ?>
 					<p class="pckz-tracking__shipping-action">
 						<a href="<?php echo esc_url( $shipping['tracking_url'] ); ?>" target="_blank" rel="noopener noreferrer" class="pckz-tracking__submit pckz-tracking__submit--ghost">
-							<?php esc_html_e( 'Sendung beim Versanddienstleister öffnen', 'pckz-canonical-engine' ); ?>
+							<?php esc_html_e( 'Sendung beim Versanddienstleister verfolgen', 'pckz-canonical-engine' ); ?>
 						</a>
 					</p>
 				<?php endif; ?>
