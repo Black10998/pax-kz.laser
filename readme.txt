@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.4
+Stable tag: 2.28.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,15 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.5 =
+
+* Checkout responsiveness: export validation/preparation now runs progressively in the background and is no longer re-triggered by customer address/email input changes, reducing PayPal click latency.
+* Checkout optimization: prepared export payloads are reused during save/checkout so the payment click path avoids rebuilding heavy preview/export artifacts whenever possible.
+* Shipment tracking integration: added dedicated shipment tracking fields in the Orders admin detail (carrier, tracking number, tracking URL, shipment status, location, ETA, shipping date, and shipment event history).
+* Customer tracking enhancements: tracking page now surfaces shipment status and shipment event history from WooCommerce tracking meta (including custom JSON event feeds).
+* Tracking page refinement: simplified to a cleaner, minimal, Cloudflare-like layout with stronger readability and less visual weight while preserving responsive behavior.
+* Added shipment tracking smoke coverage (`tests/customer-shipment-tracking-smoke.php`).
 
 = 2.28.4 =
 

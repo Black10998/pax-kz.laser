@@ -1,22 +1,30 @@
 ## Production installation packages
 
-Canonical package for v2.28.4:
+Canonical package for v2.28.5:
 
-- `pckz-canonical-engine-2.28.4-protected.zip`
+- `pckz-canonical-engine-2.28.5-protected.zip`
 
 SHA256:
 
-- `187476dd2bc0d7447024f4bbbc3ac9c15596ef23c1d9a5c3076a124a29b521a6`
+- `bcd27a151db9a5c46aeffc442a5b635e56b5a4f102ade5ce0611bc2e43b79eef`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.5/pckz-canonical-engine-2.28.5-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.5-protected.zip`
+
+What changed in v2.28.5: further checkout latency reduction by keeping export prep warm while customers fill checkout details (and reusing prepared payloads on payment click), dedicated shipment tracking admin input workflow (tracking number/status/location/ETA/events), and a cleaner minimal customer tracking UI with shipment event history.
+
+Previous release (v2.28.4):
+
+- `pckz-canonical-engine-2.28.4-protected.zip`
 
 Direct download (GitHub Release, recommended):
 
 - `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.4/pckz-canonical-engine-2.28.4-protected.zip`
-
-Raw URL on `main` (may take a few minutes after push to propagate):
-
-- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.4-protected.zip`
-
-What changed in v2.28.4: improved checkout speed UX for PayPal (no blocking wait toast on click, background export validation preserved), added reliable post-payment redirect to the tracking page for PayPal + Stripe returns, redesigned the tracking page into a premium responsive status dashboard, and enriched shipping details with optional location/ETA metadata.
 
 Previous release (v2.28.3):
 
