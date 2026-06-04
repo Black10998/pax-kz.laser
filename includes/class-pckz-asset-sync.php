@@ -182,6 +182,10 @@ class PCKZ_Asset_Sync {
 		if ( ! PCKZ_Licensing::is_master_mode() ) {
 			return rest_ensure_response( array( 'ok' => false, 'reason' => 'master_mode_disabled' ) );
 		}
+		$rate_limit = PCKZ_Licensing::enforce_endpoint_rate_limit_public( $request, 'asset_manifest', 240, 300 );
+		if ( is_wp_error( $rate_limit ) ) {
+			return new WP_REST_Response( array( 'ok' => false, 'reason' => $rate_limit->get_error_message() ), 429 );
+		}
 		$licensing = new PCKZ_Licensing();
 		$body_raw  = (string) $request->get_body();
 		$payload   = json_decode( $body_raw, true );
@@ -196,6 +200,14 @@ class PCKZ_Asset_Sync {
 			return rest_ensure_response( array( 'ok' => false, 'reason' => 'asset_sync_not_allowed' ) );
 		}
 		$manifest = self::build_manifest( false );
+		$assets   = array();
+		foreach ( (array) ( $manifest['assets'] ?? array() ) as $asset_row ) {
+			if ( ! is_array( $asset_row ) ) {
+				continue;
+			}
+			$asset_row['download_token'] = self::build_asset_download_token( $asset_row, $validated );
+			$assets[] = $asset_row;
+		}
 		$client_rev = sanitize_text_field( (string) ( $payload['asset_revision'] ?? '' ) );
 		if ( $client_rev && $client_rev === (string) ( $manifest['revision'] ?? '' ) ) {
 			return rest_ensure_response(
@@ -212,7 +224,7 @@ class PCKZ_Asset_Sync {
 				'ok'       => true,
 				'current'  => false,
 				'revision' => (string) ( $manifest['revision'] ?? '' ),
-				'assets'   => $manifest['assets'] ?? array(),
+				'assets'   => $assets,
 			)
 		);
 	}
@@ -227,11 +239,47 @@ class PCKZ_Asset_Sync {
 			status_header( 403 );
 			exit;
 		}
+		$rate_limit = PCKZ_Licensing::enforce_endpoint_rate_limit_public( $request, 'asset_file', 500, 300 );
+		if ( is_wp_error( $rate_limit ) ) {
+			status_header( 429 );
+			exit;
+		}
 		$token = sanitize_text_field( (string) $request->get_param( 'token' ) );
 		$decoded = PCKZ_Licensing::verify_signed_token_public( $token );
 		if ( is_wp_error( $decoded ) || 'asset_file' !== (string) ( $decoded['typ'] ?? '' ) ) {
 			status_header( 403 );
 			exit;
+		}
+		if ( ! empty( $decoded['license_id'] ) && ! empty( $decoded['domain'] ) && ! empty( $decoded['install_uuid'] ) ) {
+			global $wpdb;
+			$license_id   = absint( $decoded['license_id'] );
+			$domain       = sanitize_text_field( (string) ( $decoded['domain'] ?? '' ) );
+			$install_uuid = sanitize_text_field( (string) ( $decoded['install_uuid'] ?? '' ) );
+			$license = $wpdb->get_row(
+				$wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pckz_license_keys WHERE id = %d LIMIT 1", $license_id ),
+				ARRAY_A
+			);
+			if ( ! is_array( $license ) || 'active' !== (string) ( $license['status'] ?? '' ) ) {
+				status_header( 403 );
+				exit;
+			}
+			$install = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}pckz_license_installations WHERE license_id = %d AND install_uuid = %s AND domain = %s LIMIT 1",
+					$license_id,
+					$install_uuid,
+					$domain
+				),
+				ARRAY_A
+			);
+			$permissions = json_decode( (string) ( $license['permissions'] ?? '' ), true );
+			if ( ! is_array( $permissions ) ) {
+				$permissions = array();
+			}
+			if ( ! is_array( $install ) || 'active' !== (string) ( $install['status'] ?? '' ) || ( empty( $permissions['asset_sync'] ) && empty( $permissions['updates'] ) ) ) {
+				status_header( 403 );
+				exit;
+			}
 		}
 		$type = sanitize_key( (string) ( $decoded['asset_type'] ?? '' ) );
 		$slug = sanitize_key( (string) ( $decoded['asset_slug'] ?? '' ) );
@@ -286,14 +334,17 @@ class PCKZ_Asset_Sync {
 	 * @param array $asset Asset row from manifest.
 	 * @return string
 	 */
-	public static function build_asset_download_token( $asset ) {
+	public static function build_asset_download_token( $asset, $validated = array() ) {
 		return PCKZ_Licensing::build_signed_token_public(
 			array(
 				'typ'        => 'asset_file',
 				'asset_type' => (string) ( $asset['type'] ?? '' ),
 				'asset_slug' => (string) ( $asset['slug'] ?? '' ),
 				'asset_file' => (string) ( $asset['file'] ?? '' ),
-				'exp'        => time() + ( 15 * MINUTE_IN_SECONDS ),
+				'license_id'  => absint( $validated['license']['id'] ?? 0 ),
+				'domain'      => sanitize_text_field( (string) ( $validated['domain'] ?? '' ) ),
+				'install_uuid'=> sanitize_text_field( (string) ( $validated['install_uuid'] ?? '' ) ),
+				'exp'        => time() + ( 15 * ( defined( 'MINUTE_IN_SECONDS' ) ? MINUTE_IN_SECONDS : 60 ) ),
 			)
 		);
 	}
@@ -406,7 +457,10 @@ class PCKZ_Asset_Sync {
 				return true;
 			}
 		}
-		$token = self::build_asset_download_token( $asset );
+		$token = sanitize_text_field( (string) ( $asset['download_token'] ?? '' ) );
+		if ( '' === $token ) {
+			$token = self::build_asset_download_token( $asset );
+		}
 		$url   = add_query_arg( 'token', rawurlencode( $token ), $master . 'wp-json/pckzce-license/v1/client/asset-file' );
 		$resp  = wp_remote_get( $url, array( 'timeout' => 45 ) );
 		if ( is_wp_error( $resp ) ) {

@@ -28,6 +28,42 @@ class PCKZ_Assets {
 	}
 
 	/**
+	 * Resolve script path (prefers *.min.js when enabled and available).
+	 *
+	 * @param string $relative_path Script path relative to plugin root.
+	 * @return string
+	 */
+	public static function script_relative_path( $relative_path ) {
+		$relative_path = ltrim( (string) $relative_path, '/' );
+		if ( '' === $relative_path || ! preg_match( '/\.js$/i', $relative_path ) ) {
+			return $relative_path;
+		}
+		if ( preg_match( '/\.min\.js$/i', $relative_path ) ) {
+			return $relative_path;
+		}
+		$settings = PCKZ_Settings::get_all();
+		if ( empty( $settings['security_prefer_minified_js'] ) ) {
+			return $relative_path;
+		}
+		$min_relative = preg_replace( '/\.js$/i', '.min.js', $relative_path );
+		if ( ! is_string( $min_relative ) || '' === $min_relative ) {
+			return $relative_path;
+		}
+		$min_path = PCKZCE_PLUGIN_DIR . $min_relative;
+		return is_readable( $min_path ) ? $min_relative : $relative_path;
+	}
+
+	/**
+	 * Resolve script URL with optional minified fallback.
+	 *
+	 * @param string $relative_path Script path relative to plugin root.
+	 * @return string
+	 */
+	public static function script_url( $relative_path ) {
+		return PCKZCE_PLUGIN_URL . self::script_relative_path( $relative_path );
+	}
+
+	/**
 	 * Enqueue frontend creator assets.
 	 *
 	 * @param int   $product_id Product ID.
@@ -74,9 +110,9 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-bootstrap',
-			PCKZCE_PLUGIN_URL . 'public/js/bootstrap.js',
+			self::script_url( 'public/js/bootstrap.js' ),
 			array(),
-			self::version( 'public/js/bootstrap.js' ),
+			self::version( self::script_relative_path( 'public/js/bootstrap.js' ) ),
 			true
 		);
 
@@ -88,7 +124,7 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-fabric',
-			PCKZCE_PLUGIN_URL . 'public/js/vendor/fabric.min.js',
+			self::script_url( 'public/js/vendor/fabric.min.js' ),
 			array(),
 			self::version( 'public/js/vendor/fabric.min.js' ),
 			true
@@ -96,17 +132,17 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-fabric-patch',
-			PCKZCE_PLUGIN_URL . 'public/js/fabric-patch.js',
+			self::script_url( 'public/js/fabric-patch.js' ),
 			array( 'pckzce-fabric' ),
-			self::version( 'public/js/fabric-patch.js' ),
+			self::version( self::script_relative_path( 'public/js/fabric-patch.js' ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-canvas-safe',
-			PCKZCE_PLUGIN_URL . 'public/js/canvas-safe.js',
+			self::script_url( 'public/js/canvas-safe.js' ),
 			array( 'pckzce-fabric' ),
-			self::version( 'public/js/canvas-safe.js' ),
+			self::version( self::script_relative_path( 'public/js/canvas-safe.js' ) ),
 			true
 		);
 
@@ -120,25 +156,25 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-clipper-lib',
-			PCKZCE_PLUGIN_URL . 'public/js/clipper-lib.js',
+			self::script_url( 'public/js/clipper-lib.js' ),
 			array(),
-			'6.4.2',
+			self::version( self::script_relative_path( 'public/js/clipper-lib.js' ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-svg-knockout',
-			PCKZCE_PLUGIN_URL . 'public/js/pckz-svg-knockout.js',
+			self::script_url( 'public/js/pckz-svg-knockout.js' ),
 			array( 'pckzce-clipper-lib' ),
-			self::version( 'public/js/pckz-svg-knockout.js' ),
+			self::version( self::script_relative_path( 'public/js/pckz-svg-knockout.js' ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-preview-engine',
-			PCKZCE_PLUGIN_URL . 'public/js/preview-engine.js',
+			self::script_url( 'public/js/preview-engine.js' ),
 			array( 'pckzce-fabric', 'pckzce-fabric-patch', 'pckzce-canvas-safe', 'pckzce-opentype', 'pckzce-clipper-lib', 'pckzce-svg-knockout' ),
-			self::version( 'public/js/preview-engine.js' ),
+			self::version( self::script_relative_path( 'public/js/preview-engine.js' ) ),
 			true
 		);
 
@@ -146,9 +182,9 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-visual-picker',
-			PCKZCE_PLUGIN_URL . 'public/js/visual-picker.js',
+			self::script_url( 'public/js/visual-picker.js' ),
 			array(),
-			self::version( 'public/js/visual-picker.js' ),
+			self::version( self::script_relative_path( 'public/js/visual-picker.js' ) ),
 			true
 		);
 
@@ -156,17 +192,17 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-fabric-production-pipeline',
-			PCKZCE_PLUGIN_URL . 'public/js/fabric-production-pipeline.js',
+			self::script_url( 'public/js/fabric-production-pipeline.js' ),
 			array( 'pckzce-preview-engine' ),
-			self::version( 'public/js/fabric-production-pipeline.js' ),
+			self::version( self::script_relative_path( 'public/js/fabric-production-pipeline.js' ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-canonical-scene',
-			PCKZCE_PLUGIN_URL . 'public/js/canonical-scene.js',
+			self::script_url( 'public/js/canonical-scene.js' ),
 			array( 'pckzce-fabric-production-pipeline' ),
-			self::version( 'public/js/canonical-scene.js' ),
+			self::version( self::script_relative_path( 'public/js/canonical-scene.js' ) ),
 			true
 		);
 
@@ -176,25 +212,25 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-preview-magnifier',
-			PCKZCE_PLUGIN_URL . 'public/js/preview-magnifier.js',
+			self::script_url( 'public/js/preview-magnifier.js' ),
 			array(),
-			self::version( 'public/js/preview-magnifier.js' ),
+			self::version( self::script_relative_path( 'public/js/preview-magnifier.js' ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-creator-protect',
-			PCKZCE_PLUGIN_URL . 'public/js/pckz-creator-protect.js',
+			self::script_url( 'public/js/pckz-creator-protect.js' ),
 			array(),
-			self::version( 'public/js/pckz-creator-protect.js' ),
+			self::version( self::script_relative_path( 'public/js/pckz-creator-protect.js' ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-creator',
-			PCKZCE_PLUGIN_URL . 'public/js/creator.js',
+			self::script_url( 'public/js/creator.js' ),
 			$script_deps,
-			self::version( 'public/js/creator.js' ),
+			self::version( self::script_relative_path( 'public/js/creator.js' ) ),
 			true
 		);
 		$commerce_config = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::config_for_js( $product_id ) : array();
