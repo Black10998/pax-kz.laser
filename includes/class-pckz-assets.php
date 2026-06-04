@@ -46,6 +46,56 @@ class PCKZ_Assets {
 	}
 
 	/**
+	 * Minimal creator config required by frontend runtime.
+	 *
+	 * @param array $config Product config.
+	 * @return array
+	 */
+	public static function public_creator_config( $config ) {
+		$config = is_array( $config ) ? $config : array();
+		return array(
+			'canvas_width_mm'  => (float) ( $config['canvas_width_mm'] ?? 529.1 ),
+			'canvas_height_mm' => (float) ( $config['canvas_height_mm'] ?? 116 ),
+			'strip_zone_x_mm'  => (float) ( $config['strip_zone_x_mm'] ?? 18 ),
+			'strip_zone_y_mm'  => (float) ( $config['strip_zone_y_mm'] ?? 98 ),
+			'strip_zone_w_mm'  => (float) ( $config['strip_zone_w_mm'] ?? 489 ),
+			'strip_zone_h_mm'  => (float) ( $config['strip_zone_h_mm'] ?? 36 ),
+			'safe_zone_x_mm'   => (float) ( $config['safe_zone_x_mm'] ?? 5.55 ),
+			'safe_zone_y_mm'   => (float) ( $config['safe_zone_y_mm'] ?? 13.2 ),
+			'safe_zone_w_mm'   => (float) ( $config['safe_zone_w_mm'] ?? 518 ),
+			'safe_zone_h_mm'   => (float) ( $config['safe_zone_h_mm'] ?? 89.6 ),
+			'background_image' => esc_url_raw( (string) ( $config['background_image'] ?? '' ) ),
+			'background_day'   => esc_url_raw( (string) ( $config['background_day'] ?? '' ) ),
+			'background_night' => esc_url_raw( (string) ( $config['background_night'] ?? '' ) ),
+			'default_text'     => sanitize_text_field( (string) ( $config['default_text'] ?? '' ) ),
+			'origin'           => in_array( (string) ( $config['origin'] ?? '' ), array( 'top-left', 'bottom-left' ), true ) ? (string) $config['origin'] : 'bottom-left',
+			'dpi'              => (int) ( $config['dpi'] ?? 300 ),
+			'use_cloudlift_layout' => ! empty( $config['use_cloudlift_layout'] ),
+			'woo_product_id'   => max( 0, (int) ( $config['woo_product_id'] ?? 0 ) ),
+		);
+	}
+
+	/**
+	 * Minimal commerce payload required by creator JS.
+	 *
+	 * @param array $commerce_config Full commerce config.
+	 * @return array
+	 */
+	public static function public_commerce_config( $commerce_config ) {
+		$commerce_config = is_array( $commerce_config ) ? $commerce_config : array();
+		return array(
+			'pricing'            => $commerce_config['pricing'] ?? array(),
+			'currencies'         => $commerce_config['currencies'] ?? array(),
+			'defaultCurrency'    => $commerce_config['defaultCurrency'] ?? 'EUR',
+			'paypalEnabled'      => ! empty( $commerce_config['paypalEnabled'] ),
+			'checkoutPaypalOnly' => ! empty( $commerce_config['checkoutPaypalOnly'] ),
+			'paymentProvider'    => sanitize_key( (string) ( $commerce_config['paymentProvider'] ?? 'paypal' ) ),
+			'paymentButtonLabel' => sanitize_text_field( (string) ( $commerce_config['paymentButtonLabel'] ?? '' ) ),
+			'requireEmail'       => array_key_exists( 'requireEmail', $commerce_config ) ? (bool) $commerce_config['requireEmail'] : true,
+		);
+	}
+
+	/**
 	 * Version string for enqueued assets (plugin version + file mtime).
 	 *
 	 * @param string $relative_path Path relative to plugin root.
@@ -416,34 +466,8 @@ class PCKZ_Assets {
 				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
 				'nonce'        => wp_create_nonce( 'pckzce_creator' ),
 				'productId'    => $product_id,
-				'productTitle' => get_the_title( $product_id ),
-				'config'       => $config,
-				'fontFiles'      => class_exists( 'PCKZ_Font_Library' )
-					? PCKZ_Font_Library::font_files_for_js()
-					: array(),
-				'fontFilesById'  => class_exists( 'PCKZ_Font_Library' )
-					? PCKZ_Font_Library::font_files_by_id_for_js()
-					: array(),
-				'pluginVersion'  => PCKZCE_VERSION,
-				'fontExportRev'  => 6,
-				'assets'       => array(
-					'day'    => esc_url_raw( $config['background_day'] ?: $config['background_image'] ),
-					'night'  => esc_url_raw( $config['background_night'] ?: $config['background_day'] ),
-					'plugin' => PCKZCE_PLUGIN_URL,
-				),
-				'icons'        => PCKZ_Icons::registry_for_js(),
-				'ledosPreview' => class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::config_for_js() : null,
-				'stdSpec'      => class_exists( 'PCKZ_Std_Spec' ) ? PCKZ_Std_Spec::for_product( $config ) : array(),
-				'settings'     => array(
-					'fonts'        => class_exists( 'PCKZ_Font_Library' )
-						? PCKZ_Font_Library::get_customer_fonts()
-						: ( $settings['fonts'] ?? array() ),
-					'fontCategories' => class_exists( 'PCKZ_Font_Library' )
-						? PCKZ_Font_Library::categories()
-						: array(),
-					'grayPalette'  => PCKZ_Settings::get_gray_palette(),
-					'defaultDpi'   => (int) $settings['default_dpi'],
-				),
+				'config'       => self::public_creator_config( $config ),
+				'runtimeAction' => 'pckzce_runtime_config',
 				'i18n'         => array(
 					'addToCart'             => 'Vielen Dank – Sie können die Zahlung im Warenkorb abschließen.',
 					'addingToCart'          => 'Bestellung wird vorbereitet…',
@@ -495,12 +519,9 @@ class PCKZ_Assets {
 					'requireCountry'        => 'Bitte wählen Sie Ihr Land.',
 					'totalLabel'            => 'Gesamtbetrag',
 				),
-				'commerce'     => $commerce_config,
+				'commerce'     => self::public_commerce_config( $commerce_config ),
 				'wooActive'    => class_exists( 'WooCommerce' ) && ! empty( $settings['enable_woocommerce'] ),
 				'wooProductId' => (int) ( $config['woo_product_id'] ?? 0 ),
-				'pluginSlug'  => 'pckz-canonical-engine',
-				'build'       => defined( 'PCKZCE_BUILD' ) ? PCKZCE_BUILD : PCKZCE_VERSION,
-				'version'      => self::version( self::script_relative_path( 'public/js/creator.js', $settings ) ),
 			)
 		);
 	}

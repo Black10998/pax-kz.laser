@@ -15,24 +15,11 @@
 	}
 
 	const CFG = pckzceConfig.config || {};
-	const SET = pckzceConfig.settings || {};
 	const I18N = pckzceConfig.i18n || {};
 	const COMMERCE = pckzceConfig.commerce || {};
-	const ASSETS = pckzceConfig.assets || {};
-	const ICONS = pckzceConfig.icons || {};
-	const STD = pckzceConfig.stdSpec || {};
-	const LEDOS = pckzceConfig.ledosPreview || null;
-	const USE_CLOUDLIFT = !!(
-		CFG.use_cloudlift_layout &&
-		LEDOS &&
-		PCKZCE_GLOBAL.PCKZCEPreviewEngine
-	);
+	const RUNTIME_ACTION = pckzceConfig.runtimeAction || 'pckzce_runtime_config';
 
 	const BASE_W = 1050;
-	const designAspect = USE_CLOUDLIFT
-		? (LEDOS.designHeight || 2132) / (LEDOS.designWidth || 3651)
-		: (parseFloat(CFG.canvas_height_mm) || 116) / (parseFloat(CFG.canvas_width_mm) || 529.1);
-	const BASE_H = Math.round(BASE_W * designAspect);
 
 	class ProductConfigurator {
 		constructor(root) {
@@ -57,6 +44,8 @@
 				w: parseFloat(CFG.strip_zone_w_mm) || 489,
 				h: parseFloat(CFG.strip_zone_h_mm) || 36,
 			};
+			this.baseAspect =
+				(parseFloat(CFG.canvas_height_mm) || 116) / (parseFloat(CFG.canvas_width_mm) || 529.1);
 			this.pxPerMm = BASE_W / this.mmW;
 			this.textObj = null;
 			this.leftIconObj = null;
@@ -64,7 +53,11 @@
 			this.linesGroup = null;
 			this.logoObj = null;
 			this.stripClip = null;
-			this.useCloudlift = USE_CLOUDLIFT;
+			this.useCloudlift = false;
+			this.stdSpec = {};
+			this.ledosPreview = null;
+			this.iconRegistry = {};
+			this.defaultFontFamily = 'Ubuntu';
 			this.previewEngine = null;
 			this.layoutCache = null;
 			this.thumbsSplide = null;
@@ -92,21 +85,64 @@
 				this.markCreatorReady();
 				return;
 			}
-			this.fallbackImg = this.root.querySelector('[data-preview-fallback]');
-			this.bindOptions();
-			this.initVisualPickers();
-			this.bindThumbs();
-			this.bindActions();
-			this.bindCustomerArtworkUpload();
-			this.bindGlobalUiClosers();
-			this.initMobileViewportStability();
-			this.initCanvas();
-			this.updateCheckoutInteractable(
-				I18N.exportWaitingPreview || 'Die Vorschau wird vorbereitet. Sie koennen die Bestellung gleich abschliessen.'
+			this.loadRuntimeConfig()
+				.catch(() => null)
+				.finally(() => {
+					this.fallbackImg = this.root.querySelector('[data-preview-fallback]');
+					this.bindOptions();
+					this.initVisualPickers();
+					this.bindThumbs();
+					this.bindActions();
+					this.bindCustomerArtworkUpload();
+					this.bindGlobalUiClosers();
+					this.initMobileViewportStability();
+					this.initCanvas();
+					this.updateCheckoutInteractable(
+						I18N.exportWaitingPreview ||
+							'Die Vorschau wird vorbereitet. Sie koennen die Bestellung gleich abschliessen.'
+					);
+					this.showPaymentSuccessIfReturned();
+					window.addEventListener('resize', () => this.handleWindowResize());
+					setTimeout(() => this.markCreatorReady(), 12000);
+				});
+		}
+
+		async loadRuntimeConfig() {
+			const body = new FormData();
+			body.append('action', RUNTIME_ACTION);
+			body.append('nonce', pckzceConfig.nonce);
+			body.append('product_id', String(this.productId || pckzceConfig.productId || 0));
+
+			const response = await fetch(pckzceConfig.ajaxUrl, { method: 'POST', body });
+			let payload = null;
+			try {
+				payload = await response.json();
+			} catch (err) {
+				payload = null;
+			}
+			if (!response.ok || !payload || !payload.success || !payload.data) {
+				return;
+			}
+
+			const data = payload.data || {};
+			this.iconRegistry = data.icons || {};
+			this.stdSpec = data.stdSpec || {};
+			this.ledosPreview = data.ledosPreview || null;
+			this.defaultFontFamily = data.defaultFontFamily || 'Ubuntu';
+			this.useCloudlift = !!(
+				CFG.use_cloudlift_layout &&
+				this.ledosPreview &&
+				PCKZCE_GLOBAL.PCKZCEPreviewEngine
 			);
-			this.showPaymentSuccessIfReturned();
-			window.addEventListener('resize', () => this.handleWindowResize());
-			setTimeout(() => this.markCreatorReady(), 12000);
+			if (this.useCloudlift) {
+				const dw = this.ledosPreview.designWidth || 3651;
+				const dh = this.ledosPreview.designHeight || 2132;
+				this.baseAspect = dh / dw;
+			}
+
+			pckzceConfig.fontFiles = data.fontFiles || {};
+			pckzceConfig.fontFilesById = data.fontFilesById || {};
+			pckzceConfig.fontFamilyToId = data.fontFamilyToId || {};
 		}
 
 		showPaymentSuccessIfReturned() {
@@ -207,8 +243,9 @@
 		}
 
 		getStageSize() {
+			const baseH = Math.round(BASE_W * this.baseAspect);
 			if (!this.stage) {
-				return { width: BASE_W, height: BASE_H };
+				return { width: BASE_W, height: baseH };
 			}
 			const rect = this.stage.getBoundingClientRect();
 			const width = Math.max(
@@ -220,7 +257,7 @@
 				Math.round(rect.height || this.stage.clientHeight || this.stage.offsetHeight || 0)
 			);
 			if (height <= 1) {
-				height = Math.max(160, Math.round(width * (BASE_H / BASE_W)));
+				height = Math.max(160, Math.round(width * (baseH / BASE_W)));
 			}
 			return { width, height };
 		}
@@ -337,9 +374,9 @@
 
 				this.loadBackground('day', () => {
 				if (this.useCloudlift && PCKZCE_GLOBAL.PCKZCEPreviewEngine) {
-					this.previewEngine = new PCKZCE_GLOBAL.PCKZCEPreviewEngine(this.canvas, LEDOS);
-						if (this.previewEngine.setPlateCalibration && STD.plate_calibration) {
-							this.previewEngine.setPlateCalibration(STD.plate_calibration);
+					this.previewEngine = new PCKZCE_GLOBAL.PCKZCEPreviewEngine(this.canvas, this.ledosPreview);
+						if (this.previewEngine.setPlateCalibration && this.stdSpec.plate_calibration) {
+							this.previewEngine.setPlateCalibration(this.stdSpec.plate_calibration);
 						}
 						this.previewEngine.setBackgroundBounds(this.bgImage);
 					} else {
@@ -385,9 +422,9 @@
 
 		getBgUrl(mode) {
 			if (mode === 'night') {
-				return ASSETS.night || CFG.background_night || CFG.background_day || CFG.background_image;
+				return CFG.background_night || CFG.background_day || CFG.background_image;
 			}
-			return ASSETS.day || CFG.background_day || CFG.background_image;
+			return CFG.background_day || CFG.background_image;
 		}
 
 		loadBackground(mode, callback) {
@@ -494,7 +531,7 @@
 				top: s.cy,
 				originX: 'center',
 				originY: 'center',
-				fontFamily: (SET.fonts && SET.fonts[0] && SET.fonts[0].family) || 'Ubuntu',
+				fontFamily: this.defaultFontFamily || 'Ubuntu',
 				fontSize: Math.round(s.height * 0.55),
 				fill: this.selections.text_color || '#ffffff',
 				fontWeight: '700',
@@ -556,11 +593,11 @@
 		}
 
 		iconUrl(slug) {
-			if (!slug || slug === 'none' || !ICONS[slug]) {
+			if (!slug || slug === 'none' || !this.iconRegistry[slug]) {
 				return '';
 			}
 			const key = this.getIconColorKey();
-			return ICONS[slug][key] || ICONS[slug].white || '';
+			return this.iconRegistry[slug][key] || this.iconRegistry[slug].white || '';
 		}
 
 		loadIconFabric(slug, callback) {
@@ -1626,7 +1663,7 @@
 		}
 
 		async buildPreparedExportPayload() {
-			const origin = CFG.origin || STD.coordinate_origin || 'bottom-left';
+			const origin = CFG.origin || this.stdSpec.coordinate_origin || 'bottom-left';
 			let layout = this.getLayoutData();
 			let canonicalScene = null;
 			if (this.previewEngine && this.previewEngine.buildCanonicalSceneJson) {
@@ -1635,7 +1672,7 @@
 					this.mmH,
 					origin,
 					{
-						std: STD,
+						std: this.stdSpec,
 						selections: this.selections,
 						preview_mode: this.previewMode,
 						product_id: this.productId,
@@ -1657,7 +1694,7 @@
 			if (this.previewEngine) {
 				const prodLayout = this.previewEngine.getProductionLayout
 					? this.previewEngine.getProductionLayout(this.mmW, this.mmH, origin, {
-							std: STD,
+							std: this.stdSpec,
 							selections: this.selections,
 						})
 					: layout;
@@ -1948,17 +1985,17 @@
 		}
 
 		getLayoutData() {
-			const origin = CFG.origin || STD.coordinate_origin || 'bottom-left';
+			const origin = CFG.origin || this.stdSpec.coordinate_origin || 'bottom-left';
 			const meta = {
-				std: STD,
+				std: this.stdSpec,
 				dpi: parseInt(CFG.dpi, 10) || 300,
-				safe_zone_mm: STD.safe_zone_mm || {
+				safe_zone_mm: this.stdSpec.safe_zone_mm || {
 					x: parseFloat(CFG.safe_zone_x_mm),
 					y: parseFloat(CFG.safe_zone_y_mm),
 					w: parseFloat(CFG.safe_zone_w_mm),
 					h: parseFloat(CFG.safe_zone_h_mm),
 				},
-				strip_zone_mm: STD.strip_zone_mm || { ...this.strip },
+				strip_zone_mm: this.stdSpec.strip_zone_mm || { ...this.strip },
 				selections: { ...this.selections },
 			};
 
@@ -1971,7 +2008,7 @@
 
 			const layout = {
 				engine: 'strip-mm',
-				standard: STD.standard || 'license-plate-frame',
+				standard: this.stdSpec.standard || 'license-plate-frame',
 				coordinate_origin: origin,
 				dpi: meta.dpi,
 				canvas_mm: { width: this.mmW, height: this.mmH },
@@ -2173,7 +2210,7 @@
 					layout,
 					canonical_scene: canonicalScene,
 					production: layout,
-					std_spec: STD,
+					std_spec: this.stdSpec,
 				})
 			);
 

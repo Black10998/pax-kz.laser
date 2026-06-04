@@ -26,6 +26,7 @@ class PCKZ_Ajax {
 			'pckzce_create_payment_order',
 			'pckzce_export_validate',
 			'pckzce_font_file',
+			'pckzce_runtime_config',
 		);
 
 		foreach ( $actions as $action ) {
@@ -180,6 +181,47 @@ class PCKZ_Ajax {
 			exit;
 		}
 		exit;
+	}
+
+	/**
+	 * Runtime-only creator config payload (keeps inline config minimal).
+	 */
+	public function handle_runtime_config() {
+		if ( ! $this->verify_nonce() ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
+		}
+
+		$product_id = isset( $_REQUEST['product_id'] ) ? absint( $_REQUEST['product_id'] ) : 0;
+		if ( ! $product_id || ! class_exists( 'PCKZ_Post_Type' ) || ! PCKZ_Post_Type::is_publishable_product( $product_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Creator product not found.', 'pckz-canonical-engine' ) ), 404 );
+		}
+
+		$config = PCKZ_Post_Type::get_product_config( $product_id );
+		$fonts  = class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::get_customer_fonts() : array();
+		$font_family_to_id = array();
+		$default_family = 'Ubuntu';
+		if ( ! empty( $fonts[0]['family'] ) && is_string( $fonts[0]['family'] ) ) {
+			$default_family = $fonts[0]['family'];
+		}
+		foreach ( $fonts as $font_row ) {
+			$family = isset( $font_row['family'] ) ? trim( (string) $font_row['family'] ) : '';
+			$id     = isset( $font_row['id'] ) ? sanitize_key( (string) $font_row['id'] ) : '';
+			if ( '' !== $family && '' !== $id ) {
+				$font_family_to_id[ strtolower( $family ) ] = $id;
+			}
+		}
+
+		$payload = array(
+			'icons'           => class_exists( 'PCKZ_Icons' ) ? PCKZ_Icons::registry_for_js() : array(),
+			'ledosPreview'    => class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::config_for_js() : null,
+			'stdSpec'         => class_exists( 'PCKZ_Std_Spec' ) ? PCKZ_Std_Spec::for_product( $config ) : array(),
+			'fontFiles'       => class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::font_files_for_js() : array(),
+			'fontFilesById'   => class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::font_files_by_id_for_js() : array(),
+			'fontFamilyToId'  => $font_family_to_id,
+			'defaultFontFamily' => $default_family,
+		);
+
+		wp_send_json_success( $payload );
 	}
 
 	/**

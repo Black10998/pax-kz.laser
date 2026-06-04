@@ -100,10 +100,36 @@ PCKZ_Assets::enqueue_creator( 123, $config );
 
 $styles = $GLOBALS['pckz_smoke_styles'] ?? array();
 $scripts = $GLOBALS['pckz_smoke_scripts'] ?? array();
+$localized = $GLOBALS['pckz_smoke_localized']['pckzce-creator:pckzceConfig'] ?? array();
 
 if ( empty( $styles['pckzce-creator']['src'] ) || ! preg_match( '/\.min\.css(?:\?|$)/', (string) $styles['pckzce-creator']['src'] ) ) {
 	fwrite( STDERR, "Creator stylesheet is not served as .min.css in protection mode.\n" );
 	exit( 1 );
+}
+
+if ( empty( $localized['runtimeAction'] ) || 'pckzce_runtime_config' !== (string) $localized['runtimeAction'] ) {
+	fwrite( STDERR, "Runtime config action is missing from localized payload.\n" );
+	exit( 1 );
+}
+
+$forbidden_keys = array(
+	'assets',
+	'icons',
+	'stdSpec',
+	'ledosPreview',
+	'settings',
+	'fontFiles',
+	'fontFilesById',
+	'pluginVersion',
+	'build',
+	'version',
+	'productTitle',
+);
+foreach ( $forbidden_keys as $forbidden_key ) {
+	if ( array_key_exists( $forbidden_key, $localized ) ) {
+		fwrite( STDERR, "Localized payload still exposes forbidden key: {$forbidden_key}\n" );
+		exit( 1 );
+	}
 }
 
 foreach ( $scripts as $handle => $script ) {

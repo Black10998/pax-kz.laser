@@ -2567,19 +2567,10 @@
 				return cfg[key];
 			}
 			const byId = (global.pckzceConfig && global.pckzceConfig.fontFilesById) || {};
-			const fonts = (global.pckzceConfig && global.pckzceConfig.settings && global.pckzceConfig.settings.fonts) || [];
-			for (let i = 0; i < fonts.length; i++) {
-				const row = fonts[i];
-				if (!row) {
-					continue;
-				}
-				const fam = String(row.family || '')
-					.trim()
-					.toLowerCase()
-					.replace(/['"]/g, '');
-				if (fam === key && row.id && byId[row.id]) {
-					return byId[row.id];
-				}
+			const familyToId = (global.pckzceConfig && global.pckzceConfig.fontFamilyToId) || {};
+			const mappedId = familyToId[key] || '';
+			if (mappedId && byId[mappedId]) {
+				return byId[mappedId];
 			}
 			return cfg['russo one'] || byId['russo-one'] || '';
 		}
@@ -3011,9 +3002,6 @@
 				}
 				if (url) {
 					detail += ' [url=' + url + ']';
-				}
-				if (global.pckzceConfig && global.pckzceConfig.pluginVersion) {
-					detail += ' [pckz=' + global.pckzceConfig.pluginVersion + ']';
 				}
 				throw new Error(detail);
 			}

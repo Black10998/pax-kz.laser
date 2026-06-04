@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.7
+Stable tag: 2.28.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,14 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.8 =
+
+* Security hardening: reduced public `pckzce-creator-js-extra` payload to minimum inline runtime fields (nonce/ajax endpoint + essential creator/checkout/UI values only).
+* Moved heavy runtime mappings (`icons`, `ledosPreview`, `stdSpec`, font file maps) to a nonce-protected runtime AJAX endpoint (`pckzce_runtime_config`) fetched on demand.
+* Removed non-essential public metadata from creator inline payload (build/version/plugin/debug fields, full settings maps, duplicated asset/config blocks).
+* Updated preview runtime to consume lightweight font family-to-id mapping instead of full settings-font payload.
+* Added regression assertion in `tests/public-protected-assets-smoke.php` to ensure forbidden heavy keys are not exposed in localized creator payload.
 
 = 2.28.7 =
 
