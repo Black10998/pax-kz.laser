@@ -27,6 +27,8 @@ class PCKZ_Ajax {
 			'pckzce_export_validate',
 			'pckzce_font_file',
 			'pckzce_runtime_config',
+			'pckzce_resolve_option_asset',
+			'pckzce_secure_asset',
 		);
 
 		foreach ( $actions as $action ) {
@@ -196,32 +198,363 @@ class PCKZ_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Creator product not found.', 'pckz-canonical-engine' ) ), 404 );
 		}
 
-		$config = PCKZ_Post_Type::get_product_config( $product_id );
 		$fonts  = class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::get_customer_fonts() : array();
-		$font_family_to_id = array();
 		$default_family = 'Ubuntu';
 		if ( ! empty( $fonts[0]['family'] ) && is_string( $fonts[0]['family'] ) ) {
 			$default_family = $fonts[0]['family'];
 		}
-		foreach ( $fonts as $font_row ) {
-			$family = isset( $font_row['family'] ) ? trim( (string) $font_row['family'] ) : '';
-			$id     = isset( $font_row['id'] ) ? sanitize_key( (string) $font_row['id'] ) : '';
-			if ( '' !== $family && '' !== $id ) {
-				$font_family_to_id[ strtolower( $family ) ] = $id;
-			}
-		}
 
 		$payload = array(
-			'icons'           => class_exists( 'PCKZ_Icons' ) ? PCKZ_Icons::registry_for_js() : array(),
-			'ledosPreview'    => class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::config_for_js() : null,
-			'stdSpec'         => class_exists( 'PCKZ_Std_Spec' ) ? PCKZ_Std_Spec::for_product( $config ) : array(),
-			'fontFiles'       => class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::font_files_for_js() : array(),
-			'fontFilesById'   => class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::font_files_by_id_for_js() : array(),
-			'fontFamilyToId'  => $font_family_to_id,
 			'defaultFontFamily' => $default_family,
 		);
 
 		wp_send_json_success( $payload );
+	}
+
+	/**
+	 * Resolve a single selected option asset into a short-lived signed token URL.
+	 */
+	public function handle_resolve_option_asset() {
+		if ( ! $this->verify_nonce() ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
+		}
+
+		$product_id = isset( $_REQUEST['product_id'] ) ? absint( $_REQUEST['product_id'] ) : 0;
+		if ( ! $product_id || ! class_exists( 'PCKZ_Post_Type' ) || ! PCKZ_Post_Type::is_publishable_product( $product_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Creator product not found.', 'pckz-canonical-engine' ) ), 404 );
+		}
+
+		$kind  = isset( $_REQUEST['asset_kind'] ) ? sanitize_key( wp_unslash( $_REQUEST['asset_kind'] ) ) : '';
+		$value = isset( $_REQUEST['asset_value'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['asset_value'] ) ) : '';
+		$data  = array();
+
+		if ( 'icon' === $kind ) {
+			$slug = sanitize_key( $value );
+			if ( ! $slug || 'none' === $slug ) {
+				$data = array( 'kind' => 'icon', 'slug' => 'none', 'url' => '', 'bg_url' => '' );
+			} else {
+				$catalog = class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::icon_catalog( false ) : array();
+				if ( empty( $catalog[ $slug ] ) ) {
+					wp_send_json_error( array( 'message' => __( 'Icon not found.', 'pckz-canonical-engine' ) ), 404 );
+				}
+				$row  = is_array( $catalog[ $slug ] ) ? $catalog[ $slug ] : array();
+				$data = array(
+					'kind'            => 'icon',
+					'slug'            => $slug,
+					'tintable'        => array_key_exists( 'tintable', $row ) ? ! empty( $row['tintable'] ) : true,
+					'preserve_colors' => ! empty( $row['preserve_colors'] ),
+					'url'             => $this->secure_creator_asset_url( $product_id, 'icon', $slug ),
+					'bg_url'          => $this->secure_creator_asset_url( $product_id, 'icon_bg', 'default' ),
+				);
+			}
+		} elseif ( 'line' === $kind ) {
+			$slug = sanitize_key( $value );
+			if ( ! $slug || 'none' === $slug ) {
+				$data = array( 'kind' => 'line', 'slug' => 'none', 'url' => '' );
+			} else {
+				$catalog = class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::line_catalog_for_js() : array();
+				if ( empty( $catalog[ $slug ] ) ) {
+					wp_send_json_error( array( 'message' => __( 'Line not found.', 'pckz-canonical-engine' ) ), 404 );
+				}
+				$row  = is_array( $catalog[ $slug ] ) ? $catalog[ $slug ] : array();
+				$data = array(
+					'kind'            => 'line',
+					'slug'            => $slug,
+					'connected_right' => ! empty( $row['connected_right'] ),
+					'tintable'        => array_key_exists( 'tintable', $row ) ? ! empty( $row['tintable'] ) : true,
+					'preserve_colors' => ! empty( $row['preserve_colors'] ),
+					'url'             => $this->secure_creator_asset_url( $product_id, 'line', $slug ),
+				);
+			}
+		} elseif ( 'font' === $kind ) {
+			$font_id = $this->resolve_font_id_by_family( $value );
+			if ( '' === $font_id ) {
+				wp_send_json_error( array( 'message' => __( 'Font not found.', 'pckz-canonical-engine' ) ), 404 );
+			}
+			$family = sanitize_text_field( $value );
+			$data = array(
+				'kind'       => 'font',
+				'font_id'    => $font_id,
+				'font_family'=> $family,
+				'family_key' => strtolower( $family ),
+				'url'        => $this->secure_creator_asset_url( $product_id, 'font', $font_id ),
+			);
+		} else {
+			wp_send_json_error( array( 'message' => __( 'Unsupported asset type.', 'pckz-canonical-engine' ) ), 400 );
+		}
+
+		wp_send_json_success( $data );
+	}
+
+	/**
+	 * Stream secure creator asset by signed token.
+	 */
+	public function handle_secure_asset() {
+		$token = isset( $_REQUEST['token'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['token'] ) ) : '';
+		$data  = $this->verify_creator_asset_token( $token );
+		if ( is_wp_error( $data ) ) {
+			status_header( 403 );
+			exit;
+		}
+
+		$product_id = isset( $data['prd'] ) ? absint( $data['prd'] ) : 0;
+		if ( ! $product_id || ! class_exists( 'PCKZ_Post_Type' ) || ! PCKZ_Post_Type::is_publishable_product( $product_id ) ) {
+			status_header( 404 );
+			exit;
+		}
+
+		$kind  = sanitize_key( (string) ( $data['kind'] ?? '' ) );
+		$value = sanitize_text_field( (string) ( $data['val'] ?? '' ) );
+
+		if ( 'line' === $kind ) {
+			$this->serve_line_asset( sanitize_key( $value ) );
+			return;
+		}
+		if ( 'icon' === $kind ) {
+			$this->serve_icon_asset( sanitize_key( $value ) );
+			return;
+		}
+		if ( 'icon_bg' === $kind ) {
+			$this->serve_icon_background_asset();
+			return;
+		}
+		if ( 'font' === $kind ) {
+			$this->serve_font_asset( sanitize_key( $value ) );
+			return;
+		}
+
+		status_header( 404 );
+		exit;
+	}
+
+	/**
+	 * Resolve font ID by family (case-insensitive).
+	 *
+	 * @param string $family Font family.
+	 * @return string
+	 */
+	private function resolve_font_id_by_family( $family ) {
+		if ( ! class_exists( 'PCKZ_Font_Library' ) ) {
+			return '';
+		}
+		$target = strtolower( trim( (string) $family ) );
+		if ( '' === $target ) {
+			return '';
+		}
+		foreach ( PCKZ_Font_Library::get_customer_fonts() as $row ) {
+			$row_family = strtolower( trim( (string) ( $row['family'] ?? '' ) ) );
+			$row_id     = sanitize_key( (string) ( $row['id'] ?? '' ) );
+			if ( '' !== $row_family && $row_family === $target && '' !== $row_id ) {
+				return $row_id;
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Build secure asset URL backed by a signed token.
+	 *
+	 * @param int    $product_id Product ID.
+	 * @param string $kind       Asset kind.
+	 * @param string $value      Asset value.
+	 * @return string
+	 */
+	private function secure_creator_asset_url( $product_id, $kind, $value ) {
+		$token = $this->create_creator_asset_token(
+			array(
+				'typ'  => 'creator_asset',
+				'prd'  => (int) $product_id,
+				'kind' => sanitize_key( (string) $kind ),
+				'val'  => sanitize_text_field( (string) $value ),
+				'exp'  => time() + 900,
+			)
+		);
+		return add_query_arg(
+			array(
+				'action' => 'pckzce_secure_asset',
+				'token'  => $token,
+			),
+			admin_url( 'admin-ajax.php' )
+		);
+	}
+
+	/**
+	 * Create signed token for creator asset.
+	 *
+	 * @param array $payload Payload.
+	 * @return string
+	 */
+	private function create_creator_asset_token( $payload ) {
+		if ( class_exists( 'PCKZ_Licensing' ) && method_exists( 'PCKZ_Licensing', 'build_signed_token_public' ) ) {
+			return PCKZ_Licensing::build_signed_token_public( $payload );
+		}
+		$json = wp_json_encode( $payload );
+		$body = rtrim( strtr( base64_encode( (string) $json ), '+/', '-_' ), '=' );
+		$sig  = hash_hmac( 'sha256', $body, wp_salt( 'auth' ) );
+		return $body . '.' . $sig;
+	}
+
+	/**
+	 * Verify creator asset token.
+	 *
+	 * @param string $token Token.
+	 * @return array|WP_Error
+	 */
+	private function verify_creator_asset_token( $token ) {
+		if ( '' === $token ) {
+			return new WP_Error( 'missing_token', __( 'Missing token.', 'pckz-canonical-engine' ) );
+		}
+		if ( class_exists( 'PCKZ_Licensing' ) && method_exists( 'PCKZ_Licensing', 'verify_signed_token_public' ) ) {
+			$decoded = PCKZ_Licensing::verify_signed_token_public( $token );
+		} else {
+			$parts = explode( '.', $token, 2 );
+			if ( 2 !== count( $parts ) ) {
+				return new WP_Error( 'invalid_token', __( 'Invalid token.', 'pckz-canonical-engine' ) );
+			}
+			$body = (string) $parts[0];
+			$sig  = (string) $parts[1];
+			$calc = hash_hmac( 'sha256', $body, wp_salt( 'auth' ) );
+			if ( ! hash_equals( $calc, $sig ) ) {
+				return new WP_Error( 'invalid_token', __( 'Invalid token signature.', 'pckz-canonical-engine' ) );
+			}
+			$raw = base64_decode( strtr( $body, '-_', '+/' ) );
+			$decoded = json_decode( (string) $raw, true );
+		}
+		if ( is_wp_error( $decoded ) || ! is_array( $decoded ) ) {
+			return new WP_Error( 'invalid_token', __( 'Invalid token payload.', 'pckz-canonical-engine' ) );
+		}
+		if ( 'creator_asset' !== (string) ( $decoded['typ'] ?? '' ) ) {
+			return new WP_Error( 'invalid_token', __( 'Unexpected token type.', 'pckz-canonical-engine' ) );
+		}
+		$exp = isset( $decoded['exp'] ) ? (int) $decoded['exp'] : 0;
+		if ( $exp > 0 && time() > $exp ) {
+			return new WP_Error( 'expired_token', __( 'Token expired.', 'pckz-canonical-engine' ) );
+		}
+		return $decoded;
+	}
+
+	/**
+	 * Send SVG response body.
+	 *
+	 * @param string $svg SVG markup.
+	 */
+	private function send_svg_response( $svg ) {
+		if ( '' === trim( (string) $svg ) ) {
+			status_header( 404 );
+			exit;
+		}
+		header( 'Content-Type: image/svg+xml; charset=utf-8' );
+		header( 'Cache-Control: private, max-age=300' );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- serving SVG payload.
+		echo $svg;
+		exit;
+	}
+
+	/**
+	 * Serve line SVG by slug.
+	 *
+	 * @param string $slug Line slug.
+	 */
+	private function serve_line_asset( $slug ) {
+		$slug = sanitize_key( $slug );
+		if ( ! $slug || 'none' === $slug || ! class_exists( 'PCKZ_Line_Library' ) ) {
+			status_header( 404 );
+			exit;
+		}
+		$svg = PCKZ_Line_Library::read_source_svg_for_slug( $slug );
+		if ( ! is_string( $svg ) || '' === $svg ) {
+			status_header( 404 );
+			exit;
+		}
+		if ( class_exists( 'PCKZ_Svg_Library' ) ) {
+			$svg = PCKZ_Svg_Library::normalize_line_svg_for_picker_preview( $svg, PCKZ_Line_Library::connected_right_for_slug( $slug ) );
+		}
+		$this->send_svg_response( $svg );
+	}
+
+	/**
+	 * Serve icon SVG by slug.
+	 *
+	 * @param string $slug Icon slug.
+	 */
+	private function serve_icon_asset( $slug ) {
+		$slug = sanitize_key( $slug );
+		if ( ! $slug || 'none' === $slug ) {
+			status_header( 404 );
+			exit;
+		}
+
+		$local_path = '';
+		if ( class_exists( 'PCKZ_Icon_Library' ) ) {
+			if ( PCKZ_Icon_Library::is_custom( $slug ) ) {
+				$custom = PCKZ_Icon_Library::custom_manifest();
+				$file   = ! empty( $custom[ $slug ]['file'] ) ? sanitize_file_name( (string) $custom[ $slug ]['file'] ) : '';
+				if ( '' !== $file ) {
+					$candidate = trailingslashit( PCKZ_Icon_Library::upload_dir() ) . $file;
+					if ( is_readable( $candidate ) ) {
+						$local_path = $candidate;
+					}
+				}
+			} else {
+				$local_path = PCKZ_Icon_Library::bundled_file_path( $slug );
+			}
+		}
+
+		if ( '' !== $local_path && is_readable( $local_path ) ) {
+			$svg = (string) file_get_contents( $local_path );
+			$this->send_svg_response( $svg );
+		}
+
+		$catalog = class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::icon_catalog( false ) : array();
+		$url     = ! empty( $catalog[ $slug ]['url'] ) ? esc_url_raw( (string) $catalog[ $slug ]['url'] ) : '';
+		if ( '' === $url ) {
+			status_header( 404 );
+			exit;
+		}
+		$response = wp_remote_get( $url, array( 'timeout' => 20, 'redirection' => 2 ) );
+		if ( is_wp_error( $response ) ) {
+			status_header( 404 );
+			exit;
+		}
+		$body = (string) wp_remote_retrieve_body( $response );
+		$this->send_svg_response( $body );
+	}
+
+	/**
+	 * Serve icon background SVG.
+	 */
+	private function serve_icon_background_asset() {
+		$layer_refs = class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::layer_refs() : array();
+		$url = isset( $layer_refs['iconBgLeft']['url'] ) ? esc_url_raw( (string) $layer_refs['iconBgLeft']['url'] ) : '';
+		if ( '' === $url ) {
+			status_header( 404 );
+			exit;
+		}
+		$response = wp_remote_get( $url, array( 'timeout' => 20, 'redirection' => 2 ) );
+		if ( is_wp_error( $response ) ) {
+			status_header( 404 );
+			exit;
+		}
+		$body = (string) wp_remote_retrieve_body( $response );
+		$this->send_svg_response( $body );
+	}
+
+	/**
+	 * Serve font binary by font ID.
+	 *
+	 * @param string $font_id Font ID.
+	 */
+	private function serve_font_asset( $font_id ) {
+		if ( '' === $font_id || ! class_exists( 'PCKZ_Font_Library' ) ) {
+			status_header( 404 );
+			exit;
+		}
+		$result = PCKZ_Font_Library::stream_font_binary( $font_id );
+		if ( is_wp_error( $result ) ) {
+			$status = (int) ( $result->get_error_data()['status'] ?? 404 );
+			status_header( $status );
+		}
+		exit;
 	}
 
 	/**

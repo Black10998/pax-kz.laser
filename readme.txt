@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.8
+Stable tag: 2.28.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,14 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.9 =
+
+* Security hardening (phase 2): removed full runtime datasets from `pckzce_runtime_config`; endpoint now returns only minimal runtime defaults.
+* Added on-demand option asset resolver (`pckzce_resolve_option_asset`) that returns short-lived signed token URLs for the currently selected icon/line/font only.
+* Added secure token asset streaming endpoint (`pckzce_secure_asset`) for line/icon/font/background delivery without exposing raw mapping tables or direct asset URLs in localized JS config.
+* Updated creator runtime to resolve and cache only currently selected option assets, instead of loading full line/icon/font mapping payloads into `pckzce-creator-js-extra`.
+* Updated preview engine to consume per-selection resolved asset metadata (`resolved_assets`) and preserve production/export compatibility paths.
 
 = 2.28.8 =
 

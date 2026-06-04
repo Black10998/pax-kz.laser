@@ -7,6 +7,14 @@
 	'use strict';
 
 	const DEFAULT_DESIGN = { width: 3651, height: 2132 };
+	const DEFAULT_LAYERS = {
+		text: { refX: 1136, refY: 1256, refWidth: 1392, refHeight: 93, fontSize: 55, stroke: 30 },
+		iconLeft: { refX: 816, refY: 1243, refWidth: 81, refHeight: 114 },
+		iconRight: { refX: 2750, refY: 1243, refWidth: 81, refHeight: 114 },
+		iconBgLeft: { refX: 767, refY: 1244, refWidth: 178, refHeight: 113 },
+		iconBgRight: { refX: 2700, refY: 1244, refWidth: 178, refHeight: 113 },
+		lines: { refX: 609, refY: 1173, refWidth: 2424, refHeight: 254 },
+	};
 
 	/** Match picker preview: scale up narrow line artwork for live preview display only. */
 	const LINE_PREVIEW_WIDTH_COVERAGE = 0.88;
@@ -28,7 +36,7 @@
 			this.cfg = ledosPreview || {};
 			this.designW = this.cfg.designWidth || DEFAULT_DESIGN.width;
 			this.designH = this.cfg.designHeight || DEFAULT_DESIGN.height;
-			this.layers = this.cfg.layers || {};
+			this.layers = this.cfg.layers || { ...DEFAULT_LAYERS };
 			this.lineTypes = this.cfg.lineTypes || {};
 			this.lineCatalog = this.cfg.lineCatalog || {};
 			this.iconCatalog = this.cfg.iconCatalog || {};
@@ -154,7 +162,15 @@
 		 * @returns {{tintable:boolean,color:string|null}}
 		 */
 		resolveIconTint(slug, state, side) {
-			const meta = slug ? this.iconCatalog[slug] || {} : {};
+			const resolvedAssets = (state && state.resolved_assets) || {};
+			const resolvedMeta =
+				side === 'left' ? resolvedAssets.icon_left || {} : resolvedAssets.icon_right || {};
+			const meta =
+				slug && (resolvedMeta.slug === slug || !resolvedMeta.slug)
+					? { ...this.iconCatalog[slug], ...resolvedMeta }
+					: slug
+						? this.iconCatalog[slug] || {}
+						: {};
 			if (meta.preserve_colors) {
 				const userSet =
 					side === 'left' ? !!state.icon_color_left_user_set : !!state.icon_color_right_user_set;
@@ -185,7 +201,14 @@
 		 * @returns {{tintable:boolean,color:string|null}}
 		 */
 		resolveLineTint(slug, state) {
-			const meta = slug ? this.lineCatalog[slug] || {} : {};
+			const resolvedAssets = (state && state.resolved_assets) || {};
+			const resolvedLine = resolvedAssets.line || {};
+			const meta =
+				slug && (resolvedLine.slug === slug || !resolvedLine.slug)
+					? { ...this.lineCatalog[slug], ...resolvedLine }
+					: slug
+						? this.lineCatalog[slug] || {}
+						: {};
 			if (meta.preserve_colors || meta.tintable === false) {
 				return { tintable: false, color: null };
 			}
@@ -1204,13 +1227,15 @@
 			const linesRef = this.layers.lines || {};
 			const bgLeft = this.layers.iconBgLeft;
 			const bgRight = this.layers.iconBgRight;
+			const resolvedAssets = state.resolved_assets || {};
 
 			// Lines overlay.
 			this.removeRole('line');
 			const lineKey = state.linien || 'none';
-			if (lineKey && lineKey !== 'none' && this.lineTypes[lineKey]) {
-				const lineMeta = this.lineCatalog[lineKey] || {};
-				const lineUrl = this.lineTypes[lineKey];
+			const resolvedLine = resolvedAssets.line || {};
+			const lineUrl = resolvedLine.url || this.lineTypes[lineKey] || '';
+			if (lineKey && lineKey !== 'none' && lineUrl) {
+				const lineMeta = { ...(this.lineCatalog[lineKey] || {}), ...resolvedLine };
 				const lineTint = this.resolveLineTint(lineKey, state);
 				let lineImg = null;
 				if (lineMeta.connected_right) {
@@ -1228,6 +1253,7 @@
 				if (lineImg) {
 					lineImg.pckzRole = 'line-overlay';
 					lineImg.pckzLineSlug = lineKey;
+					lineImg.pckzSourceUrl = lineUrl;
 					this.objects.line = lineImg;
 					this.canvas.add(lineImg);
 				}
@@ -1236,20 +1262,26 @@
 			// Icon backgrounds.
 			this.removeRole('iconBgLeft');
 			this.removeRole('iconBgRight');
-			if (state.symbol_links && state.symbol_links !== 'none' && bgLeft && bgLeft.url) {
-				const bg = await this.loadSvgAsset(bgLeft.url, null, false);
+			const resolvedIconLeft = resolvedAssets.icon_left || {};
+			const resolvedIconRight = resolvedAssets.icon_right || {};
+			const bgLeftUrl = resolvedIconLeft.bg_url || (bgLeft && bgLeft.url) || '';
+			const bgRightUrl = resolvedIconRight.bg_url || (bgRight && bgRight.url) || '';
+			if (state.symbol_links && state.symbol_links !== 'none' && bgLeftUrl) {
+				const bg = await this.loadSvgAsset(bgLeftUrl, null, false);
 				if (bg) {
 					bg.pckzRole = 'icon-bg-left';
 					this.placeInRef(bg, bgLeft, 'icon-bg-left');
+					bg.pckzSourceUrl = bgLeftUrl;
 					this.objects.iconBgLeft = bg;
 					this.canvas.add(bg);
 				}
 			}
-			if (state.symbol_rechts && state.symbol_rechts !== 'none' && bgRight && bgRight.url) {
-				const bg = await this.loadSvgAsset(bgRight.url, null, false);
+			if (state.symbol_rechts && state.symbol_rechts !== 'none' && bgRightUrl) {
+				const bg = await this.loadSvgAsset(bgRightUrl, null, false);
 				if (bg) {
 					bg.pckzRole = 'icon-bg-right';
 					this.placeInRef(bg, bgRight, 'icon-bg-right');
+					bg.pckzSourceUrl = bgRightUrl;
 					this.objects.iconBgRight = bg;
 					this.canvas.add(bg);
 				}
@@ -1259,7 +1291,7 @@
 			this.removeRole('iconLeft');
 			this.removeRole('iconRight');
 			if (state.symbol_links && state.symbol_links !== 'none') {
-				const meta = this.iconCatalog[state.symbol_links];
+				const meta = { ...(this.iconCatalog[state.symbol_links] || {}), ...resolvedIconLeft };
 				if (meta && meta.url) {
 					const tint = this.resolveIconTint(state.symbol_links, state, 'left');
 					const icon = await this.loadSvgAsset(
@@ -1270,6 +1302,7 @@
 					if (icon) {
 						icon.pckzSymbol = state.symbol_links;
 						icon.pckzRole = 'icon-left';
+						icon.pckzSourceUrl = meta.url;
 						this.placeInRef(icon, leftRef, 'icon-left');
 						this.objects.iconLeft = icon;
 						this.canvas.add(icon);
@@ -1277,7 +1310,7 @@
 				}
 			}
 			if (state.symbol_rechts && state.symbol_rechts !== 'none') {
-				const meta = this.iconCatalog[state.symbol_rechts];
+				const meta = { ...(this.iconCatalog[state.symbol_rechts] || {}), ...resolvedIconRight };
 				if (meta && meta.url) {
 					const tint = this.resolveIconTint(state.symbol_rechts, state, 'right');
 					const icon = await this.loadSvgAsset(
@@ -1288,6 +1321,7 @@
 					if (icon) {
 						icon.pckzSymbol = state.symbol_rechts;
 						icon.pckzRole = 'icon-right';
+						icon.pckzSourceUrl = meta.url;
 						this.placeInRef(icon, rightRef, 'icon-right');
 						this.objects.iconRight = icon;
 						this.canvas.add(icon);
@@ -1844,10 +1878,26 @@
 			if (obj.svg_url) {
 				return obj.svg_url;
 			}
+			if (obj.pckzSourceUrl) {
+				return obj.pckzSourceUrl;
+			}
+			const resolvedAssets = (selections && selections.resolved_assets) || {};
 			if (role === 'icon-left' || role === 'icon-right' || role === 'icon-bg-left' || role === 'icon-bg-right') {
 				let slug = obj.symbol || '';
 				if (!slug || slug === 'none') {
 					slug = role.includes('left') ? selections.symbol_links : selections.symbol_rechts;
+				}
+				if (role === 'icon-left' && resolvedAssets.icon_left && resolvedAssets.icon_left.url) {
+					return resolvedAssets.icon_left.url;
+				}
+				if (role === 'icon-right' && resolvedAssets.icon_right && resolvedAssets.icon_right.url) {
+					return resolvedAssets.icon_right.url;
+				}
+				if (role === 'icon-bg-left' && resolvedAssets.icon_left && resolvedAssets.icon_left.bg_url) {
+					return resolvedAssets.icon_left.bg_url;
+				}
+				if (role === 'icon-bg-right' && resolvedAssets.icon_right && resolvedAssets.icon_right.bg_url) {
+					return resolvedAssets.icon_right.bg_url;
 				}
 				if (slug && slug !== 'none' && this.iconCatalog[slug]) {
 					return this.iconCatalog[slug].url || '';
@@ -1857,6 +1907,9 @@
 				let lt = obj.line_type || selections.linien || 'none';
 				if (lt === 'yes') {
 					lt = 'type_1';
+				}
+				if (resolvedAssets.line && resolvedAssets.line.url) {
+					return resolvedAssets.line.url;
 				}
 				return this.lineTypes[lt] || '';
 			}
