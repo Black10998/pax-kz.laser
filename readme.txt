@@ -62,6 +62,10 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 * Added secure token asset streaming endpoint (`pckzce_secure_asset`) for line/icon/font/background delivery without exposing raw mapping tables or direct asset URLs in localized JS config.
 * Updated creator runtime to resolve and cache only currently selected option assets, instead of loading full line/icon/font mapping payloads into `pckzce-creator-js-extra`.
 * Updated preview engine to consume per-selection resolved asset metadata (`resolved_assets`) and preserve production/export compatibility paths.
+* Protected update reliability: fixed master release-meta auto-sync so it no longer overwrites manually published same-version package URLs or leaves stale checksum/manifest metadata after version changes.
+* Protected package validation hardening: release validation now enforces WordPress-installable archive layout (`pckz-canonical-engine/pckz-canonical-engine.php`) and checks plugin header version parity with release metadata.
+* Master visibility: Master Control now shows exact tamper signal slugs in fleet/security views and adds a safe per-installation “Acknowledge Signals” action that clears signals and re-baselines integrity on next check-in.
+* Update failure telemetry: client update failures/success are now reported back to Master Control (`client/update-report`) so failed installs produce clear error visibility on both client and master dashboards.
 
 = 2.28.8 =
 

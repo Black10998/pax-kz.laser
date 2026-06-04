@@ -1,22 +1,32 @@
 ## Production installation packages
 
-Canonical package for v2.28.6:
+Canonical package for v2.28.9:
 
-- `pckz-canonical-engine-2.28.6-protected.zip`
+- `pckz-canonical-engine-2.28.9-protected.zip`
 
 SHA256:
 
-- `db2fa115b23975eec2e3c6fe24274f5161542ac18c2b5258d6c5964d0bb28c34`
+- `5d5762765478d94f6152280bf16f699b1bfb3f6c4b505806bb1a8dda729b1224`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.9/pckz-canonical-engine-2.28.9-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.9-protected.zip`
+
+What changed in v2.28.9: hardening improvements moved runtime line/icon/font mappings and related asset references server-side with signed token-based option and asset resolution, minimizing exposed frontend configuration payloads while preserving preview/export/checkout compatibility.
+
+Update-flow reliability patch (2.28.9 repackage): fixed protected release metadata synchronization to avoid stale checksum/manifest fields, enforced installable ZIP structure validation, added explicit client update failure reporting back to Master Control, and added safe tamper-signal acknowledge/revalidate actions with exact signal visibility in dashboard alerts.
+
+Previous release (v2.28.6):
+
+- `pckz-canonical-engine-2.28.6-protected.zip`
 
 Direct download (GitHub Release, recommended):
 
 - `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.6/pckz-canonical-engine-2.28.6-protected.zip`
-
-Raw URL on `main` (may take a few minutes after push to propagate):
-
-- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.6-protected.zip`
-
-What changed in v2.28.6: fixed unusable shipment fields in admin order details (inputs always editable/savable), added persistent shipment tracking JSON storage independent of Woo link availability, introduced automatic carrier synchronization via AfterShip (Austrian Post, DHL, DPD, GLS, UPS, FedEx), and added scheduled tracking refresh with sync status/error visibility.
 
 Previous release (v2.28.5):
 

@@ -216,10 +216,19 @@ class PCKZ_Master_Control {
 		}
 		$tamper = json_decode( (string) ( $install['tamper_signals'] ?? '[]' ), true );
 		if ( is_array( $tamper ) && ! empty( $tamper ) ) {
+			$tamper = array_values( array_filter( array_map( 'sanitize_key', $tamper ) ) );
+			$label  = implode( ', ', array_slice( $tamper, 0, 4 ) );
+			if ( count( $tamper ) > 4 ) {
+				$label .= ', +' . ( count( $tamper ) - 4 );
+			}
 			$alerts[] = array(
 				'severity' => 'warning',
 				'code'     => 'tamper_signals',
-				'message'  => __( 'Tamper or integrity signals reported.', 'pckz-canonical-engine' ),
+				'message'  => sprintf(
+					/* translators: %s: comma-separated tamper signal slugs */
+					__( 'Tamper/integrity signals: %s', 'pckz-canonical-engine' ),
+					$label
+				),
 			);
 		}
 		if ( ! self::is_online( $install ) ) {

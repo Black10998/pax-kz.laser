@@ -1,3 +1,4 @@
+5d5762765478d94f6152280bf16f699b1bfb3f6c4b505806bb1a8dda729b1224  pckz-canonical-engine-2.28.9-protected.zip
 db2fa115b23975eec2e3c6fe24274f5161542ac18c2b5258d6c5964d0bb28c34  pckz-canonical-engine-2.28.6-protected.zip
 bcd27a151db9a5c46aeffc442a5b635e56b5a4f102ade5ce0611bc2e43b79eef  pckz-canonical-engine-2.28.5-protected.zip
 187476dd2bc0d7447024f4bbbc3ac9c15596ef23c1d9a5c3076a124a29b521a6  pckz-canonical-engine-2.28.4-protected.zip

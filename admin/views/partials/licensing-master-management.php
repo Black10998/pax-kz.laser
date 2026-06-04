@@ -309,6 +309,8 @@ $status_help = array(
 						$license_id   = (int) ( $install['license_id'] ?? 0 );
 						$license_info = $license_map[ $license_id ] ?? null;
 						$license_label = $license_info ? ( $license_info['label'] ? $license_info['label'] : sprintf( '#%d', $license_id ) ) : sprintf( '#%d', $license_id );
+						$tamper_signals = json_decode( (string) ( $install['tamper_signals'] ?? '[]' ), true );
+						$tamper_signals = is_array( $tamper_signals ) ? array_values( array_filter( array_map( 'sanitize_key', $tamper_signals ) ) ) : array();
 						?>
 						<tr>
 							<th scope="row" class="check-column">
@@ -336,6 +338,9 @@ $status_help = array(
 								<?php if ( ! empty( $install['last_error'] ) ) : ?>
 									<br><span class="pckz-install-error"><?php echo esc_html( $install['last_error'] ); ?></span>
 								<?php endif; ?>
+								<?php if ( ! empty( $tamper_signals ) ) : ?>
+									<br><span class="description"><?php esc_html_e( 'Tamper signals:', 'pckz-canonical-engine' ); ?> <?php echo esc_html( implode( ', ', $tamper_signals ) ); ?></span>
+								<?php endif; ?>
 							</td>
 							<td><span class="pckz-license-badge <?php echo esc_attr( $badge_class( $install['status'] ?? '' ) ); ?>"><?php echo esc_html( $status_label( $install['status'] ?? '' ) ); ?></span></td>
 							<td class="pckz-license-actions">
@@ -358,6 +363,14 @@ $status_help = array(
 									<input type="hidden" name="redirect_license_id" value="<?php echo esc_attr( (string) $filter_license_id ); ?>">
 									<button type="submit" class="button button-small pckz-btn-danger" data-pckz-confirm="<?php esc_attr_e( 'Remove this installation UUID record permanently?', 'pckz-canonical-engine' ); ?>"><?php esc_html_e( 'Remove', 'pckz-canonical-engine' ); ?></button>
 								</form>
+								<?php if ( ! empty( $tamper_signals ) ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-inline-form">
+										<?php wp_nonce_field( 'pckzce_acknowledge_tamper_signals', 'pckzce_ack_tamper_nonce' ); ?>
+										<input type="hidden" name="action" value="pckzce_acknowledge_tamper_signals">
+										<input type="hidden" name="installation_id" value="<?php echo esc_attr( (string) $install_id ); ?>">
+										<button type="submit" class="button button-small" data-pckz-confirm="<?php esc_attr_e( 'Acknowledge and clear tamper signals for this installation? Integrity will be re-baselined on next check-in.', 'pckz-canonical-engine' ); ?>"><?php esc_html_e( 'Acknowledge Signals', 'pckz-canonical-engine' ); ?></button>
+									</form>
+								<?php endif; ?>
 							</td>
 						</tr>
 					<?php endforeach; ?>

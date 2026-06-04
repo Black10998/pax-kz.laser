@@ -148,7 +148,13 @@ $fleet_base_url = admin_url( 'admin.php?page=pckz-license-server' );
 			<ul class="pckz-fleet-alert-list">
 				<?php foreach ( $security_events as $event ) : ?>
 					<?php
-					$sev = sanitize_key( (string) ( $event['severity'] ?? 'warning' ) );
+					$sev          = sanitize_key( (string) ( $event['severity'] ?? 'warning' ) );
+					$event_context = json_decode( (string) ( $event['context'] ?? '{}' ), true );
+					$event_context = is_array( $event_context ) ? $event_context : array();
+					$signal_labels = array();
+					if ( ! empty( $event_context['signals'] ) && is_array( $event_context['signals'] ) ) {
+						$signal_labels = array_values( array_filter( array_map( 'sanitize_key', $event_context['signals'] ) ) );
+					}
 					?>
 					<li class="pckz-fleet-alert pckz-fleet-alert--<?php echo esc_attr( $sev ); ?>">
 						<strong><?php echo esc_html( $event['message'] ?? '' ); ?></strong>
@@ -159,6 +165,9 @@ $fleet_base_url = admin_url( 'admin.php?page=pckz-license-server' );
 							<?php endif; ?>
 							· <?php echo esc_html( $format_datetime( $event['created_at'] ?? '' ) ); ?>
 						</span>
+						<?php if ( ! empty( $signal_labels ) ) : ?>
+							<span class="description"><?php esc_html_e( 'Signals:', 'pckz-canonical-engine' ); ?> <?php echo esc_html( implode( ', ', $signal_labels ) ); ?></span>
+						<?php endif; ?>
 					</li>
 				<?php endforeach; ?>
 			</ul>

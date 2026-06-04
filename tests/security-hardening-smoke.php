@@ -49,6 +49,11 @@ $tmp_dir = sys_get_temp_dir() . '/pckz-security-smoke-' . wp_generate_uuid4();
 @mkdir( $tmp_dir . '/pckz-canonical-engine', 0775, true );
 $asset_path = $tmp_dir . '/pckz-canonical-engine/test.txt';
 file_put_contents( $asset_path, "ok\n" );
+$plugin_main_path = $tmp_dir . '/pckz-canonical-engine/pckz-canonical-engine.php';
+file_put_contents(
+	$plugin_main_path,
+	"<?php\n/*\nPlugin Name: PCKZ Test\nVersion: 2.99.0\n*/\n"
+);
 $manifest = array(
 	'slug'       => 'pckz-canonical-engine',
 	'version'    => '2.99.0',
@@ -56,6 +61,7 @@ $manifest = array(
 	'channel'    => 'customer-protected',
 	'created_at' => gmdate( 'c' ),
 	'files'      => array(
+		'pckz-canonical-engine.php' => hash_file( 'sha256', $plugin_main_path ),
 		'test.txt' => hash_file( 'sha256', $asset_path ),
 	),
 	'signature' => '',
@@ -71,6 +77,7 @@ if ( true !== $zip->open( $zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE 
 	exit( 1 );
 }
 $zip->addFile( $asset_path, 'pckz-canonical-engine/test.txt' );
+$zip->addFile( $plugin_main_path, 'pckz-canonical-engine/pckz-canonical-engine.php' );
 $zip->addFile( $tmp_dir . '/pckz-canonical-engine/RELEASE_MANIFEST.json', 'pckz-canonical-engine/RELEASE_MANIFEST.json' );
 $zip->close();
 
