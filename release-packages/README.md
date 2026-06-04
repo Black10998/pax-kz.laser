@@ -6,7 +6,7 @@ Canonical package for v2.28.9:
 
 SHA256:
 
-- `5d5762765478d94f6152280bf16f699b1bfb3f6c4b505806bb1a8dda729b1224`
+- `213556f5d5d26d6704d896335b29577e039be348dc1b9d02c3159db4a3ee3691`
 
 Direct download (GitHub Release, recommended):
 
