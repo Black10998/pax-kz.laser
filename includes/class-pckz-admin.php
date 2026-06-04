@@ -19,6 +19,7 @@ class PCKZ_Admin {
 		add_action( 'admin_menu', array( $this, 'register_menus' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_notices', array( $this, 'render_asset_protection_notice' ) );
 		add_action( 'admin_post_pckz_update_order_status', array( $this, 'handle_update_order_status' ) );
 		add_action( 'admin_post_pckz_update_order_notes', array( $this, 'handle_update_order_notes' ) );
 		add_action( 'admin_post_pckz_download_customer_artwork', array( $this, 'handle_download_customer_artwork' ) );
@@ -127,6 +128,41 @@ class PCKZ_Admin {
 			'pckz-orders',
 			array( $this, 'render_orders' )
 		);
+	}
+
+	/**
+	 * Show admin warning when protected asset mode is enabled but artifacts are missing.
+	 */
+	public function render_asset_protection_notice() {
+		if ( ! current_user_can( 'manage_options' ) || ! class_exists( 'PCKZ_Assets' ) ) {
+			return;
+		}
+
+		$settings = PCKZ_Settings::get_all();
+		if ( ! PCKZ_Assets::prefer_protected_assets( $settings ) ) {
+			return;
+		}
+
+		$missing = PCKZ_Assets::missing_production_assets( $settings );
+		if ( empty( $missing ) ) {
+			return;
+		}
+		?>
+		<div class="notice notice-warning">
+			<p><strong><?php esc_html_e( 'PCKZ asset protection mode is enabled, but production assets are missing.', 'pckz-canonical-engine' ); ?></strong></p>
+			<p><?php esc_html_e( 'Public pages will keep working with fallback source files until production artifacts are generated. Build protected assets before deploying to production.', 'pckz-canonical-engine' ); ?></p>
+			<ul style="margin-left:20px;list-style:disc;">
+				<?php foreach ( $missing as $entry ) : ?>
+					<li>
+						<code><?php echo esc_html( (string) $entry['source'] ); ?></code>
+						&rarr;
+						<code><?php echo esc_html( implode( ', ', array_map( 'strval', (array) ( $entry['expected'] ?? array() ) ) ) ); ?></code>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+			<p><code>php tools/build-js-protection.php</code></p>
+		</div>
+		<?php
 	}
 
 	/**
@@ -345,6 +381,16 @@ class PCKZ_Admin {
 			'licensing_export_remote_strict' => array_key_exists( 'licensing_export_remote_strict', $input ) ? ! empty( $input['licensing_export_remote_strict'] ) : ! empty( $current['licensing_export_remote_strict'] ),
 			'licensing_strict_integrity' => array_key_exists( 'licensing_strict_integrity', $input ) ? ! empty( $input['licensing_strict_integrity'] ) : ! empty( $current['licensing_strict_integrity'] ),
 			'licensing_master_api_key' => array_key_exists( 'licensing_master_api_key', $input ) ? sanitize_text_field( $input['licensing_master_api_key'] ) : sanitize_text_field( (string) ( $current['licensing_master_api_key'] ?? '' ) ),
+			'security_prefer_protected_assets' => array_key_exists( 'security_prefer_protected_assets', $input )
+				? ! empty( $input['security_prefer_protected_assets'] )
+				: (
+					array_key_exists( 'security_prefer_minified_js', $input )
+						? ! empty( $input['security_prefer_minified_js'] )
+						: (
+							! empty( $current['security_prefer_protected_assets'] )
+							|| ! empty( $current['security_prefer_minified_js'] )
+						)
+				),
 			'payments_primary_provider' => in_array( sanitize_key( $input['payments_primary_provider'] ?? 'paypal' ), array( 'paypal', 'stripe' ), true )
 				? sanitize_key( $input['payments_primary_provider'] ?? 'paypal' )
 				: 'paypal',
@@ -357,6 +403,7 @@ class PCKZ_Admin {
 			'payments_stripe_cancel_url' => esc_url_raw( $input['payments_stripe_cancel_url'] ?? '' ),
 			'payments_stripe_webhook_tolerance' => max( 60, min( 1800, absint( $input['payments_stripe_webhook_tolerance'] ?? 300 ) ) ),
 		);
+		$output['security_prefer_minified_js'] = ! empty( $output['security_prefer_protected_assets'] );
 
 		if ( empty( $output['licensing_master_api_key'] ) ) {
 			$output['licensing_master_api_key'] = 'pckz-msk-' . wp_generate_password( 40, false, false );

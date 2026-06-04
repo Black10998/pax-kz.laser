@@ -88,6 +88,8 @@ class PCKZ_Settings {
 			'licensing_export_remote_strict' => false,
 			'licensing_strict_integrity' => false,
 			'licensing_master_api_key' => '',
+			'security_prefer_protected_assets' => false,
+			'security_prefer_minified_js' => false,
 			'payments_primary_provider' => 'paypal',
 			'payments_enable_stripe' => false,
 			'payments_stripe_test_mode' => true,

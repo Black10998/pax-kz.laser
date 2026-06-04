@@ -13,6 +13,39 @@ defined( 'ABSPATH' ) || exit;
 class PCKZ_Assets {
 
 	/**
+	 * Asset protection setting key.
+	 */
+	const SETTING_PREFER_PROTECTED = 'security_prefer_protected_assets';
+
+	/**
+	 * Legacy asset setting key kept for backward compatibility.
+	 */
+	const SETTING_LEGACY_MINIFIED = 'security_prefer_minified_js';
+
+	/**
+	 * Public creator sources that should have production artifacts.
+	 *
+	 * @return string[]
+	 */
+	public static function creator_source_assets() {
+		return array(
+			'public/css/creator.css',
+			'public/js/bootstrap.js',
+			'public/js/fabric-patch.js',
+			'public/js/canvas-safe.js',
+			'public/js/clipper-lib.js',
+			'public/js/pckz-svg-knockout.js',
+			'public/js/preview-engine.js',
+			'public/js/visual-picker.js',
+			'public/js/fabric-production-pipeline.js',
+			'public/js/canonical-scene.js',
+			'public/js/preview-magnifier.js',
+			'public/js/pckz-creator-protect.js',
+			'public/js/creator.js',
+		);
+	}
+
+	/**
 	 * Version string for enqueued assets (plugin version + file mtime).
 	 *
 	 * @param string $relative_path Path relative to plugin root.
@@ -28,6 +61,162 @@ class PCKZ_Assets {
 	}
 
 	/**
+	 * Determine whether protected/minified assets should be preferred.
+	 *
+	 * @param array|null $settings Optional settings.
+	 * @return bool
+	 */
+	public static function prefer_protected_assets( $settings = null ) {
+		if ( ! is_array( $settings ) ) {
+			$settings = PCKZ_Settings::get_all();
+		}
+		if ( array_key_exists( self::SETTING_PREFER_PROTECTED, $settings ) ) {
+			return ! empty( $settings[ self::SETTING_PREFER_PROTECTED ] );
+		}
+		return ! empty( $settings[ self::SETTING_LEGACY_MINIFIED ] );
+	}
+
+	/**
+	 * Return production candidates for a source path.
+	 *
+	 * @param string $relative_path Source-relative path.
+	 * @return string[]
+	 */
+	public static function production_candidates( $relative_path ) {
+		$relative_path = ltrim( (string) $relative_path, '/' );
+		if ( '' === $relative_path ) {
+			return array();
+		}
+		if ( preg_match( '/\.protected\.js$/i', $relative_path ) || preg_match( '/\.min\.(js|css)$/i', $relative_path ) ) {
+			return array( $relative_path );
+		}
+		if ( preg_match( '/\.js$/i', $relative_path ) ) {
+			$protected = preg_replace( '/\.js$/i', '.protected.js', $relative_path );
+			$minified  = preg_replace( '/\.js$/i', '.min.js', $relative_path );
+			return array_filter(
+				array( $protected, $minified ),
+				static function ( $candidate ) {
+					return is_string( $candidate ) && '' !== $candidate;
+				}
+			);
+		}
+		if ( preg_match( '/\.css$/i', $relative_path ) ) {
+			$minified = preg_replace( '/\.css$/i', '.min.css', $relative_path );
+			return is_string( $minified ) && '' !== $minified ? array( $minified ) : array();
+		}
+		return array();
+	}
+
+	/**
+	 * Resolve asset path with production preferences.
+	 *
+	 * @param string     $relative_path Source-relative path.
+	 * @param array|null $settings      Optional settings.
+	 * @return string
+	 */
+	public static function asset_relative_path( $relative_path, $settings = null ) {
+		$relative_path = ltrim( (string) $relative_path, '/' );
+		if ( '' === $relative_path ) {
+			return '';
+		}
+		if ( ! self::prefer_protected_assets( $settings ) ) {
+			return $relative_path;
+		}
+		$candidates = self::production_candidates( $relative_path );
+		if ( empty( $candidates ) ) {
+			return $relative_path;
+		}
+		foreach ( $candidates as $candidate ) {
+			$asset_path = PCKZCE_PLUGIN_DIR . ltrim( $candidate, '/' );
+			if ( is_readable( $asset_path ) ) {
+				return $candidate;
+			}
+		}
+		return $relative_path;
+	}
+
+	/**
+	 * Resolve script path with protected/minified preferences.
+	 *
+	 * @param string     $relative_path Script path.
+	 * @param array|null $settings      Optional settings.
+	 * @return string
+	 */
+	public static function script_relative_path( $relative_path, $settings = null ) {
+		return self::asset_relative_path( $relative_path, $settings );
+	}
+
+	/**
+	 * Resolve style path with minified preferences.
+	 *
+	 * @param string     $relative_path Style path.
+	 * @param array|null $settings      Optional settings.
+	 * @return string
+	 */
+	public static function style_relative_path( $relative_path, $settings = null ) {
+		return self::asset_relative_path( $relative_path, $settings );
+	}
+
+	/**
+	 * Resolve script URL.
+	 *
+	 * @param string     $relative_path Script path.
+	 * @param array|null $settings      Optional settings.
+	 * @return string
+	 */
+	public static function script_url( $relative_path, $settings = null ) {
+		return PCKZCE_PLUGIN_URL . self::script_relative_path( $relative_path, $settings );
+	}
+
+	/**
+	 * Resolve style URL.
+	 *
+	 * @param string     $relative_path Style path.
+	 * @param array|null $settings      Optional settings.
+	 * @return string
+	 */
+	public static function style_url( $relative_path, $settings = null ) {
+		return PCKZCE_PLUGIN_URL . self::style_relative_path( $relative_path, $settings );
+	}
+
+	/**
+	 * Missing production artifacts for admin notices.
+	 *
+	 * @param array|null $settings Optional settings.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function missing_production_assets( $settings = null ) {
+		if ( ! is_array( $settings ) ) {
+			$settings = PCKZ_Settings::get_all();
+		}
+		if ( ! self::prefer_protected_assets( $settings ) ) {
+			return array();
+		}
+		$missing = array();
+		foreach ( self::creator_source_assets() as $source ) {
+			$candidates = self::production_candidates( $source );
+			if ( empty( $candidates ) ) {
+				continue;
+			}
+			$found = false;
+			foreach ( $candidates as $candidate ) {
+				if ( is_readable( PCKZCE_PLUGIN_DIR . ltrim( $candidate, '/' ) ) ) {
+					$found = true;
+					break;
+				}
+			}
+			if ( ! $found ) {
+				$missing[] = array(
+					'source'    => $source,
+					'expected'  => $candidates,
+					'resolved'  => self::asset_relative_path( $source, $settings ),
+				);
+			}
+		}
+		return $missing;
+	}
+
+	/**
 	 * Enqueue frontend creator assets.
 	 *
 	 * @param int   $product_id Product ID.
@@ -40,9 +229,9 @@ class PCKZ_Assets {
 
 		wp_enqueue_style(
 			'pckzce-creator',
-			PCKZCE_PLUGIN_URL . 'public/css/creator.css',
+			self::style_url( 'public/css/creator.css', $settings ),
 			$style_deps,
-			self::version( 'public/css/creator.css' )
+			self::version( self::style_relative_path( 'public/css/creator.css', $settings ) )
 		);
 
 		wp_add_inline_style(
@@ -74,9 +263,9 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-bootstrap',
-			PCKZCE_PLUGIN_URL . 'public/js/bootstrap.js',
+			self::script_url( 'public/js/bootstrap.js', $settings ),
 			array(),
-			self::version( 'public/js/bootstrap.js' ),
+			self::version( self::script_relative_path( 'public/js/bootstrap.js', $settings ) ),
 			true
 		);
 
@@ -96,17 +285,17 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-fabric-patch',
-			PCKZCE_PLUGIN_URL . 'public/js/fabric-patch.js',
+			self::script_url( 'public/js/fabric-patch.js', $settings ),
 			array( 'pckzce-fabric' ),
-			self::version( 'public/js/fabric-patch.js' ),
+			self::version( self::script_relative_path( 'public/js/fabric-patch.js', $settings ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-canvas-safe',
-			PCKZCE_PLUGIN_URL . 'public/js/canvas-safe.js',
+			self::script_url( 'public/js/canvas-safe.js', $settings ),
 			array( 'pckzce-fabric' ),
-			self::version( 'public/js/canvas-safe.js' ),
+			self::version( self::script_relative_path( 'public/js/canvas-safe.js', $settings ) ),
 			true
 		);
 
@@ -120,25 +309,25 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-clipper-lib',
-			PCKZCE_PLUGIN_URL . 'public/js/clipper-lib.js',
+			self::script_url( 'public/js/clipper-lib.js', $settings ),
 			array(),
-			'6.4.2',
+			self::version( self::script_relative_path( 'public/js/clipper-lib.js', $settings ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-svg-knockout',
-			PCKZCE_PLUGIN_URL . 'public/js/pckz-svg-knockout.js',
+			self::script_url( 'public/js/pckz-svg-knockout.js', $settings ),
 			array( 'pckzce-clipper-lib' ),
-			self::version( 'public/js/pckz-svg-knockout.js' ),
+			self::version( self::script_relative_path( 'public/js/pckz-svg-knockout.js', $settings ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-preview-engine',
-			PCKZCE_PLUGIN_URL . 'public/js/preview-engine.js',
+			self::script_url( 'public/js/preview-engine.js', $settings ),
 			array( 'pckzce-fabric', 'pckzce-fabric-patch', 'pckzce-canvas-safe', 'pckzce-opentype', 'pckzce-clipper-lib', 'pckzce-svg-knockout' ),
-			self::version( 'public/js/preview-engine.js' ),
+			self::version( self::script_relative_path( 'public/js/preview-engine.js', $settings ) ),
 			true
 		);
 
@@ -146,9 +335,9 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-visual-picker',
-			PCKZCE_PLUGIN_URL . 'public/js/visual-picker.js',
+			self::script_url( 'public/js/visual-picker.js', $settings ),
 			array(),
-			self::version( 'public/js/visual-picker.js' ),
+			self::version( self::script_relative_path( 'public/js/visual-picker.js', $settings ) ),
 			true
 		);
 
@@ -156,17 +345,17 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-fabric-production-pipeline',
-			PCKZCE_PLUGIN_URL . 'public/js/fabric-production-pipeline.js',
+			self::script_url( 'public/js/fabric-production-pipeline.js', $settings ),
 			array( 'pckzce-preview-engine' ),
-			self::version( 'public/js/fabric-production-pipeline.js' ),
+			self::version( self::script_relative_path( 'public/js/fabric-production-pipeline.js', $settings ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-canonical-scene',
-			PCKZCE_PLUGIN_URL . 'public/js/canonical-scene.js',
+			self::script_url( 'public/js/canonical-scene.js', $settings ),
 			array( 'pckzce-fabric-production-pipeline' ),
-			self::version( 'public/js/canonical-scene.js' ),
+			self::version( self::script_relative_path( 'public/js/canonical-scene.js', $settings ) ),
 			true
 		);
 
@@ -176,25 +365,25 @@ class PCKZ_Assets {
 
 		wp_enqueue_script(
 			'pckzce-preview-magnifier',
-			PCKZCE_PLUGIN_URL . 'public/js/preview-magnifier.js',
+			self::script_url( 'public/js/preview-magnifier.js', $settings ),
 			array(),
-			self::version( 'public/js/preview-magnifier.js' ),
+			self::version( self::script_relative_path( 'public/js/preview-magnifier.js', $settings ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-creator-protect',
-			PCKZCE_PLUGIN_URL . 'public/js/pckz-creator-protect.js',
+			self::script_url( 'public/js/pckz-creator-protect.js', $settings ),
 			array(),
-			self::version( 'public/js/pckz-creator-protect.js' ),
+			self::version( self::script_relative_path( 'public/js/pckz-creator-protect.js', $settings ) ),
 			true
 		);
 
 		wp_enqueue_script(
 			'pckzce-creator',
-			PCKZCE_PLUGIN_URL . 'public/js/creator.js',
+			self::script_url( 'public/js/creator.js', $settings ),
 			$script_deps,
-			self::version( 'public/js/creator.js' ),
+			self::version( self::script_relative_path( 'public/js/creator.js', $settings ) ),
 			true
 		);
 		$commerce_config = class_exists( 'PCKZ_Commerce' ) ? PCKZ_Commerce::config_for_js( $product_id ) : array();
@@ -311,7 +500,7 @@ class PCKZ_Assets {
 				'wooProductId' => (int) ( $config['woo_product_id'] ?? 0 ),
 				'pluginSlug'  => 'pckz-canonical-engine',
 				'build'       => defined( 'PCKZCE_BUILD' ) ? PCKZCE_BUILD : PCKZCE_VERSION,
-				'version'      => self::version( 'public/js/creator.js' ),
+				'version'      => self::version( self::script_relative_path( 'public/js/creator.js', $settings ) ),
 			)
 		);
 	}

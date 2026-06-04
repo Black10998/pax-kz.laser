@@ -1915,8 +1915,6 @@ class PCKZ_Commerce {
 			'paymentProvider'      => self::active_payment_provider(),
 			'paymentProviderLabel' => class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_label() : 'PayPal',
 			'paymentButtonLabel'   => class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_button_label() : __( 'Jetzt mit PayPal bezahlen', 'pckz-canonical-engine' ),
-			'paymentHint'          => class_exists( 'PCKZ_Payments' ) ? PCKZ_Payments::active_provider_hint() : __( 'Sie werden sicher zu PayPal weitergeleitet. Nach erfolgreicher Zahlung erhalten Sie eine Bestellbestätigung per E-Mail.', 'pckz-canonical-engine' ),
-			'paymentDiagnostics'   => self::payment_configuration_diagnostics(),
 			'requireEmail'         => true,
 			'successUrl'           => (string) PCKZ_Settings::get( 'paypal_success_url', '' ),
 			'cancelUrl'            => (string) PCKZ_Settings::get( 'paypal_cancel_url', '' ),

@@ -33,9 +33,9 @@ class PCKZ_Order_Tracking {
 
 		wp_enqueue_style(
 			'pckz-tracking',
-			PCKZCE_PLUGIN_URL . 'public/css/tracking.css',
+			PCKZ_Assets::style_url( 'public/css/tracking.css' ),
 			array(),
-			PCKZ_Assets::version( 'public/css/tracking.css' )
+			PCKZ_Assets::version( PCKZ_Assets::style_relative_path( 'public/css/tracking.css' ) )
 		);
 
 		$order_number = '';
