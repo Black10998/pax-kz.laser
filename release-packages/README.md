@@ -1,30 +1,30 @@
 ## Production installation packages
 
-Canonical package for v2.28.2:
+Canonical package for v2.28.3:
 
-- `pckz-canonical-engine-2.28.2-protected.zip`
+- `pckz-canonical-engine-2.28.3-protected.zip`
 
 SHA256:
 
-- `69cfef7808e6b5c49fa7085283f2df2abdbf4ee632295288254a1400fc0b7754`
+- `dfce876c07d4b06625d8f6d4dcaf127e2abf6de81d5e5da9ace72347e8edaaf7`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.3/pckz-canonical-engine-2.28.3-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.3-protected.zip`
+
+What changed in v2.28.3: fixed administrator access denial on Master Control (`admin.php?page=pckz-license-server`). The submenu is now registered after the parent Product Creator menu (prevents page-hook/capability mismatch), with a safe fallback attachment to `options-general.php` when external menu-order interference prevents the primary parent from being available. Capability remains `manage_options`, and Master/Client licensing architecture is unchanged.
+
+Previous release (v2.28.2):
+
+- `pckz-canonical-engine-2.28.2-protected.zip`
 
 Direct download (GitHub Release, recommended):
 
 - `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.2/pckz-canonical-engine-2.28.2-protected.zip`
-
-Raw URL on `main` (may take a few minutes after push to propagate):
-
-- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.2-protected.zip`
-
-What changed in v2.28.2: route/render stability update on top of v2.28.1. Requests to `/wp-admin/pckz-license-server` are now redirected to the canonical admin page slug (`admin.php?page=pckz-license-server`) instead of falling through to frontend error templates. Stripe checkout now handles expanded `payment_intent` payloads safely (fixes PHP array-to-string warning), and master URL normalization strips accidental `/wp-admin/...` or `/wp-json/...` endpoint fragments so client heartbeat/update/sync calls keep targeting the correct master root. Added DB-connection-state guard before master-control queries to recover from intermittent mysqli “Commands out of sync” errors.
-
-Previous release (v2.28.1):
-
-- `pckz-canonical-engine-2.28.1-protected.zip`
-
-Direct download (GitHub Release, recommended):
-
-- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.1/pckz-canonical-engine-2.28.1-protected.zip`
 
 Previous release (v2.27.40):
 

@@ -638,7 +638,7 @@ class PCKZ_Licensing {
 		echo '<p><code>' . esc_html( $error->getMessage() ) . '</code></p>';
 		echo '<p class="description">' . esc_html( sprintf( '%s:%d', $file, $line ) ) . '</p>';
 		echo '<ul><li>' . esc_html__( 'Reload this page.', 'pckz-canonical-engine' ) . '</li>';
-		echo '<li>' . esc_html__( 'Verify that all plugin files for v2.28.2 (or newer) are present.', 'pckz-canonical-engine' ) . '</li>';
+		echo '<li>' . esc_html__( 'Verify that all plugin files for v2.28.3 (or newer) are present.', 'pckz-canonical-engine' ) . '</li>';
 		echo '<li>' . esc_html__( 'Check wp-content/debug.log for the full PHP stack trace.', 'pckz-canonical-engine' ) . '</li>';
 		echo '</ul>';
 		echo '</div>';
