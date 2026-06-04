@@ -1978,8 +1978,6 @@ class PCKZ_Licensing {
 
 		delete_transient( 'pckzce_update_meta_cache' );
 		delete_site_transient( 'update_plugins' );
-		self::refresh_entitlement( true );
-		$this->report_update_result_to_master( 'success', $meta );
 
 		self::set_client_admin_notice(
 			sprintf(
