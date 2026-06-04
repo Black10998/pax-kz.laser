@@ -334,6 +334,34 @@ class PCKZ_Payment_Provider_Stripe implements PCKZ_Payment_Provider {
 	}
 
 	/**
+	 * Extract a scalar identifier from Stripe session values.
+	 *
+	 * Stripe can return expanded objects (arrays) for keys such as
+	 * `payment_intent` when `expand[]=payment_intent` is used. Casting such
+	 * arrays to string triggers PHP warnings ("Array to string conversion").
+	 *
+	 * @param mixed  $value   Raw value from Stripe session.
+	 * @param string $sub_key Preferred object key.
+	 * @return string
+	 */
+	private function session_scalar_id( $value, $sub_key = 'id' ) {
+		if ( is_array( $value ) ) {
+			if ( isset( $value[ $sub_key ] ) && ! is_array( $value[ $sub_key ] ) && ! is_object( $value[ $sub_key ] ) ) {
+				return sanitize_text_field( (string) $value[ $sub_key ] );
+			}
+			return '';
+		}
+		if ( is_object( $value ) ) {
+			$value = (array) $value;
+			if ( isset( $value[ $sub_key ] ) && ! is_array( $value[ $sub_key ] ) && ! is_object( $value[ $sub_key ] ) ) {
+				return sanitize_text_field( (string) $value[ $sub_key ] );
+			}
+			return '';
+		}
+		return sanitize_text_field( (string) $value );
+	}
+
+	/**
 	 * Apply successful Stripe session to commerce order.
 	 *
 	 * @param array $session Session object.
@@ -356,8 +384,8 @@ class PCKZ_Payment_Provider_Stripe implements PCKZ_Payment_Provider {
 				'already_paid' => true,
 			);
 		}
-		$session_id = sanitize_text_field( (string) ( $session['id'] ?? '' ) );
-		$intent_id  = sanitize_text_field( (string) ( $session['payment_intent'] ?? '' ) );
+		$session_id = $this->session_scalar_id( $session['id'] ?? '' );
+		$intent_id  = $this->session_scalar_id( $session['payment_intent'] ?? '', 'id' );
 		PCKZ_Commerce::update_order(
 			$order_id,
 			array(

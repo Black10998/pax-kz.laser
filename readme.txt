@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.27.10
+Stable tag: 2.28.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,23 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.2 =
+
+* Master Control routing: added legacy-path compatibility redirect so requests to `/wp-admin/pckz-license-server` are normalized to `wp-admin/admin.php?page=pckz-license-server` instead of falling through to frontend error templates.
+* Settings hardening: normalize `licensing_master_url` to a base site URL (strip accidental `/wp-admin/...` and `/wp-json/...` endpoint paths) so client heartbeat/update/asset-sync calls always target the correct master root.
+* Payments: fixed Stripe `payment_intent` array/object handling in `class-pckz-payments.php` (line 360 warning) to prevent "Array to string conversion" and preserve checkout/order finalization flow.
+* Master Control DB resilience: added a wpdb connection-state normalizer before schema/dashboard queries to recover safely after intermittent mysqli “Commands out of sync” incidents.
+* Architecture and protections unchanged: PaxDesign.at remains master; clients remain connected via licensed REST checks, update authorization, asset permissions, and domain restrictions.
+
+= 2.28.1 =
+
+* Master Control: fix blank page on paxdesign.at — the fleet partial called `$format_datetime()` before it was defined, producing a PHP 8 fatal that wiped the page. Shared formatter closures moved to the parent dashboard view; partials carry defensive fallbacks.
+* Master Control: render path now wrapped in a fail-safe; any unexpected throwable falls back to a recovery panel with the error and next steps instead of a blank screen.
+* Master Control: empty-state banner explains exactly what to do when no client installations have checked in yet.
+* Master Control: schema auto-heal — license/installation/download/security-event tables are re-created on demand if they are missing, so an interrupted upgrade no longer leaves a broken dashboard.
+* Master Control: `PCKZ_Master_Control::register_hooks()` is now wired up unconditionally on master so asset-catalog change notifications always bump the manifest revision.
+* Licensing, asset synchronization, premium/security controls, domain restrictions, update authorization, and master-host lock are unchanged.
 
 = 2.28.0 =
 

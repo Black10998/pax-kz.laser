@@ -11,17 +11,33 @@ $filter_license_id = isset( $_GET['pckz_license_id'] ) ? absint( $_GET['pckz_lic
 $filter_search     = isset( $_GET['pckz_install_s'] ) ? sanitize_text_field( wp_unslash( $_GET['pckz_install_s'] ) ) : '';
 $filter_status     = isset( $_GET['pckz_install_status'] ) ? sanitize_key( wp_unslash( $_GET['pckz_install_status'] ) ) : '';
 
-$format_datetime = static function ( $raw ) {
-	$raw = trim( (string) $raw );
-	if ( '' === $raw ) {
-		return '—';
-	}
-	$ts = strtotime( $raw );
-	if ( ! $ts ) {
-		return $raw;
-	}
-	return gmdate( 'Y-m-d H:i:s', $ts ) . ' UTC';
-};
+/*
+ * $format_datetime, $badge_class and $status_label are provided by the parent
+ * view (admin/views/licensing-dashboard.php). They are intentionally NOT
+ * redefined here so that the fleet partial — which is included BEFORE this
+ * file — can share the same closures. If those parent helpers are missing for
+ * any reason we fall back to safe identity closures to avoid a hard fatal.
+ */
+if ( ! isset( $format_datetime ) || ! is_callable( $format_datetime ) ) {
+	$format_datetime = static function ( $raw ) {
+		$raw = trim( (string) $raw );
+		if ( '' === $raw ) {
+			return '—';
+		}
+		$ts = strtotime( $raw );
+		return $ts ? gmdate( 'Y-m-d H:i:s', $ts ) . ' UTC' : $raw;
+	};
+}
+if ( ! isset( $badge_class ) || ! is_callable( $badge_class ) ) {
+	$badge_class = static function ( $status ) {
+		return 'is-muted';
+	};
+}
+if ( ! isset( $status_label ) || ! is_callable( $status_label ) ) {
+	$status_label = static function ( $status ) {
+		return ucwords( str_replace( '_', ' ', sanitize_key( (string) $status ) ) );
+	};
+}
 
 $status_help = array(
 	'active'   => __( 'License or installation is valid and can check in, export, and receive updates (when permitted).', 'pckz-canonical-engine' ),

@@ -1,12 +1,30 @@
 ## Production installation packages
 
-Canonical package for v2.28.0:
+Canonical package for v2.28.2:
 
-- `pckz-canonical-engine-2.28.0-protected.zip`
+- `pckz-canonical-engine-2.28.2-protected.zip`
+
+SHA256:
+
+- `69cfef7808e6b5c49fa7085283f2df2abdbf4ee632295288254a1400fc0b7754`
 
 Direct download (GitHub Release, recommended):
 
-- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.0/pckz-canonical-engine-2.28.0-protected.zip`
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.2/pckz-canonical-engine-2.28.2-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.2-protected.zip`
+
+What changed in v2.28.2: route/render stability update on top of v2.28.1. Requests to `/wp-admin/pckz-license-server` are now redirected to the canonical admin page slug (`admin.php?page=pckz-license-server`) instead of falling through to frontend error templates. Stripe checkout now handles expanded `payment_intent` payloads safely (fixes PHP array-to-string warning), and master URL normalization strips accidental `/wp-admin/...` or `/wp-json/...` endpoint fragments so client heartbeat/update/sync calls keep targeting the correct master root. Added DB-connection-state guard before master-control queries to recover from intermittent mysqli “Commands out of sync” errors.
+
+Previous release (v2.28.1):
+
+- `pckz-canonical-engine-2.28.1-protected.zip`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.1/pckz-canonical-engine-2.28.1-protected.zip`
 
 Previous release (v2.27.40):
 

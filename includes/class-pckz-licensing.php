@@ -25,12 +25,16 @@ class PCKZ_Licensing {
 	 * Constructor.
 	 */
 	public function __construct() {
+		add_action( 'init', array( $this, 'maybe_redirect_legacy_master_control_path' ), 1 );
 		add_action( 'init', array( $this, 'bootstrap' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 		add_action( self::HEARTBEAT_HOOK, array( $this, 'heartbeat_task' ) );
 
 		if ( class_exists( 'PCKZ_Asset_Sync' ) ) {
 			PCKZ_Asset_Sync::register_hooks();
+		}
+		if ( class_exists( 'PCKZ_Master_Control' ) ) {
+			PCKZ_Master_Control::register_hooks();
 		}
 
 		add_action( 'admin_menu', array( $this, 'register_admin_menu' ), 9 );
@@ -154,6 +158,59 @@ class PCKZ_Licensing {
 		$this->maybe_sync_master_release_meta();
 		$this->apply_embedded_client_package_config();
 		$this->schedule_heartbeat();
+	}
+
+	/**
+	 * Backward-compatible route handler for legacy admin path access.
+	 *
+	 * Master Control is an admin submenu (`admin.php?page=pckz-license-server`).
+	 * Some environments/users still open `/wp-admin/pckz-license-server`, which
+	 * can be routed by the web server to the frontend error template instead of
+	 * wp-admin. This shim redirects to the canonical admin URL.
+	 */
+	public function maybe_redirect_legacy_master_control_path() {
+		if ( 'GET' !== strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) ) ) {
+			return;
+		}
+		if ( ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) ) {
+			return;
+		}
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			return;
+		}
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+		if ( '' === $request_uri ) {
+			return;
+		}
+		$request_path = (string) wp_parse_url( $request_uri, PHP_URL_PATH );
+		if ( '' === $request_path ) {
+			return;
+		}
+		$legacy_path = (string) wp_parse_url( admin_url( 'pckz-license-server' ), PHP_URL_PATH );
+		if ( '' === $legacy_path ) {
+			return;
+		}
+		$normalized_request_path = rtrim( $request_path, '/' );
+		$normalized_legacy_path  = rtrim( $legacy_path, '/' );
+		if ( $normalized_request_path !== $normalized_legacy_path ) {
+			return;
+		}
+		$args = array();
+		if ( ! empty( $_GET ) && is_array( $_GET ) ) {
+			$args = wp_unslash( $_GET );
+			if ( isset( $args['page'] ) ) {
+				unset( $args['page'] );
+			}
+		}
+		$target = admin_url( 'admin.php?page=pckz-license-server' );
+		if ( ! empty( $args ) ) {
+			$target = add_query_arg( $args, $target );
+		}
+		wp_safe_redirect( $target, 302 );
+		if ( defined( 'PCKZ_SMOKE_TEST' ) && PCKZ_SMOKE_TEST ) {
+			return;
+		}
+		exit;
 	}
 
 	/**
@@ -343,10 +400,28 @@ class PCKZ_Licensing {
 
 	/**
 	 * Render license server admin page.
+	 *
+	 * Acts as a fail-safe shell: catches any Throwable from the underlying
+	 * renderer and shows a recovery panel so Master Control never goes blank.
 	 */
 	public function render_admin_page() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
+		}
+		try {
+			$this->render_admin_page_body();
+		} catch ( \Throwable $e ) {
+			$this->render_admin_page_recovery( $e );
+		}
+	}
+
+	/**
+	 * Internal renderer for the license/master-control dashboard.
+	 */
+	private function render_admin_page_body() {
+		self::normalize_db_connection_state();
+		if ( self::is_master_mode() ) {
+			self::ensure_master_schema_ready();
 		}
 		$settings     = PCKZ_Settings::get_all();
 		$master_mode  = self::is_master_mode();
@@ -368,6 +443,9 @@ class PCKZ_Licensing {
 				'allow_remote_export' => false,
 			)
 		);
+		if ( ! is_array( $release_meta ) ) {
+			$release_meta = array();
+		}
 		$client_state = self::get_client_state();
 		if ( ! $master_mode ) {
 			$client_state = self::refresh_entitlement( true );
@@ -393,6 +471,9 @@ class PCKZ_Licensing {
 		$license_map           = array();
 		if ( $master_mode ) {
 			$licenses = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'pckz_license_keys ORDER BY id DESC LIMIT 300', ARRAY_A );
+			if ( ! is_array( $licenses ) ) {
+				$licenses = array();
+			}
 			foreach ( $licenses as $license_row ) {
 				$license_id = (int) ( $license_row['id'] ?? 0 );
 				if ( ! $license_id ) {
@@ -406,6 +487,9 @@ class PCKZ_Licensing {
 					"SELECT license_id, status, COUNT(*) AS total FROM {$wpdb->prefix}pckz_license_installations WHERE license_id IN ({$license_ids}) GROUP BY license_id, status",
 					ARRAY_A
 				);
+				if ( ! is_array( $counts ) ) {
+					$counts = array();
+				}
 				foreach ( array_keys( $license_map ) as $license_id ) {
 					$license_install_stats[ $license_id ] = array(
 						'active'  => 0,
@@ -452,8 +536,17 @@ class PCKZ_Licensing {
 				$sql = $wpdb->prepare( $sql, ...$params );
 			}
 			$installs = $wpdb->get_results( $sql, ARRAY_A );
+			if ( ! is_array( $installs ) ) {
+				$installs = array();
+			}
 			$downloads = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'pckz_license_downloads ORDER BY id DESC LIMIT 300', ARRAY_A );
+			if ( ! is_array( $downloads ) ) {
+				$downloads = array();
+			}
 			$recent_errors = $wpdb->get_results( 'SELECT domain, install_uuid, last_error, updated_at FROM ' . $wpdb->prefix . "pckz_license_installations WHERE last_error <> '' ORDER BY updated_at DESC LIMIT 50", ARRAY_A );
+			if ( ! is_array( $recent_errors ) ) {
+				$recent_errors = array();
+			}
 
 			$stats['licenses_total'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'pckz_license_keys' );
 			$stats['licenses_active'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'pckz_license_keys WHERE status = %s', 'active' ) );
@@ -496,6 +589,119 @@ class PCKZ_Licensing {
 		}
 		if ( $client_notice ) {
 			delete_transient( 'pckzce_client_admin_notice' );
+		}
+	}
+
+	/**
+	 * Render a safe recovery panel when the dashboard renderer throws.
+	 *
+	 * Guarantees the Master Control page never returns a blank response and
+	 * surfaces enough information for an administrator to act.
+	 *
+	 * @param \Throwable $error Captured throwable.
+	 */
+	private function render_admin_page_recovery( \Throwable $error ) {
+		$master_mode = self::is_master_mode();
+		$page_title  = $master_mode
+			? esc_html__( 'Master Control', 'pckz-canonical-engine' )
+			: esc_html__( 'License Dashboard', 'pckz-canonical-engine' );
+		$badge_label = $master_mode
+			? esc_html__( 'Master Mode', 'pckz-canonical-engine' )
+			: esc_html__( 'Client Mode', 'pckz-canonical-engine' );
+		$file = basename( (string) $error->getFile() );
+		$line = (int) $error->getLine();
+		echo '<div class="wrap pckz-admin-wrap pckz-license-dashboard pckz-license-dashboard--recovery">';
+		echo '<div class="pckz-license-hero">';
+		echo '<div><h1>' . $page_title . '</h1>';
+		echo '<p>' . esc_html__( 'A temporary problem prevented the full dashboard from rendering. The information below shows what we recovered and how to continue.', 'pckz-canonical-engine' ) . '</p>';
+		echo '</div>';
+		echo '<span class="pckz-license-badge is-warning">' . $badge_label . '</span>';
+		echo '</div>';
+		echo '<div class="notice notice-error inline"><p><strong>' . esc_html__( 'Master Control could not render this view.', 'pckz-canonical-engine' ) . '</strong></p>';
+		echo '<p><code>' . esc_html( $error->getMessage() ) . '</code></p>';
+		echo '<p class="description">' . esc_html( sprintf( '%s:%d', $file, $line ) ) . '</p>';
+		echo '<ul><li>' . esc_html__( 'Reload this page.', 'pckz-canonical-engine' ) . '</li>';
+		echo '<li>' . esc_html__( 'Verify that all plugin files for v2.28.2 (or newer) are present.', 'pckz-canonical-engine' ) . '</li>';
+		echo '<li>' . esc_html__( 'Check wp-content/debug.log for the full PHP stack trace.', 'pckz-canonical-engine' ) . '</li>';
+		echo '</ul>';
+		echo '</div>';
+		echo '</div>';
+		if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( '[PCKZ Master Control] dashboard render error: ' . $error->getMessage() . ' in ' . $error->getFile() . ':' . $error->getLine() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+	}
+
+	/**
+	 * Guarantee master-side schema (tables + columns) exists before rendering.
+	 *
+	 * Cheap to call on every render: only triggers dbDelta when a table is
+	 * actually missing. Repairs a broken master upgrade (e.g. activation hook
+	 * never ran) so Master Control becomes usable without a manual repair.
+	 */
+	public static function ensure_master_schema_ready() {
+		self::normalize_db_connection_state();
+		global $wpdb;
+		$expected = array(
+			$wpdb->prefix . 'pckz_license_keys',
+			$wpdb->prefix . 'pckz_license_installations',
+			$wpdb->prefix . 'pckz_license_downloads',
+		);
+		$missing = false;
+		foreach ( $expected as $table ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+			if ( ! $exists ) {
+				$missing = true;
+				break;
+			}
+		}
+		if ( $missing ) {
+			self::create_tables();
+			return;
+		}
+		if ( class_exists( 'PCKZ_Master_Control' ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$events_table = $wpdb->prefix . PCKZ_Master_Control::TABLE_EVENTS;
+			$events_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $events_table ) );
+			if ( ! $events_exists ) {
+				PCKZ_Master_Control::upgrade_schema();
+			}
+		}
+	}
+
+	/**
+	 * Heal wpdb connection state after "Commands out of sync" incidents.
+	 *
+	 * Some environments report intermittent mysqli "Commands out of sync"
+	 * errors from ActionScheduler/wp_options queries. This helper clears pending
+	 * result sets (if any) and flushes wpdb caches before running dashboard
+	 * queries so Master Control can recover instead of cascading failures.
+	 */
+	private static function normalize_db_connection_state() {
+		global $wpdb;
+		if ( ! isset( $wpdb ) || ! is_object( $wpdb ) ) {
+			return;
+		}
+		if ( method_exists( $wpdb, 'flush' ) ) {
+			$wpdb->flush();
+		}
+		if (
+			isset( $wpdb->dbh ) &&
+			is_object( $wpdb->dbh ) &&
+			function_exists( 'mysqli_more_results' ) &&
+			function_exists( 'mysqli_next_result' ) &&
+			function_exists( 'mysqli_store_result' )
+		) {
+			while ( @mysqli_more_results( $wpdb->dbh ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				@mysqli_next_result( $wpdb->dbh ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				$result = @mysqli_store_result( $wpdb->dbh ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				if ( is_object( $result ) && method_exists( $result, 'free' ) ) {
+					$result->free();
+				}
+			}
+		}
+		if ( method_exists( $wpdb, 'check_connection' ) ) {
+			$wpdb->check_connection( false );
 		}
 	}
 
@@ -3540,8 +3746,21 @@ class PCKZ_Licensing {
 		if ( '' === $url ) {
 			return '';
 		}
-		$url = preg_replace( '#/+$#', '', $url );
-		return esc_url_raw( $url );
+		$url = esc_url_raw( $url );
+		$parts = wp_parse_url( $url );
+		if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
+			$url = preg_replace( '#/+$#', '', $url );
+			return esc_url_raw( $url );
+		}
+		$scheme = ! empty( $parts['scheme'] ) ? strtolower( (string) $parts['scheme'] ) : 'https';
+		$host   = strtolower( (string) $parts['host'] );
+		$port   = isset( $parts['port'] ) ? ':' . absint( $parts['port'] ) : '';
+		$path   = (string) ( $parts['path'] ?? '' );
+		$path   = preg_replace( '#/(wp-admin|wp-json)(/.*)?$#i', '', $path );
+		$path   = preg_replace( '#/admin\.php$#i', '', $path );
+		$path   = preg_replace( '#/pckz-license-server/?$#i', '', $path );
+		$path   = rtrim( (string) $path, '/' );
+		return esc_url_raw( $scheme . '://' . $host . $port . $path );
 	}
 
 	/**

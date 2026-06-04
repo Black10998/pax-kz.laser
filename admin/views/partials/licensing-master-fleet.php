@@ -16,6 +16,34 @@ $fleet_sort    = isset( $_GET['pckz_fleet_sort'] ) ? sanitize_key( wp_unslash( $
 $fleet_filter  = isset( $_GET['pckz_fleet_filter'] ) ? sanitize_key( wp_unslash( $_GET['pckz_fleet_filter'] ) ) : '';
 $fleet_rows    = is_array( $fleet_rows ?? null ) ? $fleet_rows : array();
 $security_events = is_array( $security_events ?? null ) ? $security_events : array();
+$release_meta    = is_array( $release_meta ?? null ) ? $release_meta : array();
+$stats           = is_array( $stats ?? null ) ? $stats : array();
+
+/*
+ * Defensive fallbacks. Closures should be supplied by the parent
+ * licensing-dashboard.php view, but if any partial is rendered standalone
+ * (or a future refactor reorders includes), avoid a fatal blank page.
+ */
+if ( ! isset( $format_datetime ) || ! is_callable( $format_datetime ) ) {
+	$format_datetime = static function ( $raw ) {
+		$raw = trim( (string) $raw );
+		if ( '' === $raw ) {
+			return '—';
+		}
+		$ts = strtotime( $raw );
+		return $ts ? gmdate( 'Y-m-d H:i:s', $ts ) . ' UTC' : $raw;
+	};
+}
+if ( ! isset( $badge_class ) || ! is_callable( $badge_class ) ) {
+	$badge_class = static function ( $status ) {
+		return 'is-muted';
+	};
+}
+if ( ! isset( $status_label ) || ! is_callable( $status_label ) ) {
+	$status_label = static function ( $status ) {
+		return ucwords( str_replace( '_', ' ', sanitize_key( (string) $status ) ) );
+	};
+}
 
 $health_label = static function ( $health ) {
 	$map = array(
@@ -70,6 +98,22 @@ $fleet_base_url = admin_url( 'admin.php?page=pckz-license-server' );
 <section class="pckz-license-card pckz-license-card--full pckz-fleet-dashboard" id="pckz-fleet-dashboard">
 	<h2><?php esc_html_e( 'Licensed Installations — Fleet Overview', 'pckz-canonical-engine' ); ?></h2>
 	<p class="description"><?php esc_html_e( 'Central monitor for all customer installations: online status, versions, license health, updates, and security signals.', 'pckz-canonical-engine' ); ?></p>
+
+	<?php if ( empty( $fleet_rows ) ) : ?>
+		<div class="notice notice-info inline pckz-fleet-empty">
+			<p>
+				<strong><?php esc_html_e( 'No customer installations have checked in yet.', 'pckz-canonical-engine' ); ?></strong>
+			</p>
+			<p>
+				<?php esc_html_e( 'As soon as a licensed client site authenticates with this master, it will appear here with health, version, sync status, and security alerts. To get started:', 'pckz-canonical-engine' ); ?>
+			</p>
+			<ol class="pckz-fleet-empty__steps">
+				<li><?php esc_html_e( 'Create a license below (Create License card).', 'pckz-canonical-engine' ); ?></li>
+				<li><?php esc_html_e( 'Generate a customer package (Customer Packages card) and deliver the ZIP to the client.', 'pckz-canonical-engine' ); ?></li>
+				<li><?php esc_html_e( 'Once installed, the client checks in automatically and is listed here.', 'pckz-canonical-engine' ); ?></li>
+			</ol>
+		</div>
+	<?php endif; ?>
 
 	<div class="pckz-fleet-stats">
 		<article class="pckz-fleet-stat pckz-fleet-stat--success">

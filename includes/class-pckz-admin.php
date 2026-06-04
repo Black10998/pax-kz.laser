@@ -256,6 +256,36 @@ class PCKZ_Admin {
 	}
 
 	/**
+	 * Normalize the configured master URL to a base site URL.
+	 *
+	 * Admin users sometimes paste endpoint URLs like `/wp-admin/pckz-license-server`
+	 * or `/wp-json/pckzce-license/...`. Clients append REST routes themselves, so
+	 * we keep only the site base URL here.
+	 *
+	 * @param string $raw Raw setting value.
+	 * @return string
+	 */
+	private function normalize_master_base_url( $raw ) {
+		$url = esc_url_raw( trim( (string) $raw ) );
+		if ( '' === $url ) {
+			return '';
+		}
+		$parts = wp_parse_url( $url );
+		if ( empty( $parts['host'] ) ) {
+			return rtrim( $url, '/' );
+		}
+		$scheme = ! empty( $parts['scheme'] ) ? strtolower( (string) $parts['scheme'] ) : 'https';
+		$host   = strtolower( (string) $parts['host'] );
+		$port   = isset( $parts['port'] ) ? ':' . absint( $parts['port'] ) : '';
+		$path   = (string) ( $parts['path'] ?? '' );
+		$path   = preg_replace( '#/(wp-admin|wp-json)(/.*)?$#i', '', $path );
+		$path   = preg_replace( '#/admin\.php$#i', '', $path );
+		$path   = preg_replace( '#/pckz-license-server/?$#i', '', $path );
+		$path   = rtrim( (string) $path, '/' );
+		return esc_url_raw( $scheme . '://' . $host . $port . $path );
+	}
+
+	/**
 	 * Sanitize global settings on save.
 	 *
 	 * @param array $input Raw input.
@@ -304,7 +334,7 @@ class PCKZ_Admin {
 			'creator_page_id'      => absint( $input['creator_page_id'] ?? 0 ),
 			'paypal_cancel_url'    => esc_url_raw( $input['paypal_cancel_url'] ?? '' ),
 			'licensing_master_mode' => false,
-			'licensing_master_url'  => array_key_exists( 'licensing_master_url', $input ) ? esc_url_raw( $input['licensing_master_url'] ) : esc_url_raw( (string) ( $current['licensing_master_url'] ?? 'https://paxdesign.at' ) ),
+			'licensing_master_url'  => array_key_exists( 'licensing_master_url', $input ) ? $this->normalize_master_base_url( $input['licensing_master_url'] ) : $this->normalize_master_base_url( (string) ( $current['licensing_master_url'] ?? 'https://paxdesign.at' ) ),
 			'licensing_key'         => array_key_exists( 'licensing_key', $input ) ? sanitize_text_field( $input['licensing_key'] ) : sanitize_text_field( (string) ( $current['licensing_key'] ?? '' ) ),
 			'licensing_install_uuid' => array_key_exists( 'licensing_install_uuid', $input ) ? sanitize_text_field( $input['licensing_install_uuid'] ) : sanitize_text_field( (string) ( $current['licensing_install_uuid'] ?? '' ) ),
 			'licensing_enforce'     => array_key_exists( 'licensing_enforce', $input ) ? ! empty( $input['licensing_enforce'] ) : ! empty( $current['licensing_enforce'] ),
