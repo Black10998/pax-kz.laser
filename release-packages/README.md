@@ -1,6 +1,24 @@
 ## Production installation packages
 
-Canonical package for v2.28.10:
+Canonical package for v2.28.11:
+
+- `pckz-canonical-engine-2.28.11-protected.zip`
+
+SHA256:
+
+- `97684e3e0b7fef790cd5af78a1c1f7b63bc49a62caca36e5ec20f373df6b8d6a`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.11/pckz-canonical-engine-2.28.11-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.11-protected.zip`
+
+What changed in v2.28.11: master release metadata now auto-publishes the newest bundled or uploaded protected package (so clients detect 2.28.10+ without a manual Master Control publish when the zip is on disk), and the client License Dashboard shows a masked license key with reveal and copy controls.
+
+Previous release (v2.28.10):
 
 - `pckz-canonical-engine-2.28.10-protected.zip`
 

@@ -1123,6 +1123,43 @@
 	gap: 4px;
 }
 
+.pckz-license-card--license-key .pckz-license-key-field {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.pckz-license-card--license-key .pckz-license-key-value {
+	font-size: 14px;
+	letter-spacing: 0.04em;
+	margin: 0;
+	padding: 6px 10px;
+	word-break: break-all;
+}
+
+.pckz-license-card--license-key .pckz-license-key-actions {
+	display: inline-flex;
+	gap: 4px;
+}
+
+.pckz-license-card--license-key .pckz-license-key-actions .button {
+	align-items: center;
+	display: inline-flex;
+	height: 32px;
+	justify-content: center;
+	min-width: 32px;
+	padding: 0;
+	width: 32px;
+}
+
+.pckz-license-card--license-key .pckz-license-key-actions .dashicons {
+	font-size: 18px;
+	height: 18px;
+	line-height: 18px;
+	width: 18px;
+}
+
 .pckz-license-card--update .pckz-update-summary {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(120px, 1fr));

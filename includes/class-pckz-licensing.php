@@ -158,7 +158,7 @@ class PCKZ_Licensing {
 	public function bootstrap() {
 		$this->ensure_install_uuid();
 		$this->enforce_master_host_lock();
-		$this->maybe_sync_master_release_meta();
+		self::sync_master_release_meta_if_needed();
 		$this->apply_embedded_client_package_config();
 		$this->schedule_heartbeat();
 	}
@@ -292,12 +292,54 @@ class PCKZ_Licensing {
 	}
 
 	/**
-	 * Keep master release metadata aligned with the installed plugin version.
+	 * Highest semver with a readable local protected package (bundled or uploaded).
 	 *
-	 * Ensures licensed clients can detect updates after a master upgrade without
-	 * requiring a manual release-meta save in Master Control.
+	 * @return string Empty when none found.
 	 */
-	private function maybe_sync_master_release_meta() {
+	public static function discover_latest_available_protected_release_version() {
+		$pattern = '/^pckz-canonical-engine-([0-9]+(?:\.[0-9]+)*)-protected\.zip$/i';
+		$latest  = '';
+
+		$scan_dir = static function ( $dir ) use ( $pattern, &$latest ) {
+			$dir = (string) $dir;
+			if ( ! is_dir( $dir ) ) {
+				return;
+			}
+			$files = scandir( $dir );
+			if ( ! is_array( $files ) ) {
+				return;
+			}
+			foreach ( $files as $file ) {
+				if ( ! is_string( $file ) || ! preg_match( $pattern, $file, $matches ) ) {
+					continue;
+				}
+				$version = sanitize_text_field( (string) ( $matches[1] ?? '' ) );
+				if ( '' === $version ) {
+					continue;
+				}
+				if ( '' === $latest || version_compare( $version, $latest, '>' ) ) {
+					$latest = $version;
+				}
+			}
+		};
+
+		$scan_dir( trailingslashit( PCKZCE_PLUGIN_DIR ) . 'release-packages' );
+		$storage = self::protected_release_storage();
+		if ( ! is_wp_error( $storage ) ) {
+			$scan_dir( (string) $storage['dir'] );
+		}
+
+		return $latest;
+	}
+
+	/**
+	 * Keep master release metadata aligned with the newest available protected package.
+	 *
+	 * Uses the highest version among the installed plugin, bundled release-packages,
+	 * and uploaded protected archives so clients see new releases even when the master
+	 * site has not yet upgraded its own plugin files.
+	 */
+	public static function sync_master_release_meta_if_needed() {
 		if ( ! self::is_master_mode() ) {
 			return;
 		}
@@ -326,20 +368,27 @@ class PCKZ_Licensing {
 
 		$stored_version = sanitize_text_field( (string) ( $meta['version'] ?? '' ) );
 		$stored_url     = esc_url_raw( (string) ( $meta['package_url'] ?? '' ) );
-		$candidate      = self::release_package_candidate_for_version( PCKZCE_VERSION );
-		$can_sync       = ! empty( $candidate['path'] ) && ! empty( $candidate['url'] );
-		$settings       = PCKZ_Settings::get_all();
+
+		$target_version = PCKZCE_VERSION;
+		$discovered     = self::discover_latest_available_protected_release_version();
+		if ( $discovered && version_compare( $discovered, $target_version, '>' ) ) {
+			$target_version = $discovered;
+		}
+
+		$candidate = self::release_package_candidate_for_version( $target_version );
+		$can_sync  = ! empty( $candidate['path'] ) && ! empty( $candidate['url'] );
+		$settings  = PCKZ_Settings::get_all();
 
 		// Never overwrite manually published package URLs for the same version.
-		$should_upgrade_release_meta = '' === $stored_version || version_compare( PCKZCE_VERSION, $stored_version, '>' );
+		$should_upgrade_release_meta = '' === $stored_version || version_compare( $target_version, $stored_version, '>' );
 		if ( ! $should_upgrade_release_meta ) {
 			// Repair stale validation fields when we are already on this version and
 			// using the canonical package URL/candidate.
-			if ( PCKZCE_VERSION !== $stored_version || ! $can_sync ) {
+			if ( $target_version !== $stored_version || ! $can_sync ) {
 				return;
 			}
 			$candidate_url = esc_url_raw( (string) $candidate['url'] );
-			$expected_url  = self::default_protected_package_url( PCKZCE_VERSION );
+			$expected_url  = self::default_protected_package_url( $target_version );
 			$known_url     = '' === $stored_url || $stored_url === $candidate_url || $stored_url === $expected_url;
 			if ( ! $known_url ) {
 				return;
@@ -352,7 +401,7 @@ class PCKZ_Licensing {
 
 		$validated_archive = self::validate_protected_release_archive(
 			(string) $candidate['path'],
-			PCKZCE_VERSION,
+			$target_version,
 			! empty( $settings['licensing_update_require_manifest'] ),
 			! empty( $settings['licensing_update_require_manifest_signature'] )
 		);
@@ -360,7 +409,7 @@ class PCKZ_Licensing {
 			return;
 		}
 
-		$meta['version']     = PCKZCE_VERSION;
+		$meta['version']     = $target_version;
 		$meta['package_url'] = esc_url_raw( (string) $candidate['url'] );
 		if ( empty( $meta['tested'] ) ) {
 			$meta['tested'] = get_bloginfo( 'version' );
@@ -373,6 +422,13 @@ class PCKZ_Licensing {
 		$meta['package_validated_at']          = current_time( 'mysql' );
 
 		update_option( self::OPTION_RELEASE_META, $meta, false );
+	}
+
+	/**
+	 * @deprecated Use sync_master_release_meta_if_needed().
+	 */
+	private function maybe_sync_master_release_meta() {
+		self::sync_master_release_meta_if_needed();
 	}
 
 	/**
@@ -944,6 +1000,9 @@ class PCKZ_Licensing {
 			'update_detail'       => $update_detail,
 			'can_update_now'      => ( 'available' === $update_status && $authorized && $updates_permitted && current_user_can( 'update_plugins' ) ),
 			'license_hint'        => sanitize_text_field( (string) ( $client_state['license_hint'] ?? '' ) ),
+			'has_license_key'     => '' !== trim( (string) ( $settings['licensing_key'] ?? '' ) ),
+			'license_key_masked'  => self::mask_license_key_for_display( (string) ( $settings['licensing_key'] ?? '' ) ),
+			'license_key_active'  => $authorized,
 			'install_uuid'        => self::get_install_uuid(),
 		);
 	}
@@ -2928,6 +2987,7 @@ class PCKZ_Licensing {
 				)
 			);
 		}
+		self::sync_master_release_meta_if_needed();
 		$rate_limit = self::enforce_endpoint_rate_limit( $request, 'client_check_in', 240, 300 );
 		if ( is_wp_error( $rate_limit ) ) {
 			return new WP_REST_Response(
@@ -3009,6 +3069,7 @@ class PCKZ_Licensing {
 		if ( ! self::is_master_mode() ) {
 			return rest_ensure_response( array( 'ok' => false, 'reason' => 'master_mode_disabled' ) );
 		}
+		self::sync_master_release_meta_if_needed();
 		$rate_limit = self::enforce_endpoint_rate_limit( $request, 'client_update_meta', 180, 300 );
 		if ( is_wp_error( $rate_limit ) ) {
 			return new WP_REST_Response( array( 'ok' => false, 'reason' => $rate_limit->get_error_message() ), 429 );
@@ -4746,6 +4807,21 @@ class PCKZ_Licensing {
 			return str_repeat( '*', max( 4, $len ) );
 		}
 		return substr( $key, 0, 6 ) . '…' . substr( $key, -4 );
+	}
+
+	/**
+	 * Mask a license key for the client dashboard (last segment visible).
+	 *
+	 * @param string $key License key.
+	 * @return string
+	 */
+	public static function mask_license_key_for_display( $key ) {
+		$key = trim( (string) $key );
+		if ( '' === $key ) {
+			return '';
+		}
+		$tail = strtoupper( substr( $key, -4 ) );
+		return 'XXXX-XXXX-XXXX-' . $tail;
 	}
 
 	/**

@@ -135,6 +135,44 @@ $format_datetime = static function ( $raw ) {
 				<?php endif; ?>
 			</article>
 
+			<?php
+			$client_license_key = trim( (string) ( $settings['licensing_key'] ?? '' ) );
+			?>
+			<article class="pckz-license-card pckz-license-card--license-key">
+				<h2><?php esc_html_e( 'License Key', 'pckz-canonical-engine' ); ?></h2>
+				<?php if ( ! empty( $client_summary['has_license_key'] ) && '' !== $client_license_key ) : ?>
+					<div
+						class="pckz-license-key-field"
+						data-masked="<?php echo esc_attr( (string) ( $client_summary['license_key_masked'] ?? '' ) ); ?>"
+						data-full="<?php echo esc_attr( $client_license_key ); ?>"
+					>
+						<code class="pckz-license-key-value" id="pckz-client-license-key-value"><?php echo esc_html( (string) ( $client_summary['license_key_masked'] ?? '' ) ); ?></code>
+						<div class="pckz-license-key-actions">
+							<button type="button" class="button button-small pckz-license-key-toggle" aria-pressed="false" aria-controls="pckz-client-license-key-value" aria-label="<?php esc_attr_e( 'Show license key', 'pckz-canonical-engine' ); ?>">
+								<span class="dashicons dashicons-visibility" aria-hidden="true"></span>
+								<span class="screen-reader-text"><?php esc_html_e( 'Show license key', 'pckz-canonical-engine' ); ?></span>
+							</button>
+							<button type="button" class="button button-small pckz-code-copy pckz-license-key-copy" data-copy="<?php echo esc_attr( $client_license_key ); ?>" aria-label="<?php esc_attr_e( 'Copy license key', 'pckz-canonical-engine' ); ?>">
+								<span class="dashicons dashicons-admin-page" aria-hidden="true"></span>
+								<span class="screen-reader-text"><?php esc_html_e( 'Copy license key', 'pckz-canonical-engine' ); ?></span>
+							</button>
+						</div>
+					</div>
+					<p class="description">
+						<?php
+						if ( ! empty( $client_summary['license_key_active'] ) ) {
+							esc_html_e( 'This key is active for this installation. Revoking or suspending it in Master Control removes activation immediately on the next check-in.', 'pckz-canonical-engine' );
+						} else {
+							esc_html_e( 'A license key is configured, but this installation is not currently authorized. Contact your administrator if you believe this is an error.', 'pckz-canonical-engine' );
+						}
+						?>
+					</p>
+				<?php else : ?>
+					<p class="pckz-license-value"><?php esc_html_e( 'No license key configured', 'pckz-canonical-engine' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Add your license key in PCKZ Canonical Engine settings to activate this site.', 'pckz-canonical-engine' ); ?></p>
+				<?php endif; ?>
+			</article>
+
 			<article class="pckz-license-card">
 				<h2><?php esc_html_e( 'Connected Server', 'pckz-canonical-engine' ); ?></h2>
 				<p class="pckz-license-value"><?php echo esc_html( $client_summary['connected_server'] ?? '' ); ?></p>

@@ -116,6 +116,26 @@
 			}
 		});
 
+		licenseDashboard.on('click', '.pckz-license-key-toggle', function () {
+			const btn = $(this);
+			const field = btn.closest('.pckz-license-key-field');
+			const valueEl = field.find('.pckz-license-key-value').first();
+			const masked = String(field.data('masked') || '');
+			const full = String(field.data('full') || '');
+			const revealed = btn.attr('aria-pressed') === 'true';
+			if (revealed) {
+				valueEl.text(masked);
+				btn.attr('aria-pressed', 'false');
+				btn.attr('aria-label', 'Show license key');
+				btn.find('.dashicons').removeClass('dashicons-hidden').addClass('dashicons-visibility');
+			} else if (full) {
+				valueEl.text(full);
+				btn.attr('aria-pressed', 'true');
+				btn.attr('aria-label', 'Hide license key');
+				btn.find('.dashicons').removeClass('dashicons-visibility').addClass('dashicons-hidden');
+			}
+		});
+
 		licenseDashboard.on('click', '.pckz-code-copy', function () {
 			const el = $(this);
 			const value = String(el.data('copy') || el.text() || '').trim();

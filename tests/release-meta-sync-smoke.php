@@ -156,8 +156,14 @@ if ( ! function_exists( 'absint' ) ) {
 require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-settings.php';
 require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-licensing.php';
 
-$expected_url = PCKZ_Licensing::default_protected_package_url( PCKZCE_VERSION );
-if ( '' === $expected_url || false === strpos( $expected_url, 'pckz-canonical-engine-' . PCKZCE_VERSION . '-protected.zip' ) ) {
+$discovered_latest = PCKZ_Licensing::discover_latest_available_protected_release_version();
+if ( '' === $discovered_latest || version_compare( $discovered_latest, PCKZCE_VERSION, '<=' ) ) {
+	fwrite( STDERR, "Smoke expects a bundled protected package newer than PCKZCE_VERSION.\n" );
+	exit( 1 );
+}
+
+$expected_url = PCKZ_Licensing::default_protected_package_url( $discovered_latest );
+if ( '' === $expected_url || false === strpos( $expected_url, 'pckz-canonical-engine-' . $discovered_latest . '-protected.zip' ) ) {
 	fwrite( STDERR, "Default protected package URL should include versioned zip name.\n" );
 	exit( 1 );
 }
@@ -176,8 +182,8 @@ $licensing = new PCKZ_Licensing();
 $licensing->bootstrap();
 
 $meta = get_option( PCKZ_Licensing::OPTION_RELEASE_META, array() );
-if ( ( $meta['version'] ?? '' ) !== PCKZCE_VERSION ) {
-	fwrite( STDERR, "Release version should sync to installed plugin version.\n" );
+if ( ( $meta['version'] ?? '' ) !== $discovered_latest ) {
+	fwrite( STDERR, "Release version should sync to newest available protected package.\n" );
 	exit( 1 );
 }
 if ( ( $meta['package_url'] ?? '' ) !== $expected_url ) {
@@ -197,7 +203,7 @@ if ( ( $meta['changelog'] ?? '' ) !== 'Manual changelog' ) {
 update_option(
 	PCKZ_Licensing::OPTION_RELEASE_META,
 	array(
-		'version'      => PCKZCE_VERSION,
+		'version'      => $discovered_latest,
 		'package_url'  => 'https://downloads.example.test/manual-release.zip',
 		'package_sha256' => 'manual-sha',
 		'changelog'    => 'Manual custom release',
