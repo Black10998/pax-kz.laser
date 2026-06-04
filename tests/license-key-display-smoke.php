@@ -33,4 +33,18 @@ if ( '' !== PCKZ_Licensing::mask_license_key_for_display( '' ) ) {
 	exit( 1 );
 }
 
+if ( ! class_exists( 'PCKZ_Settings' ) ) {
+	class PCKZ_Settings {
+		private static $all = array( 'licensing_key' => 'PCKZCE-TEST-KEY-1234567890' );
+		public static function get_all() {
+			return self::$all;
+		}
+	}
+}
+
+if ( 'PCKZCE-TEST-KEY-1234567890' !== PCKZ_Licensing::get_configured_license_key() ) {
+	fwrite( STDERR, "get_configured_license_key should return settings licensing_key.\n" );
+	exit( 1 );
+}
+
 echo "OK license-key-display-smoke: dashboard license key masking works\n";

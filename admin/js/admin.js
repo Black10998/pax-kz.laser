@@ -118,7 +118,7 @@
 
 		licenseDashboard.on('click', '.pckz-license-key-toggle', function () {
 			const btn = $(this);
-			const panel = btn.closest('.pckz-license-key-panel__body, .pckz-license-key-field');
+			const panel = btn.closest('.pckz-license-key-panel__body');
 			const valueEl = panel.find('.pckz-license-key-value').first();
 			const masked = String(panel.data('masked') || '');
 			const full = String(panel.data('full') || '');

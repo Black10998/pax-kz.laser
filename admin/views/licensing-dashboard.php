@@ -125,7 +125,8 @@ $format_datetime = static function ( $raw ) {
 		<?php endif; ?>
 
 		<?php
-		$client_license_key = trim( (string) ( $settings['licensing_key'] ?? '' ) );
+		$client_license_key = trim( (string) ( $client_summary['license_key_full'] ?? '' ) );
+		$license_key_error  = trim( (string) ( $client_summary['license_key_error'] ?? '' ) );
 		$license_key_status = sanitize_key( (string) ( $client_summary['license_status'] ?? 'unknown' ) );
 		?>
 		<article class="pckz-license-card pckz-license-card--license-key-panel">
@@ -141,7 +142,7 @@ $format_datetime = static function ( $raw ) {
 			<?php if ( ! empty( $client_summary['license_reason'] ) ) : ?>
 				<p class="pckz-license-key-panel__reason"><?php echo esc_html( $client_summary['license_reason'] ); ?></p>
 			<?php endif; ?>
-			<?php if ( ! empty( $client_summary['has_license_key'] ) && '' !== $client_license_key ) : ?>
+			<?php if ( '' !== $client_license_key ) : ?>
 				<div
 					class="pckz-license-key-panel__body"
 					data-masked="<?php echo esc_attr( (string) ( $client_summary['license_key_masked'] ?? '' ) ); ?>"
@@ -163,8 +164,8 @@ $format_datetime = static function ( $raw ) {
 					</div>
 				</div>
 			<?php else : ?>
-				<p class="pckz-license-value"><?php esc_html_e( 'No license key configured', 'pckz-canonical-engine' ); ?></p>
-				<p class="description"><?php esc_html_e( 'Add your license key in PCKZ Canonical Engine settings to activate this site.', 'pckz-canonical-engine' ); ?></p>
+				<p class="pckz-license-value"><?php esc_html_e( 'License key unavailable', 'pckz-canonical-engine' ); ?></p>
+				<p class="description"><?php echo esc_html( $license_key_error ? $license_key_error : __( 'No license key is stored in plugin settings.', 'pckz-canonical-engine' ) ); ?></p>
 			<?php endif; ?>
 		</article>
 
