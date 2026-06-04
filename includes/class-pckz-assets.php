@@ -13,6 +13,39 @@ defined( 'ABSPATH' ) || exit;
 class PCKZ_Assets {
 
 	/**
+	 * Asset protection setting key.
+	 */
+	const SETTING_PREFER_PROTECTED = 'security_prefer_protected_assets';
+
+	/**
+	 * Legacy asset setting key kept for backward compatibility.
+	 */
+	const SETTING_LEGACY_MINIFIED = 'security_prefer_minified_js';
+
+	/**
+	 * Public creator sources that should have production artifacts.
+	 *
+	 * @return string[]
+	 */
+	public static function creator_source_assets() {
+		return array(
+			'public/css/creator.css',
+			'public/js/bootstrap.js',
+			'public/js/fabric-patch.js',
+			'public/js/canvas-safe.js',
+			'public/js/clipper-lib.js',
+			'public/js/pckz-svg-knockout.js',
+			'public/js/preview-engine.js',
+			'public/js/visual-picker.js',
+			'public/js/fabric-production-pipeline.js',
+			'public/js/canonical-scene.js',
+			'public/js/preview-magnifier.js',
+			'public/js/pckz-creator-protect.js',
+			'public/js/creator.js',
+		);
+	}
+
+	/**
 	 * Version string for enqueued assets (plugin version + file mtime).
 	 *
 	 * @param string $relative_path Path relative to plugin root.
@@ -28,39 +61,159 @@ class PCKZ_Assets {
 	}
 
 	/**
-	 * Resolve script path (prefers *.min.js when enabled and available).
+	 * Determine whether protected/minified assets should be preferred.
 	 *
-	 * @param string $relative_path Script path relative to plugin root.
-	 * @return string
+	 * @param array|null $settings Optional settings.
+	 * @return bool
 	 */
-	public static function script_relative_path( $relative_path ) {
-		$relative_path = ltrim( (string) $relative_path, '/' );
-		if ( '' === $relative_path || ! preg_match( '/\.js$/i', $relative_path ) ) {
-			return $relative_path;
+	public static function prefer_protected_assets( $settings = null ) {
+		if ( ! is_array( $settings ) ) {
+			$settings = PCKZ_Settings::get_all();
 		}
-		if ( preg_match( '/\.min\.js$/i', $relative_path ) ) {
-			return $relative_path;
+		if ( array_key_exists( self::SETTING_PREFER_PROTECTED, $settings ) ) {
+			return ! empty( $settings[ self::SETTING_PREFER_PROTECTED ] );
 		}
-		$settings = PCKZ_Settings::get_all();
-		if ( empty( $settings['security_prefer_minified_js'] ) ) {
-			return $relative_path;
-		}
-		$min_relative = preg_replace( '/\.js$/i', '.min.js', $relative_path );
-		if ( ! is_string( $min_relative ) || '' === $min_relative ) {
-			return $relative_path;
-		}
-		$min_path = PCKZCE_PLUGIN_DIR . $min_relative;
-		return is_readable( $min_path ) ? $min_relative : $relative_path;
+		return ! empty( $settings[ self::SETTING_LEGACY_MINIFIED ] );
 	}
 
 	/**
-	 * Resolve script URL with optional minified fallback.
+	 * Return production candidates for a source path.
 	 *
-	 * @param string $relative_path Script path relative to plugin root.
+	 * @param string $relative_path Source-relative path.
+	 * @return string[]
+	 */
+	public static function production_candidates( $relative_path ) {
+		$relative_path = ltrim( (string) $relative_path, '/' );
+		if ( '' === $relative_path ) {
+			return array();
+		}
+		if ( preg_match( '/\.protected\.js$/i', $relative_path ) || preg_match( '/\.min\.(js|css)$/i', $relative_path ) ) {
+			return array( $relative_path );
+		}
+		if ( preg_match( '/\.js$/i', $relative_path ) ) {
+			$protected = preg_replace( '/\.js$/i', '.protected.js', $relative_path );
+			$minified  = preg_replace( '/\.js$/i', '.min.js', $relative_path );
+			return array_filter(
+				array( $protected, $minified ),
+				static function ( $candidate ) {
+					return is_string( $candidate ) && '' !== $candidate;
+				}
+			);
+		}
+		if ( preg_match( '/\.css$/i', $relative_path ) ) {
+			$minified = preg_replace( '/\.css$/i', '.min.css', $relative_path );
+			return is_string( $minified ) && '' !== $minified ? array( $minified ) : array();
+		}
+		return array();
+	}
+
+	/**
+	 * Resolve asset path with production preferences.
+	 *
+	 * @param string     $relative_path Source-relative path.
+	 * @param array|null $settings      Optional settings.
 	 * @return string
 	 */
-	public static function script_url( $relative_path ) {
-		return PCKZCE_PLUGIN_URL . self::script_relative_path( $relative_path );
+	public static function asset_relative_path( $relative_path, $settings = null ) {
+		$relative_path = ltrim( (string) $relative_path, '/' );
+		if ( '' === $relative_path ) {
+			return $relative_path;
+		}
+		if ( ! self::prefer_protected_assets( $settings ) ) {
+			return $relative_path;
+		}
+		$candidates = self::production_candidates( $relative_path );
+		if ( empty( $candidates ) ) {
+			return $relative_path;
+		}
+		foreach ( $candidates as $candidate ) {
+			$asset_path = PCKZCE_PLUGIN_DIR . ltrim( $candidate, '/' );
+			if ( is_readable( $asset_path ) ) {
+				return $candidate;
+			}
+		}
+		return $relative_path;
+	}
+
+	/**
+	 * Resolve script path with protected/minified preferences.
+	 *
+	 * @param string     $relative_path Script path.
+	 * @param array|null $settings      Optional settings.
+	 * @return string
+	 */
+	public static function script_relative_path( $relative_path, $settings = null ) {
+		return self::asset_relative_path( $relative_path, $settings );
+	}
+
+	/**
+	 * Resolve style path with minified preferences.
+	 *
+	 * @param string     $relative_path Style path.
+	 * @param array|null $settings      Optional settings.
+	 * @return string
+	 */
+	public static function style_relative_path( $relative_path, $settings = null ) {
+		return self::asset_relative_path( $relative_path, $settings );
+	}
+
+	/**
+	 * Resolve script URL.
+	 *
+	 * @param string     $relative_path Script path.
+	 * @param array|null $settings      Optional settings.
+	 * @return string
+	 */
+	public static function script_url( $relative_path, $settings = null ) {
+		return PCKZCE_PLUGIN_URL . self::script_relative_path( $relative_path, $settings );
+	}
+
+	/**
+	 * Resolve style URL.
+	 *
+	 * @param string     $relative_path Style path.
+	 * @param array|null $settings      Optional settings.
+	 * @return string
+	 */
+	public static function style_url( $relative_path, $settings = null ) {
+		return PCKZCE_PLUGIN_URL . self::style_relative_path( $relative_path, $settings );
+	}
+
+	/**
+	 * Missing production artifacts for admin notices.
+	 *
+	 * @param array|null $settings Optional settings.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function missing_production_assets( $settings = null ) {
+		if ( ! is_array( $settings ) ) {
+			$settings = PCKZ_Settings::get_all();
+		}
+		if ( ! self::prefer_protected_assets( $settings ) ) {
+			return array();
+		}
+		$missing = array();
+		foreach ( self::creator_source_assets() as $source ) {
+			$candidates = self::production_candidates( $source );
+			if ( empty( $candidates ) ) {
+				continue;
+			}
+			$found = false;
+			foreach ( $candidates as $candidate ) {
+				if ( is_readable( PCKZCE_PLUGIN_DIR . ltrim( $candidate, '/' ) ) ) {
+					$found = true;
+					break;
+				}
+			}
+			if ( ! $found ) {
+				$missing[] = array(
+					'source'    => $source,
+					'expected'  => $candidates,
+					'resolved'  => self::asset_relative_path( $source, $settings ),
+				);
+			}
+		}
+		return $missing;
 	}
 
 	/**
@@ -76,9 +229,9 @@ class PCKZ_Assets {
 
 		wp_enqueue_style(
 			'pckzce-creator',
-			PCKZCE_PLUGIN_URL . 'public/css/creator.css',
+			self::style_url( 'public/css/creator.css', $settings ),
 			$style_deps,
-			self::version( 'public/css/creator.css' )
+			self::version( self::style_relative_path( 'public/css/creator.css', $settings ) )
 		);
 
 		wp_add_inline_style(
@@ -347,7 +500,7 @@ class PCKZ_Assets {
 				'wooProductId' => (int) ( $config['woo_product_id'] ?? 0 ),
 				'pluginSlug'  => 'pckz-canonical-engine',
 				'build'       => defined( 'PCKZCE_BUILD' ) ? PCKZCE_BUILD : PCKZCE_VERSION,
-				'version'      => self::version( 'public/js/creator.js' ),
+				'version'      => self::version( self::script_relative_path( 'public/js/creator.js', $settings ) ),
 			)
 		);
 	}

@@ -100,6 +100,7 @@ class PCKZ_Settings {
 			'licensing_update_require_manifest_signature' => false,
 			'licensing_release_signing_key' => '',
 			'licensing_harden_design_rest' => false,
+			'security_prefer_protected_assets' => false,
 			'security_prefer_minified_js' => false,
 			'payments_primary_provider' => 'paypal',
 			'payments_enable_stripe' => false,

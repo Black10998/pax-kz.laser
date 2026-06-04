@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.6
+Stable tag: 2.28.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,15 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.7 =
+
+* Hardening-only release: added new `security_prefer_protected_assets` setting to serve production artifacts on public creator pages (`.protected.js`, `.min.js`, `.min.css`) via standard WordPress enqueue APIs.
+* Added safe fallback behavior: if protected/minified assets are missing, frontend stays functional and admin receives a clear warning with required build targets.
+* Added production asset resolver for scripts/styles and extended public tracking stylesheet enqueue to support minified assets.
+* Added `tools/build-js-protection.php` to generate minified JS, protected JS for sensitive frontend files, minified CSS, and remove source maps from public build output.
+* Reduced exposed frontend payload by removing unused payment diagnostics/hints from public JS config; sensitive checks stay server-side.
+* Added regression smoke test `tests/public-protected-assets-smoke.php` to verify protected mode never enqueues readable development JS on public creator pages.
 
 = 2.28.6 =
 

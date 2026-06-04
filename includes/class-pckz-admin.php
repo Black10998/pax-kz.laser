@@ -19,6 +19,7 @@ class PCKZ_Admin {
 		add_action( 'admin_menu', array( $this, 'register_menus' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_notices', array( $this, 'render_asset_protection_notice' ) );
 		add_action( 'admin_post_pckz_update_order_status', array( $this, 'handle_update_order_status' ) );
 		add_action( 'admin_post_pckz_update_order_notes', array( $this, 'handle_update_order_notes' ) );
 		add_action( 'admin_post_pckz_update_order_shipment', array( $this, 'handle_update_order_shipment' ) );
@@ -128,6 +129,41 @@ class PCKZ_Admin {
 			'pckz-orders',
 			array( $this, 'render_orders' )
 		);
+	}
+
+	/**
+	 * Show admin warning when protected asset mode is enabled but artifacts are missing.
+	 */
+	public function render_asset_protection_notice() {
+		if ( ! current_user_can( 'manage_options' ) || ! class_exists( 'PCKZ_Assets' ) ) {
+			return;
+		}
+
+		$settings = PCKZ_Settings::get_all();
+		if ( ! PCKZ_Assets::prefer_protected_assets( $settings ) ) {
+			return;
+		}
+
+		$missing = PCKZ_Assets::missing_production_assets( $settings );
+		if ( empty( $missing ) ) {
+			return;
+		}
+		?>
+		<div class="notice notice-warning">
+			<p><strong><?php esc_html_e( 'PCKZ asset protection mode is enabled, but production assets are missing.', 'pckz-canonical-engine' ); ?></strong></p>
+			<p><?php esc_html_e( 'Public pages will keep working with fallback source files until production artifacts are generated. Build protected assets before deploying to production.', 'pckz-canonical-engine' ); ?></p>
+			<ul style="margin-left:20px;list-style:disc;">
+				<?php foreach ( $missing as $entry ) : ?>
+					<li>
+						<code><?php echo esc_html( (string) $entry['source'] ); ?></code>
+						&rarr;
+						<code><?php echo esc_html( implode( ', ', array_map( 'strval', (array) ( $entry['expected'] ?? array() ) ) ) ); ?></code>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+			<p><code>php tools/build-js-protection.php</code></p>
+		</div>
+		<?php
 	}
 
 	/**
@@ -477,7 +513,16 @@ class PCKZ_Admin {
 			'licensing_update_require_manifest_signature' => array_key_exists( 'licensing_update_require_manifest_signature', $input ) ? ! empty( $input['licensing_update_require_manifest_signature'] ) : ! empty( $current['licensing_update_require_manifest_signature'] ),
 			'licensing_release_signing_key' => array_key_exists( 'licensing_release_signing_key', $input ) ? sanitize_text_field( $input['licensing_release_signing_key'] ) : sanitize_text_field( (string) ( $current['licensing_release_signing_key'] ?? '' ) ),
 			'licensing_harden_design_rest' => array_key_exists( 'licensing_harden_design_rest', $input ) ? ! empty( $input['licensing_harden_design_rest'] ) : ! empty( $current['licensing_harden_design_rest'] ),
-			'security_prefer_minified_js' => array_key_exists( 'security_prefer_minified_js', $input ) ? ! empty( $input['security_prefer_minified_js'] ) : ! empty( $current['security_prefer_minified_js'] ),
+			'security_prefer_protected_assets' => array_key_exists( 'security_prefer_protected_assets', $input )
+				? ! empty( $input['security_prefer_protected_assets'] )
+				: (
+					array_key_exists( 'security_prefer_minified_js', $input )
+						? ! empty( $input['security_prefer_minified_js'] )
+						: (
+							! empty( $current['security_prefer_protected_assets'] )
+							|| ! empty( $current['security_prefer_minified_js'] )
+						)
+				),
 			'payments_primary_provider' => in_array( sanitize_key( $input['payments_primary_provider'] ?? 'paypal' ), array( 'paypal', 'stripe' ), true )
 				? sanitize_key( $input['payments_primary_provider'] ?? 'paypal' )
 				: 'paypal',
@@ -497,6 +542,7 @@ class PCKZ_Admin {
 			'tracking_sync_interval_minutes' => max( 5, min( 240, absint( $input['tracking_sync_interval_minutes'] ?? 30 ) ) ),
 			'tracking_auto_detect_carrier' => ! empty( $input['tracking_auto_detect_carrier'] ),
 		);
+		$output['security_prefer_minified_js'] = ! empty( $output['security_prefer_protected_assets'] );
 
 		if ( empty( $output['licensing_master_api_key'] ) ) {
 			$output['licensing_master_api_key'] = 'pckz-msk-' . wp_generate_password( 40, false, false );
