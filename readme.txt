@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.9
+Stable tag: 2.28.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.10 =
+
+* Release bump for delivery verification: published a new protected package version so client installations can confirm latest code deployment path end-to-end.
+* Master Control tamper rendering upgrade: security event rows now show human-readable event labels (for example “Tamper signal reported”) instead of raw generic slugs only.
+* Added detailed per-signal explanations in Master Control (why triggered, what was detected, and update impact: informational vs potentially blocking under strict integrity/signature policy).
+* Installation history now includes expanded tamper signal detail cards with impact notes and clearer admin interpretation.
 
 = 2.28.9 =
 

@@ -130,6 +130,112 @@ class PCKZ_Master_Control {
 	}
 
 	/**
+	 * Human-readable event type label for dashboard views.
+	 *
+	 * @param string $event_type Event type slug.
+	 * @return string
+	 */
+	public static function event_type_label( $event_type ) {
+		$event_type = sanitize_key( (string) $event_type );
+		$labels = array(
+			'tamper_signal_reported'       => __( 'Tamper signal reported', 'pckz-canonical-engine' ),
+			'integrity_mismatch'           => __( 'Integrity mismatch', 'pckz-canonical-engine' ),
+			'tamper_signals_acknowledged'  => __( 'Tamper signals acknowledged', 'pckz-canonical-engine' ),
+			'download_package_validation_failed' => __( 'Protected package validation failed', 'pckz-canonical-engine' ),
+			'client_update_failed'         => __( 'Client update failed', 'pckz-canonical-engine' ),
+			'client_update_success'        => __( 'Client update success', 'pckz-canonical-engine' ),
+			'check_in_denied'              => __( 'Check-in denied', 'pckz-canonical-engine' ),
+		);
+		if ( isset( $labels[ $event_type ] ) ) {
+			return $labels[ $event_type ];
+		}
+		return ucwords( str_replace( '_', ' ', $event_type ) );
+	}
+
+	/**
+	 * Canonical tamper signal catalog used by Master Control UI.
+	 *
+	 * @return array<string,array{title:string,why:string,detected:string,update_impact:string}>
+	 */
+	public static function tamper_signal_catalog() {
+		return array(
+			'mu_plugins_present' => array(
+				'title'         => __( 'Must-use plugins detected', 'pckz-canonical-engine' ),
+				'why'           => __( 'WordPress reports active MU plugins, which can inject runtime behavior before normal plugins load.', 'pckz-canonical-engine' ),
+				'detected'      => __( 'Triggered when wp-content/mu-plugins exists.', 'pckz-canonical-engine' ),
+				'update_impact' => __( 'Informational only by default; does not block updates unless custom hardening rules enforce it.', 'pckz-canonical-engine' ),
+			),
+			'wp_debug_enabled' => array(
+				'title'         => __( 'WP_DEBUG enabled', 'pckz-canonical-engine' ),
+				'why'           => __( 'Debug mode can expose stack traces and diagnostics in production.', 'pckz-canonical-engine' ),
+				'detected'      => __( 'Triggered when WP_DEBUG is true.', 'pckz-canonical-engine' ),
+				'update_impact' => __( 'Informational only; does not block protected updates by itself.', 'pckz-canonical-engine' ),
+			),
+			'hash_hmac_missing' => array(
+				'title'         => __( 'HMAC functions unavailable', 'pckz-canonical-engine' ),
+				'why'           => __( 'Secure request signing relies on hash_hmac support.', 'pckz-canonical-engine' ),
+				'detected'      => __( 'Triggered when hash_hmac() is unavailable in PHP.', 'pckz-canonical-engine' ),
+				'update_impact' => __( 'Can become blocking when signed request enforcement is enabled.', 'pckz-canonical-engine' ),
+			),
+			'plugin_dir_writable' => array(
+				'title'         => __( 'Plugin directory writable', 'pckz-canonical-engine' ),
+				'why'           => __( 'Writable plugin paths increase tamper surface for unexpected file changes.', 'pckz-canonical-engine' ),
+				'detected'      => __( 'Triggered when plugin base directory is writable.', 'pckz-canonical-engine' ),
+				'update_impact' => __( 'Informational in normal operation; not a direct update blocker.', 'pckz-canonical-engine' ),
+			),
+			'plugin_main_missing' => array(
+				'title'         => __( 'Plugin main file missing', 'pckz-canonical-engine' ),
+				'why'           => __( 'Core plugin bootstrap file could not be read.', 'pckz-canonical-engine' ),
+				'detected'      => __( 'Triggered when pckz-canonical-engine.php is not readable.', 'pckz-canonical-engine' ),
+				'update_impact' => __( 'High risk and likely blocking for stable updates/activation.', 'pckz-canonical-engine' ),
+			),
+			'critical_runtime_file_missing' => array(
+				'title'         => __( 'Critical runtime file missing', 'pckz-canonical-engine' ),
+				'why'           => __( 'At least one critical runtime file listed in integrity targets is not readable.', 'pckz-canonical-engine' ),
+				'detected'      => __( 'Triggered by integrity target scan mismatch.', 'pckz-canonical-engine' ),
+				'update_impact' => __( 'Can become blocking under strict integrity policies.', 'pckz-canonical-engine' ),
+			),
+			'release_manifest_unavailable' => array(
+				'title'         => __( 'Release manifest unavailable', 'pckz-canonical-engine' ),
+				'why'           => __( 'No release manifest was found in the installed package.', 'pckz-canonical-engine' ),
+				'detected'      => __( 'Triggered when RELEASE_MANIFEST.json is missing from plugin root.', 'pckz-canonical-engine' ),
+				'update_impact' => __( 'Informational unless manifest-required policy is enforced for this installation.', 'pckz-canonical-engine' ),
+			),
+			'release_manifest_mismatch' => array(
+				'title'         => __( 'Release manifest mismatch', 'pckz-canonical-engine' ),
+				'why'           => __( 'One or more runtime files differ from release manifest checksums.', 'pckz-canonical-engine' ),
+				'detected'      => __( 'Triggered when integrity hash comparison against manifest fails.', 'pckz-canonical-engine' ),
+				'update_impact' => __( 'Can become blocking when strict integrity policy is enabled.', 'pckz-canonical-engine' ),
+			),
+			'release_manifest_invalid' => array(
+				'title'         => __( 'Release manifest invalid', 'pckz-canonical-engine' ),
+				'why'           => __( 'Manifest exists but is malformed or incomplete.', 'pckz-canonical-engine' ),
+				'detected'      => __( 'Triggered when RELEASE_MANIFEST.json cannot be parsed or validated.', 'pckz-canonical-engine' ),
+				'update_impact' => __( 'Can delay trust validation; may be blocking if manifest validation is required.', 'pckz-canonical-engine' ),
+			),
+		);
+	}
+
+	/**
+	 * Resolve UI detail fields for a tamper signal code.
+	 *
+	 * @param string $signal Signal code.
+	 * @return array{code:string,title:string,why:string,detected:string,update_impact:string}
+	 */
+	public static function tamper_signal_detail( $signal ) {
+		$signal = sanitize_key( (string) $signal );
+		$catalog = self::tamper_signal_catalog();
+		$detail = $catalog[ $signal ] ?? array(
+			'title'         => __( 'Custom tamper signal', 'pckz-canonical-engine' ),
+			'why'           => __( 'The client reported a custom integrity/tamper indicator.', 'pckz-canonical-engine' ),
+			'detected'      => __( 'Triggered by client-side security telemetry.', 'pckz-canonical-engine' ),
+			'update_impact' => __( 'Informational unless strict integrity/signature policies classify it as blocking.', 'pckz-canonical-engine' ),
+		);
+		$detail['code'] = $signal;
+		return $detail;
+	}
+
+	/**
 	 * Whether installation is considered online.
 	 *
 	 * @param array $install Installation row.
@@ -217,16 +323,20 @@ class PCKZ_Master_Control {
 		$tamper = json_decode( (string) ( $install['tamper_signals'] ?? '[]' ), true );
 		if ( is_array( $tamper ) && ! empty( $tamper ) ) {
 			$tamper = array_values( array_filter( array_map( 'sanitize_key', $tamper ) ) );
-			$label  = implode( ', ', array_slice( $tamper, 0, 4 ) );
-			if ( count( $tamper ) > 4 ) {
-				$label .= ', +' . ( count( $tamper ) - 4 );
+			$labels = array();
+			foreach ( array_slice( $tamper, 0, 3 ) as $signal ) {
+				$labels[] = self::tamper_signal_detail( $signal )['title'];
+			}
+			$label = implode( ', ', $labels );
+			if ( count( $tamper ) > 3 ) {
+				$label .= ', +' . ( count( $tamper ) - 3 );
 			}
 			$alerts[] = array(
 				'severity' => 'warning',
 				'code'     => 'tamper_signals',
 				'message'  => sprintf(
-					/* translators: %s: comma-separated tamper signal slugs */
-					__( 'Tamper/integrity signals: %s', 'pckz-canonical-engine' ),
+					/* translators: %s: comma-separated tamper signal labels */
+					__( 'Tamper/integrity signals detected: %s', 'pckz-canonical-engine' ),
 					$label
 				),
 			);

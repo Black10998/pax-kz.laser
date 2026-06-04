@@ -151,22 +151,51 @@ $fleet_base_url = admin_url( 'admin.php?page=pckz-license-server' );
 					$sev          = sanitize_key( (string) ( $event['severity'] ?? 'warning' ) );
 					$event_context = json_decode( (string) ( $event['context'] ?? '{}' ), true );
 					$event_context = is_array( $event_context ) ? $event_context : array();
-					$signal_labels = array();
+					$event_type_raw  = sanitize_key( (string) ( $event['event_type'] ?? '' ) );
+					$event_type_text = class_exists( 'PCKZ_Master_Control' )
+						? PCKZ_Master_Control::event_type_label( $event_type_raw )
+						: $event_type_raw;
+					$signal_details = array();
 					if ( ! empty( $event_context['signals'] ) && is_array( $event_context['signals'] ) ) {
-						$signal_labels = array_values( array_filter( array_map( 'sanitize_key', $event_context['signals'] ) ) );
+						$signal_codes = array_values( array_filter( array_map( 'sanitize_key', $event_context['signals'] ) ) );
+						foreach ( $signal_codes as $signal_code ) {
+							$signal_details[] = class_exists( 'PCKZ_Master_Control' )
+								? PCKZ_Master_Control::tamper_signal_detail( $signal_code )
+								: array(
+									'code'          => $signal_code,
+									'title'         => $signal_code,
+									'why'           => '',
+									'detected'      => '',
+									'update_impact' => '',
+								);
+						}
 					}
 					?>
 					<li class="pckz-fleet-alert pckz-fleet-alert--<?php echo esc_attr( $sev ); ?>">
 						<strong><?php echo esc_html( $event['message'] ?? '' ); ?></strong>
 						<span class="description">
-							<?php echo esc_html( $event['event_type'] ?? '' ); ?>
+							<?php echo esc_html( $event_type_text ); ?>
 							<?php if ( ! empty( $event['domain'] ) ) : ?>
 								· <?php echo esc_html( $event['domain'] ); ?>
 							<?php endif; ?>
 							· <?php echo esc_html( $format_datetime( $event['created_at'] ?? '' ) ); ?>
 						</span>
-						<?php if ( ! empty( $signal_labels ) ) : ?>
-							<span class="description"><?php esc_html_e( 'Signals:', 'pckz-canonical-engine' ); ?> <?php echo esc_html( implode( ', ', $signal_labels ) ); ?></span>
+						<?php if ( ! empty( $signal_details ) ) : ?>
+							<ul class="pckz-fleet-warnings">
+								<?php foreach ( $signal_details as $signal_detail ) : ?>
+									<li class="pckz-fleet-warnings__item pckz-fleet-warnings__item--warning">
+										<strong><?php echo esc_html( $signal_detail['title'] ?? '' ); ?></strong>
+										(<?php echo esc_html( $signal_detail['code'] ?? '' ); ?>)
+										— <?php echo esc_html( $signal_detail['why'] ?? '' ); ?>
+										<?php if ( ! empty( $signal_detail['detected'] ) ) : ?>
+											<?php echo esc_html( ' ' . $signal_detail['detected'] ); ?>
+										<?php endif; ?>
+										<?php if ( ! empty( $signal_detail['update_impact'] ) ) : ?>
+											<?php echo esc_html( ' Impact: ' . $signal_detail['update_impact'] ); ?>
+										<?php endif; ?>
+									</li>
+								<?php endforeach; ?>
+							</ul>
 						<?php endif; ?>
 					</li>
 				<?php endforeach; ?>

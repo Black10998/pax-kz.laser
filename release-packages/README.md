@@ -1,24 +1,30 @@
 ## Production installation packages
 
-Canonical package for v2.28.9:
+Canonical package for v2.28.10:
 
-- `pckz-canonical-engine-2.28.9-protected.zip`
+- `pckz-canonical-engine-2.28.10-protected.zip`
 
 SHA256:
 
-- `213556f5d5d26d6704d896335b29577e039be348dc1b9d02c3159db4a3ee3691`
+- `6dd789e9deef96803da1efaee57188bccb76d38af8c1873ca98b98a9b867d529`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.10/pckz-canonical-engine-2.28.10-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.10-protected.zip`
+
+What changed in v2.28.10: release bump for deployment verification, plus expanded Master Control tamper rendering with human-readable event labels and per-signal details (why it triggered, what was detected, and whether it is informational or potentially blocking under strict policy).
+
+Previous release (v2.28.9):
+
+- `pckz-canonical-engine-2.28.9-protected.zip`
 
 Direct download (GitHub Release, recommended):
 
 - `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.9/pckz-canonical-engine-2.28.9-protected.zip`
-
-Raw URL on `main` (may take a few minutes after push to propagate):
-
-- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.9-protected.zip`
-
-What changed in v2.28.9: hardening improvements moved runtime line/icon/font mappings and related asset references server-side with signed token-based option and asset resolution, minimizing exposed frontend configuration payloads while preserving preview/export/checkout compatibility.
-
-Update-flow reliability patch (2.28.9 repackage): fixed protected release metadata synchronization to avoid stale checksum/manifest fields, enforced installable ZIP structure validation, added explicit client update failure reporting back to Master Control, and added safe tamper-signal acknowledge/revalidate actions with exact signal visibility in dashboard alerts.
 
 Previous release (v2.28.6):
 

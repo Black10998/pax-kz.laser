@@ -311,6 +311,20 @@ $status_help = array(
 						$license_label = $license_info ? ( $license_info['label'] ? $license_info['label'] : sprintf( '#%d', $license_id ) ) : sprintf( '#%d', $license_id );
 						$tamper_signals = json_decode( (string) ( $install['tamper_signals'] ?? '[]' ), true );
 						$tamper_signals = is_array( $tamper_signals ) ? array_values( array_filter( array_map( 'sanitize_key', $tamper_signals ) ) ) : array();
+						$tamper_details = array();
+						if ( ! empty( $tamper_signals ) ) {
+							foreach ( $tamper_signals as $tamper_signal ) {
+								$tamper_details[] = class_exists( 'PCKZ_Master_Control' )
+									? PCKZ_Master_Control::tamper_signal_detail( $tamper_signal )
+									: array(
+										'code'          => $tamper_signal,
+										'title'         => $tamper_signal,
+										'why'           => '',
+										'detected'      => '',
+										'update_impact' => '',
+									);
+							}
+						}
 						?>
 						<tr>
 							<th scope="row" class="check-column">
@@ -340,6 +354,21 @@ $status_help = array(
 								<?php endif; ?>
 								<?php if ( ! empty( $tamper_signals ) ) : ?>
 									<br><span class="description"><?php esc_html_e( 'Tamper signals:', 'pckz-canonical-engine' ); ?> <?php echo esc_html( implode( ', ', $tamper_signals ) ); ?></span>
+									<ul class="pckz-fleet-warnings">
+										<?php foreach ( array_slice( $tamper_details, 0, 3 ) as $tamper_detail ) : ?>
+											<li class="pckz-fleet-warnings__item pckz-fleet-warnings__item--warning">
+												<strong><?php echo esc_html( $tamper_detail['title'] ?? '' ); ?></strong>
+												(<?php echo esc_html( $tamper_detail['code'] ?? '' ); ?>)
+												— <?php echo esc_html( $tamper_detail['why'] ?? '' ); ?>
+												<?php if ( ! empty( $tamper_detail['detected'] ) ) : ?>
+													<?php echo esc_html( ' ' . $tamper_detail['detected'] ); ?>
+												<?php endif; ?>
+												<?php if ( ! empty( $tamper_detail['update_impact'] ) ) : ?>
+													<?php echo esc_html( ' Impact: ' . $tamper_detail['update_impact'] ); ?>
+												<?php endif; ?>
+											</li>
+										<?php endforeach; ?>
+									</ul>
 								<?php endif; ?>
 							</td>
 							<td><span class="pckz-license-badge <?php echo esc_attr( $badge_class( $install['status'] ?? '' ) ); ?>"><?php echo esc_html( $status_label( $install['status'] ?? '' ) ); ?></span></td>
