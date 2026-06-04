@@ -30,6 +30,12 @@ class PCKZ_Autoloader {
 		}
 
 		$file = PCKZCE_PLUGIN_DIR . 'includes/class-' . strtolower( str_replace( '_', '-', $class ) ) . '.php';
+		$protected_file = PCKZCE_PLUGIN_DIR . 'includes/protected/' . basename( $file );
+
+		if ( extension_loaded( 'ionCube Loader' ) && is_readable( $protected_file ) ) {
+			require_once $protected_file;
+			return;
+		}
 
 		if ( is_readable( $file ) ) {
 			require_once $file;

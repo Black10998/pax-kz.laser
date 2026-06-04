@@ -64,7 +64,8 @@ class PCKZ_Ajax {
 		} elseif ( ! empty( $extra['errors'] ) && is_array( $extra['errors'] ) ) {
 			$payload['errors'] = $extra['errors'];
 		}
-		if ( $error instanceof \Throwable ) {
+		$allow_debug_details = ( defined( 'WP_DEBUG' ) && WP_DEBUG && current_user_can( 'manage_options' ) );
+		if ( $allow_debug_details && $error instanceof \Throwable ) {
 			$payload['exception'] = get_class( $error );
 			$payload['file']      = $error->getFile();
 			$payload['line']      = $error->getLine();
@@ -108,7 +109,7 @@ class PCKZ_Ajax {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'rest_get_design' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'rest_design_permission' ),
 				'args'                => array(
 					'id' => array(
 						'validate_callback' => function ( $param ) {
@@ -118,6 +119,28 @@ class PCKZ_Ajax {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Permission callback for public design REST endpoint.
+	 *
+	 * Backward compatible by default; strict mode can be enabled in settings.
+	 *
+	 * @return bool
+	 */
+	public function rest_design_permission( $request = null ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
+		if ( ! class_exists( 'PCKZ_Settings' ) ) {
+			return true;
+		}
+		$settings = PCKZ_Settings::get_all();
+		if ( empty( $settings['licensing_harden_design_rest'] ) ) {
+			return true;
+		}
+		if ( current_user_can( 'manage_options' ) ) {
+			return true;
+		}
+		$nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+		return (bool) wp_verify_nonce( $nonce, 'pckzce_creator' );
 	}
 
 	/**
@@ -576,6 +599,7 @@ class PCKZ_Ajax {
 		if ( ! $this->verify_nonce() ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
 		}
+		$this->enforce_export_license( 'add-to-cart' );
 
 		if ( ! class_exists( 'WooCommerce' ) ) {
 			wp_send_json_error( array( 'message' => __( 'WooCommerce is not active.', 'pckz-canonical-engine' ) ), 400 );
