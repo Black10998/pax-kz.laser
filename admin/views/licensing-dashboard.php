@@ -48,6 +48,7 @@ $status_label = static function ( $status ) {
 		'revoked'      => __( 'Revoked', 'pckz-canonical-engine' ),
 		'expired'      => __( 'Expired', 'pckz-canonical-engine' ),
 		'denied'       => __( 'Denied', 'pckz-canonical-engine' ),
+		'suspended'    => __( 'Suspended', 'pckz-canonical-engine' ),
 		'network_error'=> __( 'Network Error', 'pckz-canonical-engine' ),
 		'unconfigured' => __( 'Not Configured', 'pckz-canonical-engine' ),
 		'ok'           => __( 'Up to Date', 'pckz-canonical-engine' ),
@@ -122,6 +123,51 @@ $format_datetime = static function ( $raw ) {
 				<p><?php echo esc_html( (string) $client_notice['message'] ); ?></p>
 			</div>
 		<?php endif; ?>
+
+		<?php
+		$client_license_key = trim( (string) ( $settings['licensing_key'] ?? '' ) );
+		$license_key_status = sanitize_key( (string) ( $client_summary['license_status'] ?? 'unknown' ) );
+		?>
+		<article class="pckz-license-card pckz-license-card--license-key-panel">
+			<div class="pckz-license-key-panel__header">
+				<div>
+					<h2><?php esc_html_e( 'License Key', 'pckz-canonical-engine' ); ?></h2>
+					<p class="description"><?php esc_html_e( 'Your assigned license for this website. Status is checked automatically with the master server.', 'pckz-canonical-engine' ); ?></p>
+				</div>
+				<span class="pckz-license-badge pckz-license-key-status <?php echo esc_attr( $badge_class( $license_key_status ) ); ?>">
+					<?php echo esc_html( (string) ( $client_summary['license_status_label'] ?? $status_label( $license_key_status ) ) ); ?>
+				</span>
+			</div>
+			<?php if ( ! empty( $client_summary['license_reason'] ) ) : ?>
+				<p class="pckz-license-key-panel__reason"><?php echo esc_html( $client_summary['license_reason'] ); ?></p>
+			<?php endif; ?>
+			<?php if ( ! empty( $client_summary['has_license_key'] ) && '' !== $client_license_key ) : ?>
+				<div
+					class="pckz-license-key-panel__body"
+					data-masked="<?php echo esc_attr( (string) ( $client_summary['license_key_masked'] ?? '' ) ); ?>"
+					data-full="<?php echo esc_attr( $client_license_key ); ?>"
+				>
+					<label class="pckz-license-key-panel__label" for="pckz-client-license-key-value"><?php esc_html_e( 'Assigned key', 'pckz-canonical-engine' ); ?></label>
+					<div class="pckz-license-key-field">
+						<code class="pckz-license-key-value" id="pckz-client-license-key-value"><?php echo esc_html( (string) ( $client_summary['license_key_masked'] ?? '' ) ); ?></code>
+						<div class="pckz-license-key-actions">
+							<button type="button" class="button pckz-license-key-toggle" aria-pressed="false" aria-controls="pckz-client-license-key-value">
+								<span class="dashicons dashicons-visibility" aria-hidden="true"></span>
+								<span class="pckz-license-key-toggle-label"><?php esc_html_e( 'Show', 'pckz-canonical-engine' ); ?></span>
+							</button>
+							<button type="button" class="button pckz-code-copy pckz-license-key-copy" data-copy="<?php echo esc_attr( $client_license_key ); ?>">
+								<span class="dashicons dashicons-admin-page" aria-hidden="true"></span>
+								<?php esc_html_e( 'Copy', 'pckz-canonical-engine' ); ?>
+							</button>
+						</div>
+					</div>
+				</div>
+			<?php else : ?>
+				<p class="pckz-license-value"><?php esc_html_e( 'No license key configured', 'pckz-canonical-engine' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Add your license key in PCKZ Canonical Engine settings to activate this site.', 'pckz-canonical-engine' ); ?></p>
+			<?php endif; ?>
+		</article>
+
 		<div class="pckz-license-client-cards">
 			<article class="pckz-license-card">
 				<h2><?php esc_html_e( 'License Status', 'pckz-canonical-engine' ); ?></h2>
@@ -132,44 +178,6 @@ $format_datetime = static function ( $raw ) {
 				</p>
 				<?php if ( ! empty( $client_summary['license_reason'] ) ) : ?>
 					<p class="description"><?php echo esc_html( $client_summary['license_reason'] ); ?></p>
-				<?php endif; ?>
-			</article>
-
-			<?php
-			$client_license_key = trim( (string) ( $settings['licensing_key'] ?? '' ) );
-			?>
-			<article class="pckz-license-card pckz-license-card--license-key">
-				<h2><?php esc_html_e( 'License Key', 'pckz-canonical-engine' ); ?></h2>
-				<?php if ( ! empty( $client_summary['has_license_key'] ) && '' !== $client_license_key ) : ?>
-					<div
-						class="pckz-license-key-field"
-						data-masked="<?php echo esc_attr( (string) ( $client_summary['license_key_masked'] ?? '' ) ); ?>"
-						data-full="<?php echo esc_attr( $client_license_key ); ?>"
-					>
-						<code class="pckz-license-key-value" id="pckz-client-license-key-value"><?php echo esc_html( (string) ( $client_summary['license_key_masked'] ?? '' ) ); ?></code>
-						<div class="pckz-license-key-actions">
-							<button type="button" class="button button-small pckz-license-key-toggle" aria-pressed="false" aria-controls="pckz-client-license-key-value" aria-label="<?php esc_attr_e( 'Show license key', 'pckz-canonical-engine' ); ?>">
-								<span class="dashicons dashicons-visibility" aria-hidden="true"></span>
-								<span class="screen-reader-text"><?php esc_html_e( 'Show license key', 'pckz-canonical-engine' ); ?></span>
-							</button>
-							<button type="button" class="button button-small pckz-code-copy pckz-license-key-copy" data-copy="<?php echo esc_attr( $client_license_key ); ?>" aria-label="<?php esc_attr_e( 'Copy license key', 'pckz-canonical-engine' ); ?>">
-								<span class="dashicons dashicons-admin-page" aria-hidden="true"></span>
-								<span class="screen-reader-text"><?php esc_html_e( 'Copy license key', 'pckz-canonical-engine' ); ?></span>
-							</button>
-						</div>
-					</div>
-					<p class="description">
-						<?php
-						if ( ! empty( $client_summary['license_key_active'] ) ) {
-							esc_html_e( 'This key is active for this installation. Revoking or suspending it in Master Control removes activation immediately on the next check-in.', 'pckz-canonical-engine' );
-						} else {
-							esc_html_e( 'A license key is configured, but this installation is not currently authorized. Contact your administrator if you believe this is an error.', 'pckz-canonical-engine' );
-						}
-						?>
-					</p>
-				<?php else : ?>
-					<p class="pckz-license-value"><?php esc_html_e( 'No license key configured', 'pckz-canonical-engine' ); ?></p>
-					<p class="description"><?php esc_html_e( 'Add your license key in PCKZ Canonical Engine settings to activate this site.', 'pckz-canonical-engine' ); ?></p>
 				<?php endif; ?>
 			</article>
 
@@ -226,6 +234,14 @@ $format_datetime = static function ( $raw ) {
 				<?php if ( ! empty( $client_summary['update_detail'] ) ) : ?>
 					<p class="description pckz-update-detail"><?php echo esc_html( $client_summary['update_detail'] ); ?></p>
 				<?php endif; ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-check-updates-form">
+					<?php wp_nonce_field( 'pckzce_check_for_updates', 'pckzce_check_updates_nonce' ); ?>
+					<input type="hidden" name="action" value="pckzce_check_for_updates">
+					<button type="submit" class="button button-secondary">
+						<?php esc_html_e( 'Check for updates', 'pckz-canonical-engine' ); ?>
+					</button>
+					<span class="description"><?php esc_html_e( 'Contacts the master server now and refreshes update status on this site.', 'pckz-canonical-engine' ); ?></span>
+				</form>
 				<?php if ( ! empty( $client_summary['can_update_now'] ) ) : ?>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-update-now-form">
 						<?php wp_nonce_field( 'pckzce_run_plugin_update', 'pckzce_update_nonce' ); ?>
