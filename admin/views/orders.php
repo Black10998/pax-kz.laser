@@ -100,7 +100,6 @@ $hero_description = __( 'Review customer orders, production files, and fulfillme
 				if ( ! empty( $shipping_events ) ) {
 					$shipping_events_text = wp_json_encode( $shipping_events, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
 				}
-				$tracking_edit_available = ! empty( $order['wc_order_id'] ) && function_exists( 'wc_get_order' );
 				?>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-order-notes-form">
 					<?php wp_nonce_field( 'pckz_update_order_shipment', 'pckz_order_shipment_nonce' ); ?>
@@ -108,26 +107,37 @@ $hero_description = __( 'Review customer orders, production files, and fulfillme
 					<input type="hidden" name="order_id" value="<?php echo esc_attr( (string) $order['id'] ); ?>">
 					<input type="hidden" name="redirect" value="<?php echo esc_url( admin_url( 'admin.php?page=pckz-orders&order_id=' . (int) $order['id'] ) ); ?>">
 					<p><strong><?php esc_html_e( 'Sendungsverfolgung', 'pckz-canonical-engine' ); ?></strong></p>
-					<?php if ( ! $tracking_edit_available ) : ?>
-						<p class="description"><?php esc_html_e( 'Tracking-Daten können nur gespeichert werden, wenn eine WooCommerce-Bestellung verknüpft ist.', 'pckz-canonical-engine' ); ?></p>
-					<?php endif; ?>
 					<p><label for="pckz-shipment-carrier"><?php esc_html_e( 'Versanddienstleister', 'pckz-canonical-engine' ); ?></label><br>
-						<input id="pckz-shipment-carrier" class="regular-text" name="shipment_carrier" value="<?php echo esc_attr( (string) ( $shipping_summary['carrier'] ?? '' ) ); ?>" <?php disabled( $tracking_edit_available, false ); ?>></p>
+						<input id="pckz-shipment-carrier" class="regular-text" name="shipment_carrier" value="<?php echo esc_attr( (string) ( $shipping_summary['carrier'] ?? '' ) ); ?>"></p>
+					<p><label for="pckz-shipment-carrier-slug"><?php esc_html_e( 'Carrier-Code (optional, z. B. austrian-post, dhl, dpd, gls, ups, fedex)', 'pckz-canonical-engine' ); ?></label><br>
+						<input id="pckz-shipment-carrier-slug" class="regular-text code" name="shipment_carrier_slug" value="<?php echo esc_attr( (string) ( $shipping_summary['carrier_slug'] ?? '' ) ); ?>"></p>
 					<p><label for="pckz-shipment-tracking-number"><?php esc_html_e( 'Sendungsnummer', 'pckz-canonical-engine' ); ?></label><br>
-						<input id="pckz-shipment-tracking-number" class="regular-text" name="shipment_tracking_number" value="<?php echo esc_attr( (string) ( $shipping_summary['tracking_number'] ?? '' ) ); ?>" <?php disabled( $tracking_edit_available, false ); ?>></p>
+						<input id="pckz-shipment-tracking-number" class="regular-text" name="shipment_tracking_number" value="<?php echo esc_attr( (string) ( $shipping_summary['tracking_number'] ?? '' ) ); ?>"></p>
 					<p><label for="pckz-shipment-tracking-url"><?php esc_html_e( 'Tracking-URL', 'pckz-canonical-engine' ); ?></label><br>
-						<input id="pckz-shipment-tracking-url" class="large-text" name="shipment_tracking_url" value="<?php echo esc_attr( (string) ( $shipping_summary['tracking_url'] ?? '' ) ); ?>" <?php disabled( $tracking_edit_available, false ); ?>></p>
+						<input id="pckz-shipment-tracking-url" class="large-text" name="shipment_tracking_url" value="<?php echo esc_attr( (string) ( $shipping_summary['tracking_url'] ?? '' ) ); ?>"></p>
 					<p><label for="pckz-shipment-status"><?php esc_html_e( 'Versandstatus', 'pckz-canonical-engine' ); ?></label><br>
-						<input id="pckz-shipment-status" class="regular-text" name="shipment_status" value="<?php echo esc_attr( (string) ( $shipping_summary['shipment_status'] ?? '' ) ); ?>" <?php disabled( $tracking_edit_available, false ); ?>></p>
+						<input id="pckz-shipment-status" class="regular-text" name="shipment_status" value="<?php echo esc_attr( (string) ( $shipping_summary['shipment_status'] ?? '' ) ); ?>"></p>
 					<p><label for="pckz-shipment-location"><?php esc_html_e( 'Aktueller Standort', 'pckz-canonical-engine' ); ?></label><br>
-						<input id="pckz-shipment-location" class="regular-text" name="shipment_location" value="<?php echo esc_attr( (string) ( $shipping_summary['current_location'] ?? '' ) ); ?>" <?php disabled( $tracking_edit_available, false ); ?>></p>
+						<input id="pckz-shipment-location" class="regular-text" name="shipment_location" value="<?php echo esc_attr( (string) ( $shipping_summary['current_location'] ?? '' ) ); ?>"></p>
 					<p><label for="pckz-shipment-estimated-delivery"><?php esc_html_e( 'Voraussichtliche Lieferung', 'pckz-canonical-engine' ); ?></label><br>
-						<input id="pckz-shipment-estimated-delivery" class="regular-text" name="shipment_estimated_delivery" value="<?php echo esc_attr( (string) ( $shipping_summary['estimated_delivery'] ?? '' ) ); ?>" <?php disabled( $tracking_edit_available, false ); ?>></p>
+						<input id="pckz-shipment-estimated-delivery" class="regular-text" name="shipment_estimated_delivery" value="<?php echo esc_attr( (string) ( $shipping_summary['estimated_delivery'] ?? '' ) ); ?>"></p>
 					<p><label for="pckz-shipment-shipping-date"><?php esc_html_e( 'Versanddatum', 'pckz-canonical-engine' ); ?></label><br>
-						<input id="pckz-shipment-shipping-date" class="regular-text" name="shipment_shipping_date" value="<?php echo esc_attr( (string) ( $shipping_summary['shipping_date'] ?? '' ) ); ?>" placeholder="2026-06-04 15:20" <?php disabled( $tracking_edit_available, false ); ?>></p>
+						<input id="pckz-shipment-shipping-date" class="regular-text" name="shipment_shipping_date" value="<?php echo esc_attr( (string) ( $shipping_summary['shipping_date'] ?? '' ) ); ?>" placeholder="2026-06-04 15:20"></p>
+					<p>
+						<label>
+							<input type="checkbox" name="shipment_auto_sync" value="1" <?php checked( ! empty( $shipping_summary['auto_sync'] ) ); ?>>
+							<?php esc_html_e( 'Automatische Carrier-Synchronisierung aktivieren (API-gestützt)', 'pckz-canonical-engine' ); ?>
+						</label>
+						<?php if ( ! empty( $shipping_summary['last_synced_at'] ) ) : ?>
+							<br><span class="description"><?php echo esc_html( sprintf( __( 'Zuletzt synchronisiert: %s', 'pckz-canonical-engine' ), (string) $shipping_summary['last_synced_at'] ) ); ?></span>
+						<?php endif; ?>
+						<?php if ( ! empty( $shipping_summary['sync_error'] ) ) : ?>
+							<br><span class="description" style="color:#b91c1c;"><?php echo esc_html( sprintf( __( 'Sync-Fehler: %s', 'pckz-canonical-engine' ), (string) $shipping_summary['sync_error'] ) ); ?></span>
+						<?php endif; ?>
+					</p>
 					<p><label for="pckz-shipment-events"><strong><?php esc_html_e( 'Sendungsverlauf (JSON oder Zeile: Datum|Status|Ort|Info)', 'pckz-canonical-engine' ); ?></strong></label></p>
-					<textarea id="pckz-shipment-events" name="shipment_events" class="large-text code" rows="6" <?php disabled( $tracking_edit_available, false ); ?>><?php echo esc_textarea( (string) $shipping_events_text ); ?></textarea>
-					<p><button type="submit" class="button" <?php disabled( $tracking_edit_available, false ); ?>><?php esc_html_e( 'Sendungsverfolgung speichern', 'pckz-canonical-engine' ); ?></button></p>
+					<textarea id="pckz-shipment-events" name="shipment_events" class="large-text code" rows="6"><?php echo esc_textarea( (string) $shipping_events_text ); ?></textarea>
+					<p><button type="submit" class="button"><?php esc_html_e( 'Sendungsverfolgung speichern', 'pckz-canonical-engine' ); ?></button></p>
 				</form>
 				<?php
 				if ( $customer_artwork ) :

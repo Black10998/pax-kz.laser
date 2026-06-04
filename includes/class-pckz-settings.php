@@ -97,6 +97,11 @@ class PCKZ_Settings {
 			'payments_stripe_success_url' => '',
 			'payments_stripe_cancel_url' => '',
 			'payments_stripe_webhook_tolerance' => 300,
+			'tracking_auto_sync_enabled' => false,
+			'tracking_provider' => 'aftership',
+			'tracking_aftership_api_key' => '',
+			'tracking_sync_interval_minutes' => 30,
+			'tracking_auto_detect_carrier' => true,
 		);
 	}
 

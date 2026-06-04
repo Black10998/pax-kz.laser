@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.5
+Stable tag: 2.28.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,15 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.6 =
+
+* Shipment tracking admin fix: tracking inputs are now always editable/savable in the order detail view (even when a WooCommerce order link is missing), and values persist in plugin order storage.
+* Shipment data persistence: introduced dedicated shipment tracking JSON storage on commerce orders to preserve manual carrier/tracking/status/location/ETA/date/history data reliably.
+* Carrier API integration: added automatic shipment synchronization via AfterShip (supports Austrian Post, DHL, DPD, GLS, UPS, FedEx), including carrier slug detection, status/event/location/ETA import, and scheduled refresh.
+* Admin workflow upgrade: shipment form now includes carrier slug, auto-sync toggle, last-sync timestamp, and sync error visibility while keeping manual input as fallback.
+* WooCommerce interoperability: synchronized shipment payload updates back into WooCommerce order meta when linked.
+* Added shipment persistence smoke coverage (`tests/shipment-tracking-persistence-smoke.php`).
 
 = 2.28.5 =
 

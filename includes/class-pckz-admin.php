@@ -180,66 +180,49 @@ class PCKZ_Admin {
 		$order_id = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
 		$redirect = isset( $_POST['redirect'] ) ? esc_url_raw( wp_unslash( $_POST['redirect'] ) ) : admin_url( 'admin.php?page=pckz-orders' );
 
-		if ( ! $order_id || ! class_exists( 'PCKZ_Commerce' ) || ! function_exists( 'wc_get_order' ) ) {
+		if ( ! $order_id || ! class_exists( 'PCKZ_Commerce' ) ) {
 			wp_safe_redirect( add_query_arg( 'pckz_shipment_updated', '0', $redirect ) );
 			exit;
 		}
 		$order = PCKZ_Commerce::get_order( $order_id );
-		if ( ! $order || empty( $order['wc_order_id'] ) ) {
-			wp_safe_redirect( add_query_arg( 'pckz_shipment_updated', '0', $redirect ) );
-			exit;
-		}
-		$wc_order = wc_get_order( absint( $order['wc_order_id'] ) );
-		if ( ! $wc_order || ! is_object( $wc_order ) ) {
+		if ( ! $order ) {
 			wp_safe_redirect( add_query_arg( 'pckz_shipment_updated', '0', $redirect ) );
 			exit;
 		}
 
 		$carrier = isset( $_POST['shipment_carrier'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_carrier'] ) ) : '';
+		$carrier_slug = isset( $_POST['shipment_carrier_slug'] ) ? sanitize_key( wp_unslash( $_POST['shipment_carrier_slug'] ) ) : '';
 		$tracking_number = isset( $_POST['shipment_tracking_number'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_tracking_number'] ) ) : '';
 		$tracking_url = isset( $_POST['shipment_tracking_url'] ) ? esc_url_raw( wp_unslash( $_POST['shipment_tracking_url'] ) ) : '';
 		$shipment_status = isset( $_POST['shipment_status'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_status'] ) ) : '';
 		$current_location = isset( $_POST['shipment_location'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_location'] ) ) : '';
 		$estimated_delivery = isset( $_POST['shipment_estimated_delivery'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_estimated_delivery'] ) ) : '';
+		$auto_sync = ! empty( $_POST['shipment_auto_sync'] );
 		$shipping_date_input = isset( $_POST['shipment_shipping_date'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_shipping_date'] ) ) : '';
-		$shipping_date_ts = strtotime( $shipping_date_input );
-		if ( false === $shipping_date_ts ) {
-			$shipping_date_ts = 0;
-		}
 		$events = $this->parse_tracking_events_input( $_POST['shipment_events'] ?? '' );
 
-		$wc_order->update_meta_data( '_tracking_provider', $carrier );
-		$wc_order->update_meta_data( '_tracking_number', $tracking_number );
-		$wc_order->update_meta_data( '_tracking_url', $tracking_url );
-		$wc_order->update_meta_data( '_tracking_status', $shipment_status );
-		$wc_order->update_meta_data( '_tracking_location', $current_location );
-		$wc_order->update_meta_data( '_estimated_delivery', $estimated_delivery );
-		$wc_order->update_meta_data( '_pckz_tracking_events', wp_json_encode( $events ) );
-		if ( $shipping_date_ts > 0 ) {
-			$wc_order->update_meta_data( '_pckz_shipping_date', $shipping_date_ts );
-		} else {
-			$wc_order->update_meta_data( '_pckz_shipping_date', '' );
+		$payload = PCKZ_Commerce::save_order_shipment_tracking(
+			$order_id,
+			array(
+				'carrier'            => $carrier,
+				'carrier_slug'       => $carrier_slug,
+				'tracking_number'    => $tracking_number,
+				'tracking_url'       => $tracking_url,
+				'shipment_status'    => $shipment_status,
+				'current_location'   => $current_location,
+				'estimated_delivery' => $estimated_delivery,
+				'shipping_date'      => $shipping_date_input,
+				'events'             => $events,
+				'auto_sync'          => $auto_sync,
+				'sync_error'         => '',
+			)
+		);
+		if ( is_array( $payload ) ) {
+			PCKZ_Commerce::sync_shipment_payload_to_wc_order( $order, $payload );
 		}
-
-		$shipment_items = $wc_order->get_meta( '_wc_shipment_tracking_items', true );
-		if ( ! is_array( $shipment_items ) ) {
-			$shipment_items = array();
+		if ( $auto_sync && class_exists( 'PCKZ_Shipment_Tracking' ) ) {
+			PCKZ_Shipment_Tracking::sync_order_now( $order_id, true );
 		}
-		if ( empty( $shipment_items[0] ) || ! is_array( $shipment_items[0] ) ) {
-			$shipment_items[0] = array();
-		}
-		$shipment_items[0]['tracking_provider'] = $carrier;
-		$shipment_items[0]['tracking_number']   = $tracking_number;
-		$shipment_items[0]['custom_tracking_link'] = $tracking_url;
-		$shipment_items[0]['tracking_status']   = $shipment_status;
-		$shipment_items[0]['tracking_location'] = $current_location;
-		$shipment_items[0]['estimated_delivery'] = $estimated_delivery;
-		$shipment_items[0]['events'] = $events;
-		if ( $shipping_date_ts > 0 ) {
-			$shipment_items[0]['date_shipped'] = $shipping_date_ts;
-		}
-		$wc_order->update_meta_data( '_wc_shipment_tracking_items', $shipment_items );
-		$wc_order->save();
 
 		wp_safe_redirect( add_query_arg( 'pckz_shipment_updated', '1', $redirect ) );
 		exit;
@@ -493,6 +476,13 @@ class PCKZ_Admin {
 			'payments_stripe_success_url' => esc_url_raw( $input['payments_stripe_success_url'] ?? '' ),
 			'payments_stripe_cancel_url' => esc_url_raw( $input['payments_stripe_cancel_url'] ?? '' ),
 			'payments_stripe_webhook_tolerance' => max( 60, min( 1800, absint( $input['payments_stripe_webhook_tolerance'] ?? 300 ) ) ),
+			'tracking_auto_sync_enabled' => ! empty( $input['tracking_auto_sync_enabled'] ),
+			'tracking_provider' => in_array( sanitize_key( $input['tracking_provider'] ?? 'aftership' ), array( 'aftership' ), true )
+				? sanitize_key( $input['tracking_provider'] ?? 'aftership' )
+				: 'aftership',
+			'tracking_aftership_api_key' => sanitize_text_field( $input['tracking_aftership_api_key'] ?? '' ),
+			'tracking_sync_interval_minutes' => max( 5, min( 240, absint( $input['tracking_sync_interval_minutes'] ?? 30 ) ) ),
+			'tracking_auto_detect_carrier' => ! empty( $input['tracking_auto_detect_carrier'] ),
 		);
 
 		if ( empty( $output['licensing_master_api_key'] ) ) {

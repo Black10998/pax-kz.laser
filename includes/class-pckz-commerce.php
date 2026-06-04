@@ -40,6 +40,7 @@ class PCKZ_Commerce {
 			wc_order_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			return_url varchar(512) NOT NULL DEFAULT '',
 			admin_notes longtext,
+			shipment_tracking_json longtext,
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
@@ -521,6 +522,186 @@ class PCKZ_Commerce {
 	}
 
 	/**
+	 * Default shipment tracking payload shape.
+	 *
+	 * @return array
+	 */
+	private static function shipment_tracking_defaults() {
+		return array(
+			'carrier'            => '',
+			'carrier_slug'       => '',
+			'tracking_number'    => '',
+			'tracking_url'       => '',
+			'shipment_status'    => '',
+			'current_location'   => '',
+			'estimated_delivery' => '',
+			'shipping_date'      => '',
+			'events'             => array(),
+			'auto_sync'          => false,
+			'last_synced_at'     => '',
+			'sync_error'         => '',
+		);
+	}
+
+	/**
+	 * Sanitize a shipment tracking payload array.
+	 *
+	 * @param array $raw Raw payload.
+	 * @return array
+	 */
+	public static function sanitize_shipment_tracking_payload( $raw ) {
+		$defaults = self::shipment_tracking_defaults();
+		if ( ! is_array( $raw ) ) {
+			return $defaults;
+		}
+
+		$clean = array(
+			'carrier'            => sanitize_text_field( (string) ( $raw['carrier'] ?? '' ) ),
+			'carrier_slug'       => sanitize_key( (string) ( $raw['carrier_slug'] ?? '' ) ),
+			'tracking_number'    => sanitize_text_field( (string) ( $raw['tracking_number'] ?? '' ) ),
+			'tracking_url'       => esc_url_raw( (string) ( $raw['tracking_url'] ?? '' ) ),
+			'shipment_status'    => sanitize_text_field( (string) ( $raw['shipment_status'] ?? '' ) ),
+			'current_location'   => sanitize_text_field( (string) ( $raw['current_location'] ?? '' ) ),
+			'estimated_delivery' => sanitize_text_field( (string) ( $raw['estimated_delivery'] ?? '' ) ),
+			'shipping_date'      => sanitize_text_field( (string) ( $raw['shipping_date'] ?? '' ) ),
+			'events'             => self::normalize_tracking_events( $raw['events'] ?? array() ),
+			'auto_sync'          => ! empty( $raw['auto_sync'] ),
+			'last_synced_at'     => sanitize_text_field( (string) ( $raw['last_synced_at'] ?? '' ) ),
+			'sync_error'         => sanitize_text_field( (string) ( $raw['sync_error'] ?? '' ) ),
+		);
+
+		return wp_parse_args( $clean, $defaults );
+	}
+
+	/**
+	 * Encode shipment tracking payload for DB storage.
+	 *
+	 * @param array $payload Shipment payload.
+	 * @return string
+	 */
+	public static function encode_shipment_tracking_payload( $payload ) {
+		return wp_json_encode( self::sanitize_shipment_tracking_payload( (array) $payload ) );
+	}
+
+	/**
+	 * Decode shipment tracking payload from DB.
+	 *
+	 * @param mixed $stored Stored JSON payload.
+	 * @return array
+	 */
+	public static function decode_shipment_tracking_payload( $stored ) {
+		if ( is_array( $stored ) ) {
+			return self::sanitize_shipment_tracking_payload( $stored );
+		}
+		if ( ! is_string( $stored ) || '' === trim( $stored ) ) {
+			return self::shipment_tracking_defaults();
+		}
+		$decoded = json_decode( $stored, true );
+		if ( ! is_array( $decoded ) ) {
+			return self::shipment_tracking_defaults();
+		}
+		return self::sanitize_shipment_tracking_payload( $decoded );
+	}
+
+	/**
+	 * Persist shipment tracking payload on commerce order.
+	 *
+	 * @param int   $order_id Commerce order ID.
+	 * @param array $payload  Tracking payload.
+	 * @return array|null
+	 */
+	public static function save_order_shipment_tracking( $order_id, $payload ) {
+		$order_id = absint( $order_id );
+		if ( $order_id <= 0 ) {
+			return null;
+		}
+		$row = self::get_order( $order_id );
+		if ( ! $row ) {
+			return null;
+		}
+		$current = self::decode_shipment_tracking_payload( $row['shipment_tracking_json'] ?? '' );
+		$merged  = self::sanitize_shipment_tracking_payload( array_merge( $current, (array) $payload ) );
+		self::update_order(
+			$order_id,
+			array(
+				'shipment_tracking_json' => self::encode_shipment_tracking_payload( $merged ),
+			)
+		);
+		return $merged;
+	}
+
+	/**
+	 * Get shipment payload for an order row.
+	 *
+	 * @param array|null $order Commerce order row.
+	 * @return array
+	 */
+	public static function get_order_shipment_tracking( $order ) {
+		if ( ! is_array( $order ) ) {
+			return self::shipment_tracking_defaults();
+		}
+		return self::decode_shipment_tracking_payload( $order['shipment_tracking_json'] ?? '' );
+	}
+
+	/**
+	 * Mirror shipment payload into WooCommerce order meta when linked.
+	 *
+	 * @param array $order   Commerce order row.
+	 * @param array $payload Sanitized shipment payload.
+	 * @return void
+	 */
+	public static function sync_shipment_payload_to_wc_order( $order, $payload ) {
+		if ( ! is_array( $order ) || empty( $order['wc_order_id'] ) || ! function_exists( 'wc_get_order' ) ) {
+			return;
+		}
+		$wc_order = wc_get_order( absint( $order['wc_order_id'] ) );
+		if ( ! $wc_order || ! is_object( $wc_order ) ) {
+			return;
+		}
+		$payload = self::sanitize_shipment_tracking_payload( (array) $payload );
+
+		$wc_order->update_meta_data( '_tracking_provider', $payload['carrier'] );
+		$wc_order->update_meta_data( '_tracking_provider_slug', $payload['carrier_slug'] );
+		$wc_order->update_meta_data( '_tracking_number', $payload['tracking_number'] );
+		$wc_order->update_meta_data( '_tracking_url', $payload['tracking_url'] );
+		$wc_order->update_meta_data( '_tracking_status', $payload['shipment_status'] );
+		$wc_order->update_meta_data( '_tracking_location', $payload['current_location'] );
+		$wc_order->update_meta_data( '_estimated_delivery', $payload['estimated_delivery'] );
+		$wc_order->update_meta_data( '_pckz_tracking_events', wp_json_encode( $payload['events'] ) );
+		$wc_order->update_meta_data( '_pckz_tracking_last_synced_at', $payload['last_synced_at'] );
+		$wc_order->update_meta_data( '_pckz_tracking_sync_error', $payload['sync_error'] );
+		if ( ! empty( $payload['shipping_date'] ) ) {
+			$shipping_ts = strtotime( (string) $payload['shipping_date'] );
+			if ( false !== $shipping_ts && $shipping_ts > 0 ) {
+				$wc_order->update_meta_data( '_pckz_shipping_date', $shipping_ts );
+			}
+		}
+
+		$shipment_items = $wc_order->get_meta( '_wc_shipment_tracking_items', true );
+		if ( ! is_array( $shipment_items ) ) {
+			$shipment_items = array();
+		}
+		if ( empty( $shipment_items[0] ) || ! is_array( $shipment_items[0] ) ) {
+			$shipment_items[0] = array();
+		}
+		$shipment_items[0]['tracking_provider']   = $payload['carrier'];
+		$shipment_items[0]['tracking_number']     = $payload['tracking_number'];
+		$shipment_items[0]['custom_tracking_link'] = $payload['tracking_url'];
+		$shipment_items[0]['tracking_status']     = $payload['shipment_status'];
+		$shipment_items[0]['tracking_location']   = $payload['current_location'];
+		$shipment_items[0]['estimated_delivery']  = $payload['estimated_delivery'];
+		$shipment_items[0]['events']              = $payload['events'];
+		if ( ! empty( $payload['shipping_date'] ) ) {
+			$shipping_ts = strtotime( (string) $payload['shipping_date'] );
+			if ( false !== $shipping_ts && $shipping_ts > 0 ) {
+				$shipment_items[0]['date_shipped'] = $shipping_ts;
+			}
+		}
+		$wc_order->update_meta_data( '_wc_shipment_tracking_items', $shipment_items );
+		$wc_order->save();
+	}
+
+	/**
 	 * Whether PayPal is the only allowed checkout path.
 	 *
 	 * @return bool
@@ -598,8 +779,9 @@ class PCKZ_Commerce {
 				'status'          => sanitize_key( $data['status'] ?? 'pending' ),
 				'return_url'      => $return_url,
 				'admin_notes'     => sanitize_textarea_field( $data['admin_notes'] ?? '' ),
+				'shipment_tracking_json' => is_string( $data['shipment_tracking_json'] ?? '' ) ? $data['shipment_tracking_json'] : '',
 			),
-			array( '%d', '%d', '%s', '%s', '%s', '%d', '%f', '%s', '%s', '%s', '%s', '%s', '%s' )
+			array( '%d', '%d', '%s', '%s', '%s', '%d', '%f', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 		return (int) $wpdb->insert_id;
 	}
@@ -1032,6 +1214,7 @@ class PCKZ_Commerce {
 	public static function customer_shipping_summary( $order ) {
 		$summary = array(
 			'carrier'            => '',
+			'carrier_slug'       => '',
 			'tracking_number'    => '',
 			'tracking_url'       => '',
 			'shipment_status'    => '',
@@ -1039,13 +1222,47 @@ class PCKZ_Commerce {
 			'estimated_delivery' => '',
 			'shipping_date'      => '',
 			'events'             => array(),
+			'auto_sync'          => false,
+			'last_synced_at'     => '',
+			'sync_error'         => '',
 			'has_data'           => false,
 		);
-		if ( ! is_array( $order ) || empty( $order['wc_order_id'] ) || ! function_exists( 'wc_get_order' ) ) {
+		if ( ! is_array( $order ) ) {
+			return $summary;
+		}
+
+		$stored_payload = self::get_order_shipment_tracking( $order );
+		foreach ( array( 'carrier', 'carrier_slug', 'tracking_number', 'tracking_url', 'shipment_status', 'current_location', 'estimated_delivery', 'shipping_date', 'events', 'auto_sync', 'last_synced_at', 'sync_error' ) as $key ) {
+			if ( isset( $stored_payload[ $key ] ) ) {
+				$summary[ $key ] = $stored_payload[ $key ];
+			}
+		}
+
+		if ( empty( $order['wc_order_id'] ) || ! function_exists( 'wc_get_order' ) ) {
+			$summary['has_data'] = (
+				'' !== $summary['carrier']
+				|| '' !== $summary['tracking_number']
+				|| '' !== $summary['tracking_url']
+				|| '' !== $summary['shipping_date']
+				|| '' !== $summary['shipment_status']
+				|| '' !== $summary['current_location']
+				|| '' !== $summary['estimated_delivery']
+				|| ! empty( $summary['events'] )
+			);
 			return $summary;
 		}
 		$wc_order = wc_get_order( absint( $order['wc_order_id'] ) );
 		if ( ! $wc_order || ! is_object( $wc_order ) ) {
+			$summary['has_data'] = (
+				'' !== $summary['carrier']
+				|| '' !== $summary['tracking_number']
+				|| '' !== $summary['tracking_url']
+				|| '' !== $summary['shipping_date']
+				|| '' !== $summary['shipment_status']
+				|| '' !== $summary['current_location']
+				|| '' !== $summary['estimated_delivery']
+				|| ! empty( $summary['events'] )
+			);
 			return $summary;
 		}
 
@@ -1063,11 +1280,14 @@ class PCKZ_Commerce {
 				}
 			}
 		}
-		$summary['carrier'] = implode( ', ', array_unique( $carriers ) );
+		if ( '' === $summary['carrier'] ) {
+			$summary['carrier'] = implode( ', ', array_unique( $carriers ) );
+		}
 
 		$tracking_number_keys = array( '_tracking_number', 'tracking_number', '_shipment_tracking_number', '_ywot_tracking_code' );
 		$tracking_url_keys    = array( '_tracking_url', 'tracking_url', '_ywot_tracking_url', '_aftership_tracking_url' );
 		$provider_keys        = array( '_tracking_provider', 'tracking_provider', '_ywot_tracking_provider' );
+		$provider_slug_keys   = array( '_tracking_provider_slug' );
 		$status_keys          = array( '_tracking_status', 'tracking_status', '_shipment_status', '_aftership_tracking_status', '_ywot_tracking_status' );
 		$location_keys        = array( '_tracking_location', 'tracking_location', '_aftership_tracking_location', '_ywot_tracking_location' );
 		$eta_keys             = array( '_estimated_delivery', 'estimated_delivery', '_tracking_estimated_delivery', '_aftership_estimated_delivery', '_ywot_estimated_delivery' );
@@ -1092,6 +1312,15 @@ class PCKZ_Commerce {
 				$value = trim( (string) $wc_order->get_meta( $meta_key, true ) );
 				if ( '' !== $value ) {
 					$summary['carrier'] = $value;
+					break;
+				}
+			}
+		}
+		if ( '' === $summary['carrier_slug'] ) {
+			foreach ( $provider_slug_keys as $meta_key ) {
+				$value = sanitize_key( (string) $wc_order->get_meta( $meta_key, true ) );
+				if ( '' !== $value ) {
+					$summary['carrier_slug'] = $value;
 					break;
 				}
 			}
@@ -1138,6 +1367,12 @@ class PCKZ_Commerce {
 				$summary['events'] = $rows;
 				break;
 			}
+		}
+		if ( '' === $summary['last_synced_at'] ) {
+			$summary['last_synced_at'] = sanitize_text_field( (string) $wc_order->get_meta( '_pckz_tracking_last_synced_at', true ) );
+		}
+		if ( '' === $summary['sync_error'] ) {
+			$summary['sync_error'] = sanitize_text_field( (string) $wc_order->get_meta( '_pckz_tracking_sync_error', true ) );
 		}
 
 		$shipment_items = $wc_order->get_meta( '_wc_shipment_tracking_items', true );
@@ -1209,7 +1444,7 @@ class PCKZ_Commerce {
 	 * @param mixed $raw Meta value.
 	 * @return array<int,array{date:string,status:string,location:string,message:string}>
 	 */
-	private static function normalize_tracking_events( $raw ) {
+	public static function normalize_tracking_events( $raw ) {
 		if ( empty( $raw ) ) {
 			return array();
 		}
