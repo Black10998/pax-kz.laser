@@ -1735,12 +1735,132 @@
 	margin-bottom: 12px;
 }
 
+.pckz-license-shell {
+	display: grid;
+	gap: 16px;
+	grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+	margin-bottom: 16px;
+}
+
+.pckz-license-nav {
+	position: sticky;
+	top: 32px;
+	align-self: start;
+}
+
+.pckz-license-nav__toggle {
+	display: none;
+	margin-bottom: 8px;
+	width: 100%;
+}
+
+.pckz-license-nav__panel {
+	background: #fff;
+	border: 1px solid #d0d7de;
+	border-radius: 8px;
+	padding: 10px 0;
+}
+
+.pckz-license-nav__panel ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.pckz-license-nav__link {
+	align-items: center;
+	color: #24292f;
+	display: flex;
+	font-size: 13px;
+	gap: 8px;
+	padding: 8px 14px;
+	text-decoration: none;
+}
+
+.pckz-license-nav__link:hover,
+.pckz-license-nav__link.is-active {
+	background: #f6f8fa;
+	color: #0969da;
+}
+
+.pckz-license-nav__link.is-active {
+	font-weight: 600;
+}
+
+.pckz-license-panels > [id^="pckz-master-section-"] {
+	scroll-margin-top: 48px;
+}
+
+.pckz-fleet-alerts__header {
+	align-items: flex-start;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	justify-content: space-between;
+	margin-bottom: 10px;
+}
+
+.pckz-fleet-alerts__header h3 {
+	margin: 0;
+}
+
+.pckz-fleet-alerts__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.pckz-fleet-alerts__clear-form {
+	display: inline;
+	margin: 0;
+}
+
+.pckz-fleet-alert__count {
+	background: #fff8c5;
+	border-radius: 4px;
+	font-size: 12px;
+	margin-left: 6px;
+	padding: 2px 6px;
+}
+
+.pckz-fleet-alerts__older {
+	margin-top: 10px;
+	max-height: 280px;
+	overflow: auto;
+}
+
+.pckz-fleet-alerts__older summary {
+	cursor: pointer;
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+
 .pckz-fleet-alerts {
 	margin: 0 0 16px;
+	max-height: 420px;
+	overflow: auto;
 	padding: 12px 14px;
 	background: #fff8f5;
 	border: 1px solid #ffd8cc;
 	border-radius: 8px;
+}
+
+@media (max-width: 960px) {
+	.pckz-license-shell {
+		grid-template-columns: 1fr;
+	}
+
+	.pckz-license-nav__toggle {
+		display: inline-flex;
+	}
+
+	.pckz-license-nav__panel {
+		display: none;
+	}
+
+	.pckz-license-nav__panel.is-open {
+		display: block;
+	}
 }
 
 .pckz-fleet-alert-list {

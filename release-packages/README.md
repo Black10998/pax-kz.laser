@@ -1,5 +1,25 @@
 ## Production installation packages
 
+Canonical package for v2.28.15:
+
+- `pckz-canonical-engine-2.28.15-protected.zip`
+
+SHA256:
+
+- `5522b593cd2379cf9b9e9a73aec9cf681d34daed703c5ef025af2a285a25fc75`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.15/pckz-canonical-engine-2.28.15-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.15-protected.zip`
+
+What changed in v2.28.15: stable master-to-client update propagation (package fetch when an update is pending, stale-cache reconciliation, Update Now via grace-aware permissions), faster pending update-meta polling, Master Control grouped/collapsible alerts with clear/refresh actions, and collapsible section navigation.
+
+Previous release (v2.28.14):
+
 Canonical package for v2.28.14:
 
 - `pckz-canonical-engine-2.28.14-protected.zip`

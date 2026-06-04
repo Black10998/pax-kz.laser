@@ -241,7 +241,7 @@ $format_datetime = static function ( $raw ) {
 					<button type="submit" class="button button-secondary">
 						<?php esc_html_e( 'Check for updates', 'pckz-canonical-engine' ); ?>
 					</button>
-					<span class="description"><?php esc_html_e( 'Contacts the master server now and refreshes update status on this site.', 'pckz-canonical-engine' ); ?></span>
+					<span class="description"><?php esc_html_e( 'Refreshes version information from the master server. Use Update Now below to install when an update is available.', 'pckz-canonical-engine' ); ?></span>
 				</form>
 				<?php if ( ! empty( $client_summary['can_update_now'] ) ) : ?>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-update-now-form">
@@ -266,7 +266,12 @@ $format_datetime = static function ( $raw ) {
 			</article>
 		</div>
 	<?php else : ?>
+		<div class="pckz-license-shell">
+			<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-nav.php'; ?>
+			<div class="pckz-license-panels">
+		<div id="pckz-master-section-fleet">
 		<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-fleet.php'; ?>
+		</div>
 
 		<div class="pckz-license-stats">
 			<article class="pckz-license-stat">
@@ -286,9 +291,11 @@ $format_datetime = static function ( $raw ) {
 			</article>
 		</div>
 
+		<div id="pckz-master-section-releases">
 		<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-releases.php'; ?>
+		</div>
 
-		<div class="pckz-license-grid">
+		<div id="pckz-master-section-licenses" class="pckz-license-grid">
 			<section class="pckz-license-card">
 				<h2><?php esc_html_e( 'Create License', 'pckz-canonical-engine' ); ?></h2>
 				<p class="description"><?php esc_html_e( 'Issue a new license key for a customer site.', 'pckz-canonical-engine' ); ?></p>
@@ -358,6 +365,10 @@ $format_datetime = static function ( $raw ) {
 			</section>
 		</div>
 
+		<div id="pckz-master-section-management">
 		<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-management.php'; ?>
+		</div>
+			</div>
+		</div>
 	<?php endif; ?>
 </div>

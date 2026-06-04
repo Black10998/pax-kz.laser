@@ -90,6 +90,16 @@ class PCKZ_Master_Control {
 		if ( ! class_exists( 'PCKZ_Licensing' ) || ! PCKZ_Licensing::is_master_mode() ) {
 			return;
 		}
+		$type = sanitize_key( (string) $type );
+		if ( 'rate_limit_exceeded' === $type ) {
+			$ip    = sanitize_text_field( (string) ( $context['ip'] ?? '' ) );
+			$scope = sanitize_key( (string) ( $context['scope'] ?? '' ) );
+			$dedupe = 'pckzce_rl_log_' . md5( $ip . '|' . $scope );
+			if ( get_transient( $dedupe ) ) {
+				return;
+			}
+			set_transient( $dedupe, 1, 5 * MINUTE_IN_SECONDS );
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . self::TABLE_EVENTS;
 		$wpdb->insert(
@@ -118,7 +128,7 @@ class PCKZ_Master_Control {
 	public static function recent_events( $limit = 40 ) {
 		global $wpdb;
 		$table = $wpdb->prefix . self::TABLE_EVENTS;
-		$limit = max( 1, min( 200, absint( $limit ) ) );
+		$limit = max( 1, min( 500, absint( $limit ) ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return $wpdb->get_results(
 			$wpdb->prepare(
@@ -127,6 +137,84 @@ class PCKZ_Master_Control {
 			),
 			ARRAY_A
 		) ?: array();
+	}
+
+	/**
+	 * Group repeated security events for a compact dashboard.
+	 *
+	 * @param array $events Raw event rows.
+	 * @return array
+	 */
+	public static function group_security_events( $events ) {
+		if ( ! is_array( $events ) ) {
+			return array();
+		}
+		$groups = array();
+		foreach ( $events as $event ) {
+			if ( ! is_array( $event ) ) {
+				continue;
+			}
+			$type    = sanitize_key( (string) ( $event['event_type'] ?? 'unknown' ) );
+			$context = json_decode( (string) ( $event['context'] ?? '{}' ), true );
+			$context = is_array( $context ) ? $context : array();
+			$key     = $type;
+			if ( 'rate_limit_exceeded' === $type ) {
+				$key = $type . '|' . sanitize_key( (string) ( $context['scope'] ?? 'unknown' ) );
+			} elseif ( ! empty( $event['domain'] ) ) {
+				$key = $type . '|' . sanitize_text_field( (string) $event['domain'] );
+			}
+			if ( ! isset( $groups[ $key ] ) ) {
+				$groups[ $key ] = array(
+					'event_type' => $type,
+					'severity'   => sanitize_key( (string) ( $event['severity'] ?? 'warning' ) ),
+					'message'    => sanitize_text_field( (string) ( $event['message'] ?? '' ) ),
+					'domain'     => sanitize_text_field( (string) ( $event['domain'] ?? '' ) ),
+					'context'    => $context,
+					'count'      => 0,
+					'latest_at'  => (string) ( $event['created_at'] ?? '' ),
+					'oldest_at'  => (string) ( $event['created_at'] ?? '' ),
+					'samples'    => array(),
+				);
+			}
+			$groups[ $key ]['count']++;
+			$created = (string) ( $event['created_at'] ?? '' );
+			if ( $created > $groups[ $key ]['latest_at'] ) {
+				$groups[ $key ]['latest_at'] = $created;
+			}
+			if ( '' === $groups[ $key ]['oldest_at'] || $created < $groups[ $key ]['oldest_at'] ) {
+				$groups[ $key ]['oldest_at'] = $created;
+			}
+			if ( count( $groups[ $key ]['samples'] ) < 3 ) {
+				$groups[ $key ]['samples'][] = $event;
+			}
+		}
+		$out = array_values( $groups );
+		usort(
+			$out,
+			static function ( $a, $b ) {
+				return strcmp( (string) ( $b['latest_at'] ?? '' ), (string) ( $a['latest_at'] ?? '' ) );
+			}
+		);
+		return $out;
+	}
+
+	/**
+	 * Delete security events (all or selected types).
+	 *
+	 * @param array $types Optional event_type slugs; empty clears all rows.
+	 */
+	public static function clear_security_events( $types = array() ) {
+		global $wpdb;
+		$table = $wpdb->prefix . self::TABLE_EVENTS;
+		if ( empty( $types ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "DELETE FROM {$table}" );
+			return;
+		}
+		$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+		$types        = array_map( 'sanitize_key', $types );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE event_type IN ({$placeholders})", ...$types ) );
 	}
 
 	/**
@@ -145,6 +233,9 @@ class PCKZ_Master_Control {
 			'client_update_failed'         => __( 'Client update failed', 'pckz-canonical-engine' ),
 			'client_update_success'        => __( 'Client update success', 'pckz-canonical-engine' ),
 			'check_in_denied'              => __( 'Check-in denied', 'pckz-canonical-engine' ),
+			'rate_limit_exceeded'          => __( 'Rate limit exceeded', 'pckz-canonical-engine' ),
+			'master_ip_denied'             => __( 'Master admin IP denied', 'pckz-canonical-engine' ),
+			'plugin_deactivated'         => __( 'Plugin deactivated on client', 'pckz-canonical-engine' ),
 		);
 		if ( isset( $labels[ $event_type ] ) ) {
 			return $labels[ $event_type ];

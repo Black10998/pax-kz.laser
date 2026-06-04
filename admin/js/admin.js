@@ -49,8 +49,6 @@
 		updatePricingPreview();
 	}
 
-	}
-
 	const settingsWrap = $('.pckz-settings-wrap');
 	if (settingsWrap.length) {
 		const sectionLinks = settingsWrap.find('[data-pckz-settings-section]');
@@ -140,6 +138,52 @@
 				}
 			}
 		});
+
+		const masterNav = licenseDashboard.filter('.pckz-license-dashboard--master').find('.pckz-license-nav');
+		if (masterNav.length) {
+			const navToggle = masterNav.find('.pckz-license-nav__toggle');
+			const navPanel = masterNav.find('.pckz-license-nav__panel');
+			navToggle.on('click', function () {
+				const open = navPanel.hasClass('is-open');
+				navPanel.toggleClass('is-open', !open);
+				navToggle.attr('aria-expanded', open ? 'false' : 'true');
+			});
+			const navLinks = masterNav.find('[data-pckz-master-section]');
+			const masterPanels = licenseDashboard.find('[id^="pckz-master-section-"]');
+			const activateMasterSection = function (slug) {
+				if (!slug) {
+					return;
+				}
+				navLinks.removeClass('is-active');
+				navLinks.filter('[data-pckz-master-section="' + slug + '"]').addClass('is-active');
+			};
+			const hashMaster = function () {
+				const hash = String(window.location.hash || '').replace('#pckz-master-section-', '');
+				if (hash) {
+					activateMasterSection(hash);
+				}
+			};
+			hashMaster();
+			$(window).on('hashchange', hashMaster);
+			if ('IntersectionObserver' in window && masterPanels.length) {
+				const masterObserver = new IntersectionObserver(
+					function (entries) {
+						entries.forEach(function (entry) {
+							if (entry.isIntersecting) {
+								const id = String(entry.target.id || '').replace('pckz-master-section-', '');
+								if (id) {
+									activateMasterSection(id);
+								}
+							}
+						});
+					},
+					{ rootMargin: '-15% 0px -65% 0px', threshold: 0.02 }
+				);
+				masterPanels.each(function () {
+					masterObserver.observe(this);
+				});
+			}
+		}
 
 		licenseDashboard.on('click', '.pckz-code-copy', function () {
 			const el = $(this);
