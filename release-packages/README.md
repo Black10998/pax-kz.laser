@@ -1,22 +1,30 @@
 ## Production installation packages
 
-Canonical package for v2.28.5:
+Canonical package for v2.28.6:
 
-- `pckz-canonical-engine-2.28.5-protected.zip`
+- `pckz-canonical-engine-2.28.6-protected.zip`
 
 SHA256:
 
-- `bcd27a151db9a5c46aeffc442a5b635e56b5a4f102ade5ce0611bc2e43b79eef`
+- `db2fa115b23975eec2e3c6fe24274f5161542ac18c2b5258d6c5964d0bb28c34`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.6/pckz-canonical-engine-2.28.6-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.6-protected.zip`
+
+What changed in v2.28.6: fixed unusable shipment fields in admin order details (inputs always editable/savable), added persistent shipment tracking JSON storage independent of Woo link availability, introduced automatic carrier synchronization via AfterShip (Austrian Post, DHL, DPD, GLS, UPS, FedEx), and added scheduled tracking refresh with sync status/error visibility.
+
+Previous release (v2.28.5):
+
+- `pckz-canonical-engine-2.28.5-protected.zip`
 
 Direct download (GitHub Release, recommended):
 
 - `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.5/pckz-canonical-engine-2.28.5-protected.zip`
-
-Raw URL on `main` (may take a few minutes after push to propagate):
-
-- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.5-protected.zip`
-
-What changed in v2.28.5: further checkout latency reduction by keeping export prep warm while customers fill checkout details (and reusing prepared payloads on payment click), dedicated shipment tracking admin input workflow (tracking number/status/location/ETA/events), and a cleaner minimal customer tracking UI with shipment event history.
 
 Previous release (v2.28.4):
 
