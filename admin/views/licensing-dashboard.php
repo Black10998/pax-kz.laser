@@ -7,6 +7,19 @@
 
 defined( 'ABSPATH' ) || exit;
 
+/*
+ * Shared formatter closures.
+ *
+ * These MUST be defined before any partial include (fleet, management, …) is
+ * pulled in below. PHP includes inherit the calling scope, so partials can
+ * call $badge_class(), $status_label(), and $format_datetime() directly.
+ *
+ * Historic bug (v2.28.0): $format_datetime used to live inside the
+ * licensing-master-management.php partial, which is included AFTER the fleet
+ * partial. Under PHP 8+ that turned the fleet rendering into a fatal
+ * "Value of type null is not callable" and produced a blank Master Control
+ * page. Defining the closure here keeps all partials safe.
+ */
 $badge_class = static function ( $status ) {
 	$status = sanitize_key( (string) $status );
 	$map    = array(
@@ -41,6 +54,18 @@ $status_label = static function ( $status ) {
 		'available'    => __( 'Update Available', 'pckz-canonical-engine' ),
 	);
 	return isset( $map[ $status ] ) ? $map[ $status ] : ucwords( str_replace( '_', ' ', $status ) );
+};
+
+$format_datetime = static function ( $raw ) {
+	$raw = trim( (string) $raw );
+	if ( '' === $raw ) {
+		return '—';
+	}
+	$ts = strtotime( $raw );
+	if ( ! $ts ) {
+		return $raw;
+	}
+	return gmdate( 'Y-m-d H:i:s', $ts ) . ' UTC';
 };
 ?>
 

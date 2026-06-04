@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.27.10
+Stable tag: 2.28.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,15 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.1 =
+
+* Master Control: fix blank page on paxdesign.at — the fleet partial called `$format_datetime()` before it was defined, producing a PHP 8 fatal that wiped the page. Shared formatter closures moved to the parent dashboard view; partials carry defensive fallbacks.
+* Master Control: render path now wrapped in a fail-safe; any unexpected throwable falls back to a recovery panel with the error and next steps instead of a blank screen.
+* Master Control: empty-state banner explains exactly what to do when no client installations have checked in yet.
+* Master Control: schema auto-heal — license/installation/download/security-event tables are re-created on demand if they are missing, so an interrupted upgrade no longer leaves a broken dashboard.
+* Master Control: `PCKZ_Master_Control::register_hooks()` is now wired up unconditionally on master so asset-catalog change notifications always bump the manifest revision.
+* Licensing, asset synchronization, premium/security controls, domain restrictions, update authorization, and master-host lock are unchanged.
 
 = 2.28.0 =
 
