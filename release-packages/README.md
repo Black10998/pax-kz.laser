@@ -6,7 +6,7 @@ Canonical package for v2.28.4:
 
 SHA256:
 
-- `TO_BE_FILLED_AFTER_BUILD`
+- `187476dd2bc0d7447024f4bbbc3ac9c15596ef23c1d9a5c3076a124a29b521a6`
 
 Direct download (GitHub Release, recommended):
 
