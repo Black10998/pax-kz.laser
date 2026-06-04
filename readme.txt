@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.2
+Stable tag: 2.28.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,19 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.3 =
+
+* Security hardening architecture upgrade with backward-safe defaults for WordPress/WooCommerce compatibility.
+* Added endpoint rate limiting + anomaly logging for licensing and asset-sync REST traffic.
+* Added optional Master Control IP allowlist enforcement for admin and master REST operations.
+* Added optional stricter anti-clone controls (UUID format enforcement and duplicate UUID domain blocking).
+* Strengthened package/update trust chain: protected release archive manifest validation, checksum metadata, and pre-install package verification on client updates.
+* Expanded runtime integrity fingerprinting and tamper telemetry signal coverage.
+* Hardened asset-sync download token flow with master-issued, installation-bound tokens.
+* Reduced sensitive exception detail leakage in export AJAX responses (details now only in privileged debug contexts).
+* Added optional minified-JS preference loader and an automated JS protection build tool (`tools/build-js-protection.php`) for production packaging pipelines.
+* Added smoke tests for new hardening logic (`tests/security-hardening-smoke.php`, `tests/asset-token-binding-smoke.php`).
 
 = 2.28.2 =
 
