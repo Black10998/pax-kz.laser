@@ -1,6 +1,24 @@
 ## Production installation packages
 
-Canonical package for v2.28.0:
+Canonical package for v2.28.1:
+
+- `pckz-canonical-engine-2.28.1-protected.zip`
+
+SHA256:
+
+- `01df98b54550fa0e2f597cb7006734f54adee403ebbfa6325daf6cfcf99c43a5`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.1/pckz-canonical-engine-2.28.1-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.1-protected.zip`
+
+What changed in v2.28.1: hot-fix for the blank Master Control page introduced in v2.28.0. The fleet partial called `$format_datetime()` before it was defined, which produced a PHP 8 fatal and wiped the page. Helpers moved into the parent dashboard view; the render path is wrapped in a fail-safe that always shows either real data, an empty-state guide, or a recovery panel — never a blank screen. Licensing, asset sync, premium gating, domain restrictions, update authorization, and master-host lock are unchanged.
+
+Previous release (v2.28.0):
 
 - `pckz-canonical-engine-2.28.0-protected.zip`
 
