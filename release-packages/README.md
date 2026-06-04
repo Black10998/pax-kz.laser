@@ -1,22 +1,30 @@
 ## Production installation packages
 
-Canonical package for v2.28.3:
+Canonical package for v2.28.4:
 
-- `pckz-canonical-engine-2.28.3-protected.zip`
+- `pckz-canonical-engine-2.28.4-protected.zip`
 
 SHA256:
 
-- `dfce876c07d4b06625d8f6d4dcaf127e2abf6de81d5e5da9ace72347e8edaaf7`
+- `TO_BE_FILLED_AFTER_BUILD`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.4/pckz-canonical-engine-2.28.4-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.4-protected.zip`
+
+What changed in v2.28.4: improved checkout speed UX for PayPal (no blocking wait toast on click, background export validation preserved), added reliable post-payment redirect to the tracking page for PayPal + Stripe returns, redesigned the tracking page into a premium responsive status dashboard, and enriched shipping details with optional location/ETA metadata.
+
+Previous release (v2.28.3):
+
+- `pckz-canonical-engine-2.28.3-protected.zip`
 
 Direct download (GitHub Release, recommended):
 
 - `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.3/pckz-canonical-engine-2.28.3-protected.zip`
-
-Raw URL on `main` (may take a few minutes after push to propagate):
-
-- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.3-protected.zip`
-
-What changed in v2.28.3: fixed administrator access denial on Master Control (`admin.php?page=pckz-license-server`). The submenu is now registered after the parent Product Creator menu (prevents page-hook/capability mismatch), with a safe fallback attachment to `options-general.php` when external menu-order interference prevents the primary parent from being available. Capability remains `manage_options`, and Master/Client licensing architecture is unchanged.
 
 Previous release (v2.28.2):
 

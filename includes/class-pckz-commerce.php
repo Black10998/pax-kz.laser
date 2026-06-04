@@ -1034,6 +1034,8 @@ class PCKZ_Commerce {
 			'carrier'         => '',
 			'tracking_number' => '',
 			'tracking_url'    => '',
+			'current_location'=> '',
+			'estimated_delivery' => '',
 			'shipping_date'   => '',
 			'has_data'        => false,
 		);
@@ -1064,6 +1066,8 @@ class PCKZ_Commerce {
 		$tracking_number_keys = array( '_tracking_number', 'tracking_number', '_shipment_tracking_number', '_ywot_tracking_code' );
 		$tracking_url_keys    = array( '_tracking_url', 'tracking_url', '_ywot_tracking_url', '_aftership_tracking_url' );
 		$provider_keys        = array( '_tracking_provider', 'tracking_provider', '_ywot_tracking_provider' );
+		$location_keys        = array( '_tracking_location', 'tracking_location', '_aftership_tracking_location', '_ywot_tracking_location' );
+		$eta_keys             = array( '_estimated_delivery', 'estimated_delivery', '_tracking_estimated_delivery', '_aftership_estimated_delivery', '_ywot_estimated_delivery' );
 		foreach ( $tracking_number_keys as $meta_key ) {
 			$value = trim( (string) $wc_order->get_meta( $meta_key, true ) );
 			if ( '' !== $value ) {
@@ -1087,6 +1091,20 @@ class PCKZ_Commerce {
 				}
 			}
 		}
+		foreach ( $location_keys as $meta_key ) {
+			$value = trim( (string) $wc_order->get_meta( $meta_key, true ) );
+			if ( '' !== $value ) {
+				$summary['current_location'] = $value;
+				break;
+			}
+		}
+		foreach ( $eta_keys as $meta_key ) {
+			$value = trim( (string) $wc_order->get_meta( $meta_key, true ) );
+			if ( '' !== $value ) {
+				$summary['estimated_delivery'] = $value;
+				break;
+			}
+		}
 
 		$shipment_items = $wc_order->get_meta( '_wc_shipment_tracking_items', true );
 		if ( is_array( $shipment_items ) && ! empty( $shipment_items[0] ) ) {
@@ -1101,6 +1119,20 @@ class PCKZ_Commerce {
 				if ( '' === $summary['carrier'] && ! empty( $item['tracking_provider'] ) ) {
 					$summary['carrier'] = sanitize_text_field( $item['tracking_provider'] );
 				}
+				if ( '' === $summary['current_location'] && ! empty( $item['tracking_location'] ) ) {
+					$summary['current_location'] = sanitize_text_field( $item['tracking_location'] );
+				}
+				if ( '' === $summary['estimated_delivery'] && ! empty( $item['estimated_delivery'] ) ) {
+					$summary['estimated_delivery'] = sanitize_text_field( $item['estimated_delivery'] );
+				}
+				if ( '' === $summary['shipping_date'] && ! empty( $item['date_shipped'] ) ) {
+					$raw_date = $item['date_shipped'];
+					if ( is_numeric( $raw_date ) && function_exists( 'date_i18n' ) ) {
+						$summary['shipping_date'] = date_i18n( 'd.m.Y H:i', (int) $raw_date );
+					} else {
+						$summary['shipping_date'] = sanitize_text_field( (string) $raw_date );
+					}
+				}
 			}
 		}
 
@@ -1110,7 +1142,14 @@ class PCKZ_Commerce {
 				$summary['shipping_date'] = $date->date_i18n( 'd.m.Y H:i' );
 			}
 		}
-		$summary['has_data'] = ( '' !== $summary['carrier'] || '' !== $summary['tracking_number'] || '' !== $summary['tracking_url'] || '' !== $summary['shipping_date'] );
+		$summary['has_data'] = (
+			'' !== $summary['carrier']
+			|| '' !== $summary['tracking_number']
+			|| '' !== $summary['tracking_url']
+			|| '' !== $summary['shipping_date']
+			|| '' !== $summary['current_location']
+			|| '' !== $summary['estimated_delivery']
+		);
 		return $summary;
 	}
 
@@ -1286,22 +1325,29 @@ class PCKZ_Commerce {
 	}
 
 	/**
-	 * Redirect target after successful PayPal capture (configurator + success flag).
+	 * Redirect target after successful payment (customer tracking page).
 	 *
 	 * @param array $commerce_order Commerce row.
 	 * @return string
 	 */
 	public static function resolve_post_payment_redirect( $commerce_order ) {
-		$base = ! empty( $commerce_order['return_url'] )
+		$order_id = (int) ( $commerce_order['id'] ?? 0 );
+		if ( self::find_tracking_page_url() ) {
+			return self::resolve_tracking_page_url( $order_id );
+		}
+
+		// Fallback for installations without a tracking shortcode page.
+		$creator = ! empty( $commerce_order['return_url'] )
 			? (string) $commerce_order['return_url']
 			: self::resolve_creator_page_url( (int) ( $commerce_order['product_id'] ?? 0 ) );
-		$base = remove_query_arg( array( 'pckz_paypal', 'pckz_payment', 'token', 'PayerID', 'session_id' ), $base );
+		$creator = remove_query_arg( array( 'pckz_paypal', 'pckz_payment', 'token', 'PayerID', 'session_id' ), $creator );
+
 		return add_query_arg(
 			array(
 				'pckz_paid'  => '1',
-				'pckz_order' => (int) ( $commerce_order['id'] ?? 0 ),
+				'pckz_order' => $order_id,
 			),
-			$base
+			$creator
 		);
 	}
 

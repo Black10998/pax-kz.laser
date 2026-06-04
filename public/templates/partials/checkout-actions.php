@@ -48,7 +48,7 @@ $is_admin_viewer     = current_user_can( 'manage_options' );
 				</div>
 			</div>
 			<p class="pckz-checkout__export-hint" data-export-ready-hint>
-				<?php esc_html_e( 'Zahlung wird freigegeben, sobald die Vorschau und Exportdaten bereit sind.', 'pckz-canonical-engine' ); ?>
+				<?php esc_html_e( 'Vorschau und Exportdaten werden im Hintergrund geprüft, damit der Checkout ohne Unterbrechung startet.', 'pckz-canonical-engine' ); ?>
 			</p>
 			<button type="button" class="pckz-btn pckz-btn--paypal pckz-btn--checkout-primary" data-action="paypal-checkout" data-provider="<?php echo esc_attr( $payment_provider ); ?>" aria-disabled="false">
 				<span class="pckz-btn__paypal-mark" aria-hidden="true"><?php echo esc_html( $payment_provider_label ); ?></span>

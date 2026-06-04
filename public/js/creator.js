@@ -76,6 +76,7 @@
 			this._mobileViewportLock = false;
 			this._mobileResizeUnlockTimer = null;
 			this._creatorReadyMarked = false;
+			this._checkoutInFlight = false;
 			this.iconColorUserSet = { left: false, right: false };
 			this.customerArtworkToken = '';
 			this.customerArtworkFilename = '';
@@ -97,7 +98,7 @@
 			this.initMobileViewportStability();
 			this.initCanvas();
 			this.updateCheckoutInteractable(
-				I18N.exportWaitingPreview || 'Zahlung wird freigegeben, sobald die Vorschau vollständig geladen ist.'
+				I18N.exportWaitingPreview || 'Die Vorschau wird vorbereitet. Sie koennen die Bestellung gleich abschliessen.'
 			);
 			this.showPaymentSuccessIfReturned();
 			window.addEventListener('resize', () => this.handleWindowResize());
@@ -1412,7 +1413,7 @@
 			clearTimeout(this._exportReadyTimer);
 			this.exportReady = false;
 			this.updateCheckoutInteractable(
-				I18N.exportValidating || 'Exportdaten werden geprüft — bitte kurz warten.'
+				I18N.exportValidating || 'Bestelldaten werden im Hintergrund geprueft.'
 			);
 			this._exportReadyTimer = setTimeout(() => {
 				this.refreshExportReadyState();
@@ -1718,12 +1719,12 @@
 		}
 
 		async refreshExportReadyState() {
-			const waitingPreview = I18N.exportWaitingPreview || 'Zahlung wird freigegeben, sobald die Vorschau vollständig geladen ist.';
-			const waitingText = I18N.exportWaitingText || 'Bitte geben Sie einen Text ein — danach wird die Zahlung freigegeben.';
-			const validating = I18N.exportValidating || 'Exportdaten werden geprüft — bitte kurz warten.';
-			const defaultHint = I18N.exportReadyHint || 'Zahlung wird freigegeben, sobald die Vorschau und Exportdaten bereit sind.';
+			const waitingPreview = I18N.exportWaitingPreview || 'Die Vorschau wird vorbereitet. Sie koennen die Bestellung gleich abschliessen.';
+			const waitingText = I18N.exportWaitingText || 'Bitte geben Sie einen Text ein, damit Ihre Bestellung produziert werden kann.';
+			const validating = I18N.exportValidating || 'Bestelldaten werden im Hintergrund geprueft.';
+			const defaultHint = I18N.exportReadyHint || 'Vorschau und Exportdaten werden im Hintergrund geprueft.';
 			const readyHint =
-				I18N.exportReadyPaypal || 'Sie können jetzt bezahlen. Die Daten werden beim Klick geprüft.';
+				I18N.exportReadyPaypal || 'Bereit zur Zahlung. Die Bestelldaten sind geprueft.';
 
 			if (!this.bgLoaded || !this.previewEngine) {
 				this.exportReady = false;
@@ -1936,7 +1937,8 @@
 			return this.canvas.toDataURL({ format: 'png', quality: 1, multiplier: 2 });
 		}
 
-		validate() {
+		validate(opts = {}) {
+			const requireExportReady = opts.requireExportReady !== false;
 			const text = (this.selections.custom_text || (this.textObj && this.textObj.text) || '').trim();
 			if (!text) {
 				this.toast(I18N.requireDesign, true);
@@ -1946,7 +1948,7 @@
 				this.toast(I18N.loading, true);
 				return false;
 			}
-			if (!this.exportReady) {
+			if (requireExportReady && !this.exportReady) {
 				this.toast(
 					I18N.exportNotReady ||
 						'Vorschau wird noch geladen. Bitte warten Sie, bis die Vorschau vollständig angezeigt ist.',
@@ -2225,7 +2227,10 @@
 		}
 
 		submitPaypal() {
-			if (!this.validate()) {
+			if (this._checkoutInFlight) {
+				return;
+			}
+			if (!this.validate({ requireExportReady: false })) {
 				return;
 			}
 			if (!this.validateCommerce()) {
@@ -2236,21 +2241,11 @@
 				return;
 			}
 			this.collectCheckoutFields();
+			this._checkoutInFlight = true;
 			this.setSubmitLoading(true, 'paypal-checkout');
-			this.setPaymentStatus(
-				this.exportReady
-					? I18N.paymentRedirect || I18N.paypalRedirect || I18N.preparingCheckout
-					: I18N.exportValidating || 'Exportdaten werden geprüft — bitte kurz warten.',
-				false
-			);
-			if (!this.exportReady) {
-				this.toast(I18N.exportValidating || I18N.preparingCheckout || I18N.loading);
-			} else {
-				this.toast(I18N.preparingCheckout || I18N.paymentRedirect || I18N.paypalRedirect);
-			}
+			this.setPaymentStatus('', false);
 
 			Promise.resolve()
-				.then(() => this.ensureExportPayloadReady())
 				.then(() => this.saveDesign())
 				.then(() => this.exportPng())
 				.then(() => {
@@ -2290,6 +2285,7 @@
 					this.toast(err.message || I18N.paypalError, true);
 				})
 				.finally(() => {
+					this._checkoutInFlight = false;
 					this.setSubmitLoading(false, 'paypal-checkout');
 					this.updateCheckoutInteractable(
 						this.exportReady
