@@ -6,7 +6,7 @@ Canonical package for v2.28.16:
 
 SHA256:
 
-- (build after merge — run `php tools/build-protected-release.php --version=2.28.16 --build=2.28.16.20260605-master-control-actions-publish-truth --output=release-packages`)
+- `60208eb5d3ae372fccbd05af82e1c55c2668b839bc131c49c750f4dd4411a3e8`
 
 Direct download (GitHub Release, recommended):
 
