@@ -26,6 +26,7 @@
     "admin/views/partials/licensing-master-licenses.php",
     "admin/views/partials/licensing-master-records.php",
     "admin/views/partials/licensing-master-nav.php",
+    "admin/views/partials/licensing-master-release-storage.php",
     "admin/views/partials/licensing-master-management.php",
     "README.md"
   ],

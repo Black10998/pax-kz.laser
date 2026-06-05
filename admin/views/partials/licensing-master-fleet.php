@@ -167,12 +167,34 @@ $fleet_base_url = admin_url( 'admin.php?page=pckz-license-server' );
 						: $event_type_raw;
 					$context         = is_array( $group['context'] ?? null ) ? $group['context'] : array();
 					$count           = max( 1, (int) ( $group['count'] ?? 1 ) );
+					$is_release_alert = in_array(
+						$event_type_raw,
+						array( 'download_package_validation_failed', 'release_package_validation_failed' ),
+						true
+					);
 					?>
 					<li class="pckz-fleet-alert pckz-fleet-alert--<?php echo esc_attr( $sev ); ?>">
 						<strong><?php echo esc_html( $group['message'] ?? '' ); ?></strong>
 						<?php if ( $count > 1 ) : ?>
 							<span class="pckz-fleet-alert__count"><?php echo esc_html( sprintf( __( '×%d', 'pckz-canonical-engine' ), $count ) ); ?></span>
 						<?php endif; ?>
+						<?php if ( $is_release_alert ) : ?>
+							<ul class="pckz-fleet-alert__meta-list">
+								<?php if ( ! empty( $context['archive_filename'] ) || ! empty( $context['zip_filename'] ) ) : ?>
+									<li><strong><?php esc_html_e( 'ZIP filename:', 'pckz-canonical-engine' ); ?></strong> <?php echo esc_html( (string) ( $context['archive_filename'] ?? $context['zip_filename'] ?? '' ) ); ?></li>
+								<?php endif; ?>
+								<?php if ( ! empty( $context['version'] ) ) : ?>
+									<li><strong><?php esc_html_e( 'Version:', 'pckz-canonical-engine' ); ?></strong> <?php echo esc_html( (string) $context['version'] ); ?></li>
+								<?php endif; ?>
+								<li><strong><?php esc_html_e( 'Detected:', 'pckz-canonical-engine' ); ?></strong> <?php echo esc_html( $format_datetime( $group['latest_at'] ?? ( $context['detected_at'] ?? '' ) ) ); ?></li>
+								<?php if ( ! empty( $context['validation_rule'] ) ) : ?>
+									<li><strong><?php esc_html_e( 'Rule:', 'pckz-canonical-engine' ); ?></strong> <code><?php echo esc_html( (string) $context['validation_rule'] ); ?></code></li>
+								<?php endif; ?>
+								<?php if ( ! empty( $context['recommended_action'] ) ) : ?>
+									<li><strong><?php esc_html_e( 'Recommended action:', 'pckz-canonical-engine' ); ?></strong> <?php echo esc_html( (string) $context['recommended_action'] ); ?></li>
+								<?php endif; ?>
+							</ul>
+						<?php else : ?>
 						<span class="description">
 							<?php echo esc_html( $event_type_text ); ?>
 							<?php if ( ! empty( $group['domain'] ) ) : ?>
@@ -182,6 +204,7 @@ $fleet_base_url = admin_url( 'admin.php?page=pckz-license-server' );
 							<?php endif; ?>
 							· <?php echo esc_html( $format_datetime( $group['latest_at'] ?? '' ) ); ?>
 						</span>
+						<?php endif; ?>
 					</li>
 					<?php
 				}

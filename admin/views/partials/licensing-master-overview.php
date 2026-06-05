@@ -69,6 +69,7 @@ $live_version = sanitize_text_field( (string) ( $release_meta['version'] ?? '' )
 			<a class="button button-primary" href="#pckz-master-section-licenses"><?php esc_html_e( 'Create license', 'pckz-canonical-engine' ); ?></a>
 			<a class="button button-secondary" href="#pckz-master-section-licenses"><?php esc_html_e( 'Generate client package', 'pckz-canonical-engine' ); ?></a>
 			<a class="button button-secondary" href="#pckz-master-section-releases"><?php esc_html_e( 'Publish software update', 'pckz-canonical-engine' ); ?></a>
+			<a class="button button-secondary" href="#pckz-master-section-storage"><?php esc_html_e( 'Manage release storage', 'pckz-canonical-engine' ); ?></a>
 			<a class="button button-secondary" href="#pckz-master-section-fleet"><?php esc_html_e( 'Review fleet health', 'pckz-canonical-engine' ); ?></a>
 			<a class="button button-secondary" href="#pckz-master-section-records"><?php esc_html_e( 'View download history', 'pckz-canonical-engine' ); ?></a>
 		</div>

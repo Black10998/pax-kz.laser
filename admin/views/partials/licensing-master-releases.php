@@ -237,6 +237,10 @@ if ( ! empty( $protected_releases ) && is_array( $protected_releases ) ) {
 	<?php if ( ! empty( $protected_releases ) ) : ?>
 		<article class="pckz-mc-panel pckz-release-inventory">
 			<h3><?php esc_html_e( 'Stored client protected packages', 'pckz-canonical-engine' ); ?></h3>
+			<p class="description">
+				<?php esc_html_e( 'Only valid packages in active storage are listed here. For full inventory, quarantine status, and cleanup tools, open', 'pckz-canonical-engine' ); ?>
+				<a href="#pckz-master-section-storage"><?php esc_html_e( 'Release storage', 'pckz-canonical-engine' ); ?></a>.
+			</p>
 			<div class="pckz-mc-table-wrap">
 			<table class="widefat striped pckz-mc-table">
 				<thead>

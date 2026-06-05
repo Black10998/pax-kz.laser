@@ -117,7 +117,7 @@ $format_datetime = static function ( $raw ) {
 
 	<?php if ( $master_mode && ! empty( $admin_notice ) && is_array( $admin_notice ) && ! empty( $admin_notice['message'] ) ) : ?>
 		<div class="notice <?php echo esc_attr( $admin_notice['type'] ?? 'notice-success' ); ?> is-dismissible">
-			<p><?php echo esc_html( (string) $admin_notice['message'] ); ?></p>
+			<p><?php echo nl2br( esc_html( (string) $admin_notice['message'] ) ); ?></p>
 		</div>
 	<?php endif; ?>
 
@@ -269,6 +269,9 @@ $format_datetime = static function ( $raw ) {
 				</div>
 				<div id="pckz-master-section-releases">
 					<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-releases.php'; ?>
+				</div>
+				<div id="pckz-master-section-storage">
+					<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-release-storage.php'; ?>
 				</div>
 				<div id="pckz-master-section-licenses">
 					<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-licenses.php'; ?>
