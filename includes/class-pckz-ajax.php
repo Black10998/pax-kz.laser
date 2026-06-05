@@ -28,6 +28,7 @@ class PCKZ_Ajax {
 			'pckzce_font_file',
 			'pckzce_runtime_config',
 			'pckzce_resolve_option_asset',
+			'pckzce_resolve_option_assets',
 			'pckzce_secure_asset',
 		);
 
@@ -226,72 +227,129 @@ class PCKZ_Ajax {
 
 		$kind  = isset( $_REQUEST['asset_kind'] ) ? sanitize_key( wp_unslash( $_REQUEST['asset_kind'] ) ) : '';
 		$value = isset( $_REQUEST['asset_value'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['asset_value'] ) ) : '';
-		$data  = array();
+		$data  = $this->resolve_option_asset_data( $product_id, $kind, $value );
+		if ( is_wp_error( $data ) ) {
+			wp_send_json_error( array( 'message' => $data->get_error_message() ), 404 );
+		}
 
+		wp_send_json_success( $data );
+	}
+
+	/**
+	 * Resolve all currently selected preview assets in one request.
+	 */
+	public function handle_resolve_option_assets() {
+		if ( ! $this->verify_nonce() ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid security token.', 'pckz-canonical-engine' ) ), 403 );
+		}
+
+		$product_id = isset( $_REQUEST['product_id'] ) ? absint( $_REQUEST['product_id'] ) : 0;
+		if ( ! $product_id || ! class_exists( 'PCKZ_Post_Type' ) || ! PCKZ_Post_Type::is_publishable_product( $product_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Creator product not found.', 'pckz-canonical-engine' ) ), 404 );
+		}
+
+		$selections = array();
+		if ( ! empty( $_REQUEST['selections'] ) ) {
+			$decoded = json_decode( wp_unslash( $_REQUEST['selections'] ), true );
+			if ( is_array( $decoded ) ) {
+				$selections = $decoded;
+			}
+		}
+
+		$line_slug  = sanitize_key( (string) ( $selections['line'] ?? 'none' ) );
+		$left_slug  = sanitize_key( (string) ( $selections['icon_left'] ?? 'none' ) );
+		$right_slug = sanitize_key( (string) ( $selections['icon_right'] ?? 'none' ) );
+		$font_value = sanitize_text_field( (string) ( $selections['font'] ?? '' ) );
+
+		$payload = array(
+			'line'       => $this->resolve_option_asset_data( $product_id, 'line', $line_slug ),
+			'icon_left'  => $this->resolve_option_asset_data( $product_id, 'icon', $left_slug ),
+			'icon_right' => $this->resolve_option_asset_data( $product_id, 'icon', $right_slug ),
+			'font'       => $font_value ? $this->resolve_option_asset_data( $product_id, 'font', $font_value ) : array(),
+		);
+
+		foreach ( $payload as $row ) {
+			if ( is_wp_error( $row ) ) {
+				wp_send_json_error( array( 'message' => $row->get_error_message() ), 404 );
+			}
+		}
+
+		wp_send_json_success( $payload );
+	}
+
+	/**
+	 * Resolve one creator option asset payload.
+	 *
+	 * @param int    $product_id Product ID.
+	 * @param string $kind       Asset kind.
+	 * @param string $value      Asset value.
+	 * @return array|WP_Error
+	 */
+	private function resolve_option_asset_data( $product_id, $kind, $value ) {
 		if ( 'icon' === $kind ) {
 			$slug = sanitize_key( $value );
 			if ( ! $slug || 'none' === $slug ) {
-				$data = array( 'kind' => 'icon', 'slug' => 'none', 'url' => '', 'bg_url' => '' );
-			} else {
-				$catalog = class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::icon_catalog( false ) : array();
-				if ( empty( $catalog[ $slug ] ) ) {
-					wp_send_json_error( array( 'message' => __( 'Icon not found.', 'pckz-canonical-engine' ) ), 404 );
-				}
-				$row  = is_array( $catalog[ $slug ] ) ? $catalog[ $slug ] : array();
-				$data = array(
-					'kind'            => 'icon',
-					'slug'            => $slug,
-					'tintable'        => array_key_exists( 'tintable', $row ) ? ! empty( $row['tintable'] ) : true,
-					'preserve_colors' => ! empty( $row['preserve_colors'] ),
-					'url'             => $this->secure_creator_asset_url( $product_id, 'icon', $slug ),
-					'bg_url'          => $this->secure_creator_asset_url( $product_id, 'icon_bg', 'default' ),
-				);
+				return array( 'kind' => 'icon', 'slug' => 'none', 'url' => '', 'bg_url' => '' );
 			}
-		} elseif ( 'line' === $kind ) {
+			$catalog = class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::icon_catalog( false ) : array();
+			if ( empty( $catalog[ $slug ] ) ) {
+				return new WP_Error( 'icon_not_found', __( 'Icon not found.', 'pckz-canonical-engine' ) );
+			}
+			$row = is_array( $catalog[ $slug ] ) ? $catalog[ $slug ] : array();
+			return array(
+				'kind'            => 'icon',
+				'slug'            => $slug,
+				'tintable'        => array_key_exists( 'tintable', $row ) ? ! empty( $row['tintable'] ) : true,
+				'preserve_colors' => ! empty( $row['preserve_colors'] ),
+				'url'             => $this->secure_creator_asset_url( $product_id, 'icon', $slug ),
+				'bg_url'          => $this->secure_creator_asset_url( $product_id, 'icon_bg', 'default' ),
+			);
+		}
+
+		if ( 'line' === $kind ) {
 			$slug = sanitize_key( $value );
 			if ( ! $slug || 'none' === $slug ) {
-				$data = array( 'kind' => 'line', 'slug' => 'none', 'url' => '' );
-			} else {
-				$catalog = class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::line_catalog_for_js() : array();
-				if ( empty( $catalog[ $slug ] ) ) {
-					wp_send_json_error( array( 'message' => __( 'Line not found.', 'pckz-canonical-engine' ) ), 404 );
-				}
-				$row  = is_array( $catalog[ $slug ] ) ? $catalog[ $slug ] : array();
-				$data = array(
-					'kind'            => 'line',
-					'slug'            => $slug,
-					'connected_right' => ! empty( $row['connected_right'] ),
-					'tintable'        => array_key_exists( 'tintable', $row ) ? ! empty( $row['tintable'] ) : true,
-					'preserve_colors' => ! empty( $row['preserve_colors'] ),
-					'url'             => $this->secure_creator_asset_url( $product_id, 'line', $slug ),
-				);
+				return array( 'kind' => 'line', 'slug' => 'none', 'url' => '' );
 			}
-		} elseif ( 'font' === $kind ) {
+			$catalog = class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::line_catalog_for_js() : array();
+			if ( empty( $catalog[ $slug ] ) ) {
+				return new WP_Error( 'line_not_found', __( 'Line not found.', 'pckz-canonical-engine' ) );
+			}
+			$row = is_array( $catalog[ $slug ] ) ? $catalog[ $slug ] : array();
+			return array(
+				'kind'            => 'line',
+				'slug'            => $slug,
+				'connected_right' => ! empty( $row['connected_right'] ),
+				'tintable'        => array_key_exists( 'tintable', $row ) ? ! empty( $row['tintable'] ) : true,
+				'preserve_colors' => ! empty( $row['preserve_colors'] ),
+				'url'             => $this->secure_creator_asset_url( $product_id, 'line', $slug ),
+			);
+		}
+
+		if ( 'font' === $kind ) {
 			$font_id = $this->resolve_font_id_by_family( $value );
 			if ( '' === $font_id ) {
-				wp_send_json_error( array( 'message' => __( 'Font not found.', 'pckz-canonical-engine' ) ), 404 );
+				return new WP_Error( 'font_not_found', __( 'Font not found.', 'pckz-canonical-engine' ) );
 			}
-			$family    = sanitize_text_field( $value );
-			$entries   = class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::all_entries() : array();
-			$font_row  = isset( $entries[ $font_id ] ) && is_array( $entries[ $font_id ] ) ? $entries[ $font_id ] : array();
-			$font_url  = class_exists( 'PCKZ_Font_Library' )
+			$family   = sanitize_text_field( $value );
+			$entries  = class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::all_entries() : array();
+			$font_row = isset( $entries[ $font_id ] ) && is_array( $entries[ $font_id ] ) ? $entries[ $font_id ] : array();
+			$font_url = class_exists( 'PCKZ_Font_Library' )
 				? PCKZ_Font_Library::export_url_for_frontend( $font_id, $font_row )
 				: '';
 			if ( '' === $font_url ) {
 				$font_url = $this->secure_creator_asset_url( $product_id, 'font', $font_id );
 			}
-			$data = array(
+			return array(
 				'kind'        => 'font',
 				'font_id'     => $font_id,
 				'font_family' => $family,
 				'family_key'  => strtolower( $family ),
 				'url'         => $font_url,
 			);
-		} else {
-			wp_send_json_error( array( 'message' => __( 'Unsupported asset type.', 'pckz-canonical-engine' ) ), 400 );
 		}
 
-		wp_send_json_success( $data );
+		return new WP_Error( 'unsupported_asset', __( 'Unsupported asset type.', 'pckz-canonical-engine' ) );
 	}
 
 	/**

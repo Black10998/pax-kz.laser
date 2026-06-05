@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.18
+Stable tag: 2.28.19
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,14 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.19 =
+
+* Configurator performance: batch asset resolver (`pckzce_resolve_option_assets`) replaces up to four separate AJAX round-trips with one request.
+* Incremental preview rendering only rebuilds changed layers (line/icons/text) and cancels stale async renders to prevent overlapping objects.
+* In-flight SVG/raster load deduplication, connected-line group cache, and selective cache invalidation on icon/line color changes.
+* Text-only edits update the canvas in-place without reloading icons/lines; common fonts preload during init.
+* Export validation debounce increased to reduce background work while typing.
 
 = 2.28.18 =
 

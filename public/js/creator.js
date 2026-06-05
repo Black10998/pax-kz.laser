@@ -19,6 +19,9 @@
 	const COMMERCE = pckzceConfig.commerce || {};
 	const RUNTIME_ACTION = pckzceConfig.runtimeAction || 'pckzce_runtime_config';
 	const RESOLVE_ASSET_ACTION = 'pckzce_resolve_option_asset';
+	const RESOLVE_ASSETS_ACTION = 'pckzce_resolve_option_assets';
+	const PREVIEW_SYNC_DEBOUNCE_MS = 80;
+	const EXPORT_READY_DEBOUNCE_MS = 450;
 
 	const BASE_W = 1050;
 
@@ -78,6 +81,10 @@
 			this._exportValidationPromise = null;
 			this._exportValidationSeq = 0;
 			this._assetResolveSeq = 0;
+			this._optionAssetCache = {};
+			this._optionAssetInflight = {};
+			this._previewSyncSeq = 0;
+			this._previewSyncPromise = null;
 			this._exportPreparing = false;
 			this.iconColorUserSet = { left: false, right: false };
 			this.customerArtworkToken = '';
@@ -136,12 +143,56 @@
 		}
 
 		async resolveOptionAsset(kind, value) {
+			const cacheKey = String(kind || '') + '|' + String(value || '');
+			if (this._optionAssetCache[cacheKey]) {
+				return this._optionAssetCache[cacheKey];
+			}
+			if (this._optionAssetInflight[cacheKey]) {
+				return this._optionAssetInflight[cacheKey];
+			}
+			const request = (async () => {
+				const body = new FormData();
+				body.append('action', RESOLVE_ASSET_ACTION);
+				body.append('nonce', pckzceConfig.nonce);
+				body.append('product_id', String(this.productId || pckzceConfig.productId || 0));
+				body.append('asset_kind', String(kind || ''));
+				body.append('asset_value', String(value || ''));
+				const response = await fetch(pckzceConfig.ajaxUrl, { method: 'POST', body });
+				let payload = null;
+				try {
+					payload = await response.json();
+				} catch (err) {
+					payload = null;
+				}
+				if (!response.ok || !payload || !payload.success) {
+					return null;
+				}
+				const row = payload.data || null;
+				if (row) {
+					this._optionAssetCache[cacheKey] = row;
+				}
+				return row;
+			})().finally(() => {
+				delete this._optionAssetInflight[cacheKey];
+			});
+			this._optionAssetInflight[cacheKey] = request;
+			return request;
+		}
+
+		async resolveSelectedAssetsBatch(selections) {
 			const body = new FormData();
-			body.append('action', RESOLVE_ASSET_ACTION);
+			body.append('action', RESOLVE_ASSETS_ACTION);
 			body.append('nonce', pckzceConfig.nonce);
 			body.append('product_id', String(this.productId || pckzceConfig.productId || 0));
-			body.append('asset_kind', String(kind || ''));
-			body.append('asset_value', String(value || ''));
+			body.append(
+				'selections',
+				JSON.stringify({
+					line: selections.linien || 'none',
+					icon_left: selections.symbol_links || 'none',
+					icon_right: selections.symbol_rechts || 'none',
+					font: selections.font_family || this.defaultFontFamily || 'Russo One',
+				})
+			);
 			const response = await fetch(pckzceConfig.ajaxUrl, { method: 'POST', body });
 			let payload = null;
 			try {
@@ -149,98 +200,256 @@
 			} catch (err) {
 				payload = null;
 			}
-			if (!response.ok || !payload || !payload.success) {
+			if (!response.ok || !payload || !payload.success || !payload.data) {
 				return null;
 			}
-			return payload.data || null;
+			const data = payload.data || {};
+			const store = (kind, value, row) => {
+				if (row) {
+					this._optionAssetCache[String(kind) + '|' + String(value || '')] = row;
+				}
+			};
+			store('line', selections.linien || 'none', data.line);
+			store('icon', selections.symbol_links || 'none', data.icon_left);
+			store('icon', selections.symbol_rechts || 'none', data.icon_right);
+			store('font', selections.font_family || this.defaultFontFamily || 'Russo One', data.font);
+			return data;
 		}
 
-		async resolveSelectedAssets() {
+		applyResolvedFontAsset(row, fontFamily) {
+			if (!row || !row.url) {
+				return;
+			}
+			const key = String(row.family_key || fontFamily || '')
+				.trim()
+				.toLowerCase();
+			pckzceConfig.fontFiles = pckzceConfig.fontFiles || {};
+			const prevUrl = key ? pckzceConfig.fontFiles[key] : '';
+			if (key) {
+				pckzceConfig.fontFiles[key] = row.url;
+			}
+			if (row.font_id) {
+				pckzceConfig.fontFilesById = pckzceConfig.fontFilesById || {};
+				pckzceConfig.fontFilesById[row.font_id] = row.url;
+			}
+			if (this.previewEngine && key && prevUrl !== row.url) {
+				delete this.previewEngine._openTypeFontUrls[key];
+				delete this.previewEngine._openTypeFonts[key];
+				if (this.previewEngine._layerState) {
+					this.previewEngine._layerState.text = '';
+				}
+			}
+		}
+
+		async resolveSelectedAssets(opts = {}) {
+			const renderAfter = opts.render !== false;
+			const selections = {
+				linien: this.selections.linien || 'none',
+				symbol_links: this.selections.symbol_links || 'none',
+				symbol_rechts: this.selections.symbol_rechts || 'none',
+				font_family: this.selections.font_family || this.defaultFontFamily || 'Russo One',
+			};
 			const fingerprint = JSON.stringify({
-				line: this.selections.linien || 'none',
-				left: this.selections.symbol_links || 'none',
-				right: this.selections.symbol_rechts || 'none',
-				font: this.selections.font_family || this.defaultFontFamily || 'Russo One',
+				line: selections.linien,
+				left: selections.symbol_links,
+				right: selections.symbol_rechts,
+				font: selections.font_family,
 			});
 			if (this._resolvedAssetFingerprint === fingerprint && this.resolvedAssets) {
 				return;
 			}
 			const seq = ++this._assetResolveSeq;
-			const next = {};
-			const lineSlug = this.selections.linien || 'none';
-			const leftSlug = this.selections.symbol_links || 'none';
-			const rightSlug = this.selections.symbol_rechts || 'none';
-			const fontFamily = this.selections.font_family || this.defaultFontFamily || 'Russo One';
+			const next = { ...(this.resolvedAssets || {}) };
+			const lineSlug = selections.linien;
+			const leftSlug = selections.symbol_links;
+			const rightSlug = selections.symbol_rechts;
+			const fontFamily = selections.font_family;
+
+			let batch = null;
+			try {
+				batch = await this.resolveSelectedAssetsBatch(selections);
+			} catch (err) {
+				batch = null;
+			}
 
 			const tasks = [];
-			if (lineSlug && lineSlug !== 'none') {
-				tasks.push(
-					this.resolveOptionAsset('line', lineSlug).then((row) => {
-						if (row && row.url) {
-							next.line = row;
-						}
-					})
-				);
-			}
-			if (leftSlug && leftSlug !== 'none') {
-				tasks.push(
-					this.resolveOptionAsset('icon', leftSlug).then((row) => {
-						if (row && row.url) {
-							next.icon_left = row;
-						}
-					})
-				);
-			}
-			if (rightSlug && rightSlug !== 'none') {
-				tasks.push(
-					this.resolveOptionAsset('icon', rightSlug).then((row) => {
-						if (row && row.url) {
-							next.icon_right = row;
-						}
-					})
-				);
-			}
-			if (fontFamily) {
-				tasks.push(
-					this.resolveOptionAsset('font', fontFamily).then((row) => {
-						if (row && row.url) {
-							next.font = row;
-						}
-					})
-				);
+			if (batch) {
+				if (lineSlug && lineSlug !== 'none' && batch.line && batch.line.url) {
+					next.line = batch.line;
+				} else if (lineSlug === 'none') {
+					delete next.line;
+				}
+				if (leftSlug && leftSlug !== 'none' && batch.icon_left && batch.icon_left.url) {
+					next.icon_left = batch.icon_left;
+				} else if (leftSlug === 'none') {
+					delete next.icon_left;
+				}
+				if (rightSlug && rightSlug !== 'none' && batch.icon_right && batch.icon_right.url) {
+					next.icon_right = batch.icon_right;
+				} else if (rightSlug === 'none') {
+					delete next.icon_right;
+				}
+				if (batch.font && batch.font.url) {
+					next.font = batch.font;
+				}
+			} else {
+				if (lineSlug && lineSlug !== 'none') {
+					tasks.push(
+						this.resolveOptionAsset('line', lineSlug).then((row) => {
+							if (row && row.url) {
+								next.line = row;
+							}
+						})
+					);
+				} else {
+					delete next.line;
+				}
+				if (leftSlug && leftSlug !== 'none') {
+					tasks.push(
+						this.resolveOptionAsset('icon', leftSlug).then((row) => {
+							if (row && row.url) {
+								next.icon_left = row;
+							}
+						})
+					);
+				} else {
+					delete next.icon_left;
+				}
+				if (rightSlug && rightSlug !== 'none') {
+					tasks.push(
+						this.resolveOptionAsset('icon', rightSlug).then((row) => {
+							if (row && row.url) {
+								next.icon_right = row;
+							}
+						})
+					);
+				} else {
+					delete next.icon_right;
+				}
+				if (fontFamily) {
+					tasks.push(
+						this.resolveOptionAsset('font', fontFamily).then((row) => {
+							if (row && row.url) {
+								next.font = row;
+							}
+						})
+					);
+				}
+				await Promise.all(tasks);
 			}
 
-			await Promise.all(tasks);
 			if (seq !== this._assetResolveSeq) {
 				return;
 			}
 
 			this.resolvedAssets = next;
 			this._resolvedAssetFingerprint = fingerprint;
-			if (next.font && next.font.url) {
-				const key = String(next.font.family_key || fontFamily || '')
-					.trim()
-					.toLowerCase();
-				pckzceConfig.fontFiles = pckzceConfig.fontFiles || {};
-				const prevUrl = key ? pckzceConfig.fontFiles[key] : '';
-				if (key) {
-					pckzceConfig.fontFiles[key] = next.font.url;
-				}
-				if (next.font.font_id) {
-					pckzceConfig.fontFilesById = pckzceConfig.fontFilesById || {};
-					pckzceConfig.fontFilesById[next.font.font_id] = next.font.url;
-				}
-				if (this.previewEngine && key && prevUrl !== next.font.url) {
-					delete this.previewEngine._openTypeFontUrls[key];
-					delete this.previewEngine._openTypeFonts[key];
-				}
+			if (next.font) {
+				this.applyResolvedFontAsset(next.font, fontFamily);
+				await this.preloadPreviewFont(fontFamily);
 			}
-			if (this.useCloudlift && this.previewEngine) {
-				this.previewEngine.render(this.buildCloudliftState()).then(() => {
-					PCKZCE_GLOBAL.PCKZCECanvas && PCKZCE_GLOBAL.PCKZCECanvas.safeRender(this.canvas);
-				});
+			if (renderAfter && this.useCloudlift && this.previewEngine) {
+				await this.renderPreview();
 			} else if (!this.useCloudlift) {
 				this.refreshStripLayout();
+			}
+		}
+
+		preloadPreviewFont(fontFamily) {
+			const fam = String(fontFamily || '').trim();
+			if (!fam || !document.fonts || typeof document.fonts.load !== 'function') {
+				return Promise.resolve();
+			}
+			return Promise.all([
+				document.fonts.load('700 48px "' + fam + '"').catch(() => null),
+				document.fonts.load('400 48px "' + fam + '"').catch(() => null),
+			]).then(() => null);
+		}
+
+		prefetchPreviewAssets() {
+			const warm = this.resolveSelectedAssets({ render: false })
+				.then(() => this.renderPreview())
+				.catch(() => null);
+			const fonts = [];
+			this.root.querySelectorAll('[data-font-picker] .pckz-font-picker__option').forEach((btn) => {
+				if (btn.dataset.fontFamily) {
+					fonts.push(btn.dataset.fontFamily);
+				}
+			});
+			const activeFont = this.selections.font_family || this.defaultFontFamily || '';
+			[...new Set(fonts)]
+				.filter((fam) => fam && fam !== activeFont)
+				.slice(0, 10)
+				.forEach((fam) => {
+					this.resolveOptionAsset('font', fam)
+						.then((row) => {
+							if (row && row.url) {
+								this.preloadPreviewFont(fam);
+							}
+						})
+						.catch(() => null);
+				});
+			return warm;
+		}
+
+		async renderPreview() {
+			if (!this.useCloudlift || !this.previewEngine) {
+				return;
+			}
+			await this.previewEngine.render(this.buildCloudliftState());
+		}
+
+		invalidatePreviewCacheForSelection(prev, next) {
+			if (!this.previewEngine || !prev || !next) {
+				return;
+			}
+			const leftChanged =
+				prev.symbol_links !== next.symbol_links ||
+				prev.icon_color_left !== next.icon_color_left;
+			const rightChanged =
+				prev.symbol_rechts !== next.symbol_rechts ||
+				prev.icon_color_right !== next.icon_color_right;
+			const lineChanged = prev.linien !== next.linien;
+			const invalidateSide = (side) => {
+				const slug = side === 'left' ? next.symbol_links : next.symbol_rechts;
+				const resolved =
+					side === 'left'
+						? (this.resolvedAssets || {}).icon_left
+						: (this.resolvedAssets || {}).icon_right;
+				if (resolved && resolved.url) {
+					this.previewEngine.invalidateImageCacheForUrl(resolved.url);
+				}
+				if (slug && this.previewEngine.iconCatalog && this.previewEngine.iconCatalog[slug]) {
+					const catalogUrl = this.previewEngine.iconCatalog[slug].url;
+					if (catalogUrl) {
+						this.previewEngine.invalidateImageCacheForUrl(catalogUrl);
+					}
+				}
+			};
+			if (leftChanged) {
+				invalidateSide('left');
+			}
+			if (rightChanged) {
+				invalidateSide('right');
+			}
+			if (lineChanged) {
+				const lineResolved = (this.resolvedAssets || {}).line;
+				if (lineResolved && lineResolved.url) {
+					this.previewEngine.invalidateImageCacheForUrl(lineResolved.url);
+				}
+			}
+			if (this.previewEngine._layerState) {
+				if (leftChanged) {
+					this.previewEngine._layerState.iconLeft = '';
+					this.previewEngine._layerState.iconBgLeft = '';
+				}
+				if (rightChanged) {
+					this.previewEngine._layerState.iconRight = '';
+					this.previewEngine._layerState.iconBgRight = '';
+				}
+				if (lineChanged) {
+					this.previewEngine._layerState.line = '';
+				}
 			}
 		}
 
@@ -483,13 +692,14 @@
 					}
 					this.applyConditionalFields();
 					this.syncIconSelectPreviews();
-					this.syncFromForm();
+					this.prefetchPreviewAssets().finally(() => {
+						this.scheduleExportReadyCheck();
+					});
 					this.hideLoader();
 					if (this.stage) {
 						this.stage.classList.add('is-canvas-ready');
 					}
 					PCKZCE_GLOBAL.PCKZCECanvas && PCKZCE_GLOBAL.PCKZCECanvas.safeRender(this.canvas);
-					this.scheduleExportReadyCheck();
 					this.markCreatorReady();
 				});
 			};
@@ -511,7 +721,7 @@
 			}
 			if (this.useCloudlift && this.previewEngine) {
 				this.previewEngine.setBackgroundBounds(this.bgImage);
-				this.previewEngine.render(this.buildCloudliftState());
+				this.renderPreview();
 			} else {
 				this.refreshStripLayout();
 			}
@@ -968,7 +1178,7 @@
 			this.loadBackground(mode, () => {
 				if (this.useCloudlift && this.previewEngine) {
 					this.previewEngine.setBackgroundBounds(this.bgImage);
-					this.previewEngine.render(this.buildCloudliftState());
+					this.renderPreview();
 				} else {
 					this.applyNightStyle();
 					this.refreshStripLayout();
@@ -1487,7 +1697,7 @@
 
 		syncFromForm() {
 			clearTimeout(this._syncDebounceTimer);
-			this._syncDebounceTimer = setTimeout(() => this.syncFromFormNow(), 120);
+			this._syncDebounceTimer = setTimeout(() => this.syncFromFormNow(), PREVIEW_SYNC_DEBOUNCE_MS);
 		}
 
 		syncFromFormNow() {
@@ -1499,9 +1709,6 @@
 				this.selections.symbol_rechts !== prev.symbol_rechts ||
 				this.selections.linien !== prev.linien ||
 				this.selections.font_family !== prev.font_family;
-			if (assetSelectionChanged) {
-				this.resolveSelectedAssets().catch(() => null);
-			}
 
 			if (this.selections.symbol_links !== prev.symbol_links) {
 				this.iconColorUserSet.left = false;
@@ -1515,7 +1722,7 @@
 				this.loadBackground(mode, () => {
 					if (this.useCloudlift && this.previewEngine) {
 						this.previewEngine.setBackgroundBounds(this.bgImage);
-						this.previewEngine.render(this.buildCloudliftState());
+						this.renderPreview();
 					} else {
 						this.applyNightStyle();
 						this.refreshStripLayout();
@@ -1525,18 +1732,7 @@
 			}
 
 			if (this.useCloudlift && this.previewEngine) {
-				const iconChanged =
-					this.selections.symbol_links !== prev.symbol_links ||
-					this.selections.symbol_rechts !== prev.symbol_rechts ||
-					this.selections.icon_color_left !== prev.icon_color_left ||
-					this.selections.icon_color_right !== prev.icon_color_right ||
-					this.selections.linien !== prev.linien;
-				if (iconChanged) {
-					this.previewEngine._imageCache = {};
-				}
-				this.previewEngine.render(this.buildCloudliftState()).then(() => {
-					this.scheduleExportReadyCheck();
-				});
+				this.runCloudliftPreviewSync(prev, assetSelectionChanged).catch(() => null);
 				return;
 			}
 
@@ -1576,6 +1772,46 @@
 			this.scheduleExportReadyCheck();
 		}
 
+		async runCloudliftPreviewSync(prev, assetSelectionChanged) {
+			const seq = ++this._previewSyncSeq;
+			const iconVisualChanged =
+				this.selections.symbol_links !== prev.symbol_links ||
+				this.selections.symbol_rechts !== prev.symbol_rechts ||
+				this.selections.icon_color_left !== prev.icon_color_left ||
+				this.selections.icon_color_right !== prev.icon_color_right ||
+				this.selections.linien !== prev.linien;
+			const textOnly =
+				!assetSelectionChanged &&
+				!iconVisualChanged &&
+				(this.selections.custom_text !== prev.custom_text ||
+					this.selections.text_color !== prev.text_color ||
+					this.selections.led_enabled !== prev.led_enabled ||
+					this.selections.preview_mode !== prev.preview_mode ||
+					this.selections.preview_led !== prev.preview_led);
+
+			if (textOnly) {
+				this.previewEngine.applyTextState(this.buildCloudliftState());
+				if (seq === this._previewSyncSeq) {
+					this.scheduleExportReadyCheck();
+				}
+				return;
+			}
+
+			if (assetSelectionChanged) {
+				await this.resolveSelectedAssets({ render: false });
+			} else if (iconVisualChanged) {
+				this.invalidatePreviewCacheForSelection(prev, this.selections);
+			}
+
+			if (seq !== this._previewSyncSeq) {
+				return;
+			}
+			await this.renderPreview();
+			if (seq === this._previewSyncSeq) {
+				this.scheduleExportReadyCheck();
+			}
+		}
+
 		scheduleExportReadyCheck() {
 			clearTimeout(this._exportReadyTimer);
 			this._preparedExportPayload = null;
@@ -1586,7 +1822,7 @@
 			this.updateCheckoutState();
 			this._exportReadyTimer = setTimeout(() => {
 				this.refreshExportReadyState();
-			}, 180);
+			}, EXPORT_READY_DEBOUNCE_MS);
 		}
 
 		canBeginCheckout() {

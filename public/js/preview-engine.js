@@ -53,6 +53,11 @@
 				text: null,
 			};
 			this._imageCache = {};
+			this._imageCachePending = {};
+			this._connectedLineCache = {};
+			this._renderGen = 0;
+			this._layerState = {};
+			this._productionReadyHash = '';
 			this.lastState = {};
 		}
 
@@ -918,7 +923,10 @@
 			if (this._imageCache[key]) {
 				return this.cloneCached(this._imageCache[key]);
 			}
-			return new Promise((resolve) => {
+			if (this._imageCachePending[key]) {
+				return this._imageCachePending[key];
+			}
+			const pending = new Promise((resolve) => {
 				if (!url) {
 					resolve(null);
 					return;
@@ -943,9 +951,9 @@
 							group.setCoords();
 						}
 						const drawBounds =
-							this.resolveLineSvgDrawBounds( objects, options ) ||
-							this.computeSvgObjectsBounds( [ group ] ) ||
-							this.computeSvgObjectsBounds( objects );
+							this.resolveLineSvgDrawBounds(objects, options) ||
+							this.computeSvgObjectsBounds([group]) ||
+							this.computeSvgObjectsBounds(objects);
 						if (drawBounds) {
 							group.pckzSvgDrawBounds = drawBounds;
 							group.pckzSvgViewport = this.resolveSvgViewport(options || {}, drawBounds);
@@ -964,7 +972,11 @@
 					null,
 					{ crossOrigin: 'anonymous' }
 				);
+			}).finally(() => {
+				delete this._imageCachePending[key];
 			});
+			this._imageCachePending[key] = pending;
+			return pending;
 		}
 
 		/**
@@ -979,7 +991,10 @@
 			if (this._imageCache[key]) {
 				return this.cloneCached(this._imageCache[key]);
 			}
-			return new Promise((resolve) => {
+			if (this._imageCachePending[key]) {
+				return this._imageCachePending[key];
+			}
+			const pending = new Promise((resolve) => {
 				if (!url) {
 					resolve(null);
 					return;
@@ -997,7 +1012,11 @@
 					},
 					{ crossOrigin: 'anonymous' }
 				);
+			}).finally(() => {
+				delete this._imageCachePending[key];
 			});
+			this._imageCachePending[key] = pending;
+			return pending;
 		}
 
 		loadAsset(url, color, tintable) {
@@ -1114,40 +1133,50 @@
 		 */
 		async buildConnectedLineGroup(url, ref, tint) {
 			const lineTint = tint || { tintable: false, color: null };
+			const hex = lineTint.tintable && lineTint.color ? this.colorToHex(lineTint.color) : '';
+			const cacheKey =
+				'connected|' +
+				url +
+				'|' +
+				(lineTint.tintable ? hex || 'tint' : 'native');
+			if (this._connectedLineCache[cacheKey]) {
+				return this.cloneCached(this._connectedLineCache[cacheKey]);
+			}
 			const base = await this.loadSvgAsset(
 				url,
 				lineTint.tintable ? lineTint.color : null,
 				lineTint.tintable
 			);
-			if ( !base ) {
+			if (!base) {
 				return null;
 			}
-			const left = await this.cloneCached( base );
-			const right = await this.cloneCached( base );
-			if ( !left || !right ) {
+			const left = await this.cloneCached(base);
+			const right = await this.cloneCached(base);
+			if (!left || !right) {
 				return null;
 			}
-			const box = this.refToCanvas( ref );
+			const box = this.refToCanvas(ref);
 
 			left.pckzRole = 'line-half-left';
 			right.pckzRole = 'line-half-right';
-			this.placeLineHalfAtSeam( left, box, 'left' );
-			this.placeLineHalfAtSeam( right, box, 'right' );
-			this.fitConnectedLineHalves( left, right, box );
+			this.placeLineHalfAtSeam(left, box, 'left');
+			this.placeLineHalfAtSeam(right, box, 'right');
+			this.fitConnectedLineHalves(left, right, box);
 
-			if ( typeof fabric.Group !== 'function' ) {
+			if (typeof fabric.Group !== 'function') {
 				return left;
 			}
-			const group = new fabric.Group( [ left, right ], {
+			const group = new fabric.Group([left, right], {
 				selectable: false,
 				evented: false,
-			} );
-			if ( typeof group.setCoords === 'function' ) {
+			});
+			if (typeof group.setCoords === 'function') {
 				group.setCoords();
 			}
 			group.pckzConnectedLine = true;
 			group.pckzRole = 'line-overlay';
-			return group;
+			this._connectedLineCache[cacheKey] = group;
+			return this.cloneCached(group);
 		}
 
 		visualCenterY(obj, role) {
@@ -1205,6 +1234,131 @@
 			}
 		}
 
+		invalidateImageCacheForUrl(url) {
+			if (!url) {
+				return;
+			}
+			const needle = String(url);
+			Object.keys(this._imageCache).forEach((key) => {
+				if (key.indexOf(needle) !== -1) {
+					delete this._imageCache[key];
+				}
+			});
+			Object.keys(this._connectedLineCache).forEach((key) => {
+				if (key.indexOf(needle) !== -1) {
+					delete this._connectedLineCache[key];
+				}
+			});
+		}
+
+		stateRenderHash(state) {
+			const s = state || {};
+			const resolved = s.resolved_assets || {};
+			return JSON.stringify({
+				line: this.lineLayerKey(s),
+				iconBgLeft: this.iconBgLayerKey(s, 'left'),
+				iconBgRight: this.iconBgLayerKey(s, 'right'),
+				iconLeft: this.iconLayerKey(s, 'left'),
+				iconRight: this.iconLayerKey(s, 'right'),
+				text: this.textLayerKey(s),
+				led: s.led_enabled || 'yes',
+				preview: s.preview_mode || s.preview_led || 'day',
+			});
+		}
+
+		lineLayerKey(state) {
+			const lineKey = state.linien || 'none';
+			const resolvedLine = (state.resolved_assets || {}).line || {};
+			const lineUrl = resolvedLine.url || this.lineTypes[lineKey] || '';
+			const lineMeta = { ...(this.lineCatalog[lineKey] || {}), ...resolvedLine };
+			const lineTint = this.resolveLineTint(lineKey, state);
+			return JSON.stringify({
+				lineKey,
+				lineUrl,
+				connected: !!lineMeta.connected_right,
+				tintable: !!lineTint.tintable,
+				color: lineTint.color || '',
+			});
+		}
+
+		iconBgLayerKey(state, side) {
+			const slug =
+				side === 'left' ? state.symbol_links || 'none' : state.symbol_rechts || 'none';
+			const resolved =
+				side === 'left'
+					? (state.resolved_assets || {}).icon_left || {}
+					: (state.resolved_assets || {}).icon_right || {};
+			const bgLeft = this.layers.iconBgLeft;
+			const bgRight = this.layers.iconBgRight;
+			const bgUrl =
+				resolved.bg_url ||
+				(side === 'left' ? (bgLeft && bgLeft.url) || '' : (bgRight && bgRight.url) || '');
+			return JSON.stringify({ slug, bgUrl });
+		}
+
+		iconLayerKey(state, side) {
+			const slug =
+				side === 'left' ? state.symbol_links || 'none' : state.symbol_rechts || 'none';
+			const resolved =
+				side === 'left'
+					? (state.resolved_assets || {}).icon_left || {}
+					: (state.resolved_assets || {}).icon_right || {};
+			const meta = { ...(this.iconCatalog[slug] || {}), ...resolved };
+			const tint = this.resolveIconTint(slug, state, side);
+			return JSON.stringify({
+				slug,
+				url: meta.url || '',
+				tintable: !!tint.tintable,
+				color: tint.color || '',
+			});
+		}
+
+		textLayerKey(state) {
+			return JSON.stringify({
+				text: state.custom_text || '',
+				font: state.font_family || 'Russo One',
+				color: state.text_color || '#ffffff',
+			});
+		}
+
+		isRenderCurrent(gen) {
+			return gen === this._renderGen;
+		}
+
+		requestCanvasPaint() {
+			if (this.canvas && global.PCKZCECanvas) {
+				global.PCKZCECanvas.safeRender(this.canvas);
+			} else if (this.canvas && this.canvas.renderAll) {
+				this.canvas.renderAll();
+			}
+		}
+
+		applyTextState(state) {
+			if (!this.canvas) {
+				return false;
+			}
+			const textRef = this.layers.text || {};
+			if (!this.objects.text) {
+				return false;
+			}
+			this.lastState = state || {};
+			this.objects.text.set('text', state.custom_text || ' ');
+			this.objects.text.set('fill', state.text_color || '#ffffff');
+			if (state.font_family) {
+				this.objects.text.set('fontFamily', state.font_family);
+			}
+			const box = this.refToCanvas(textRef);
+			this.objects.text.set({ left: box.cx, top: box.cy });
+			this.scaleTextToRef(this.objects.text, textRef);
+			this.applyLedGlow(state);
+			if (this.objects.text) {
+				this.canvas.bringToFront(this.objects.text);
+			}
+			this._layerState.text = this.textLayerKey(state);
+			this.requestCanvasPaint();
+			return true;
+		}
+
 		removeRole(role) {
 			const obj = this.objects[role];
 			if (obj) {
@@ -1220,161 +1374,221 @@
 			if (!this.canvas) {
 				return;
 			}
-			this.lastState = state || {};
+			const gen = ++this._renderGen;
+			const nextState = state || {};
+			this.lastState = nextState;
 			const textRef = this.layers.text || {};
 			const leftRef = this.layers.iconLeft || {};
 			const rightRef = this.layers.iconRight || {};
 			const linesRef = this.layers.lines || {};
 			const bgLeft = this.layers.iconBgLeft;
 			const bgRight = this.layers.iconBgRight;
-			const resolvedAssets = state.resolved_assets || {};
+			const resolvedAssets = nextState.resolved_assets || {};
 
-			// Lines overlay.
-			this.removeRole('line');
-			const lineKey = state.linien || 'none';
-			const resolvedLine = resolvedAssets.line || {};
-			const lineUrl = resolvedLine.url || this.lineTypes[lineKey] || '';
-			if (lineKey && lineKey !== 'none' && lineUrl) {
-				const lineMeta = { ...(this.lineCatalog[lineKey] || {}), ...resolvedLine };
-				const lineTint = this.resolveLineTint(lineKey, state);
-				let lineImg = null;
-				if (lineMeta.connected_right) {
-					lineImg = await this.buildConnectedLineGroup(lineUrl, linesRef, lineTint);
-				} else {
-					lineImg = await this.loadSvgAsset(
-						lineUrl,
-						lineTint.tintable ? lineTint.color : null,
-						lineTint.tintable
-					);
+			const lineKeyStr = this.lineLayerKey(nextState);
+			if (lineKeyStr !== this._layerState.line) {
+				this.removeRole('line');
+				const lineKey = nextState.linien || 'none';
+				const resolvedLine = resolvedAssets.line || {};
+				const lineUrl = resolvedLine.url || this.lineTypes[lineKey] || '';
+				if (lineKey && lineKey !== 'none' && lineUrl) {
+					const lineMeta = { ...(this.lineCatalog[lineKey] || {}), ...resolvedLine };
+					const lineTint = this.resolveLineTint(lineKey, nextState);
+					let lineImg = null;
+					if (lineMeta.connected_right) {
+						lineImg = await this.buildConnectedLineGroup(lineUrl, linesRef, lineTint);
+					} else {
+						lineImg = await this.loadSvgAsset(
+							lineUrl,
+							lineTint.tintable ? lineTint.color : null,
+							lineTint.tintable
+						);
+						if (lineImg) {
+							this.placeInRef(lineImg, linesRef, 'line-overlay');
+						}
+					}
+					if (!this.isRenderCurrent(gen)) {
+						return;
+					}
 					if (lineImg) {
-						this.placeInRef(lineImg, linesRef, 'line-overlay');
+						lineImg.pckzRole = 'line-overlay';
+						lineImg.pckzLineSlug = lineKey;
+						lineImg.pckzSourceUrl = lineUrl;
+						this.objects.line = lineImg;
+						this.canvas.add(lineImg);
 					}
 				}
-				if (lineImg) {
-					lineImg.pckzRole = 'line-overlay';
-					lineImg.pckzLineSlug = lineKey;
-					lineImg.pckzSourceUrl = lineUrl;
-					this.objects.line = lineImg;
-					this.canvas.add(lineImg);
-				}
+				this._layerState.line = lineKeyStr;
 			}
 
-			// Icon backgrounds.
-			this.removeRole('iconBgLeft');
-			this.removeRole('iconBgRight');
-			const resolvedIconLeft = resolvedAssets.icon_left || {};
-			const resolvedIconRight = resolvedAssets.icon_right || {};
-			const bgLeftUrl = resolvedIconLeft.bg_url || (bgLeft && bgLeft.url) || '';
-			const bgRightUrl = resolvedIconRight.bg_url || (bgRight && bgRight.url) || '';
-			if (state.symbol_links && state.symbol_links !== 'none' && bgLeftUrl) {
-				const bg = await this.loadSvgAsset(bgLeftUrl, null, false);
-				if (bg) {
-					bg.pckzRole = 'icon-bg-left';
-					this.placeInRef(bg, bgLeft, 'icon-bg-left');
-					bg.pckzSourceUrl = bgLeftUrl;
-					this.objects.iconBgLeft = bg;
-					this.canvas.add(bg);
+			const iconBgLeftKey = this.iconBgLayerKey(nextState, 'left');
+			if (iconBgLeftKey !== this._layerState.iconBgLeft) {
+				this.removeRole('iconBgLeft');
+				const resolvedIconLeft = resolvedAssets.icon_left || {};
+				const bgLeftUrl = resolvedIconLeft.bg_url || (bgLeft && bgLeft.url) || '';
+				if (nextState.symbol_links && nextState.symbol_links !== 'none' && bgLeftUrl) {
+					const bg = await this.loadSvgAsset(bgLeftUrl, null, false);
+					if (!this.isRenderCurrent(gen)) {
+						return;
+					}
+					if (bg) {
+						bg.pckzRole = 'icon-bg-left';
+						this.placeInRef(bg, bgLeft, 'icon-bg-left');
+						bg.pckzSourceUrl = bgLeftUrl;
+						this.objects.iconBgLeft = bg;
+						this.canvas.add(bg);
+					}
 				}
-			}
-			if (state.symbol_rechts && state.symbol_rechts !== 'none' && bgRightUrl) {
-				const bg = await this.loadSvgAsset(bgRightUrl, null, false);
-				if (bg) {
-					bg.pckzRole = 'icon-bg-right';
-					this.placeInRef(bg, bgRight, 'icon-bg-right');
-					bg.pckzSourceUrl = bgRightUrl;
-					this.objects.iconBgRight = bg;
-					this.canvas.add(bg);
-				}
+				this._layerState.iconBgLeft = iconBgLeftKey;
 			}
 
-			// Icons.
-			this.removeRole('iconLeft');
-			this.removeRole('iconRight');
-			if (state.symbol_links && state.symbol_links !== 'none') {
-				const meta = { ...(this.iconCatalog[state.symbol_links] || {}), ...resolvedIconLeft };
-				if (meta && meta.url) {
-					const tint = this.resolveIconTint(state.symbol_links, state, 'left');
-					const icon = await this.loadSvgAsset(
-						meta.url,
-						tint.tintable ? tint.color : null,
-						tint.tintable
-					);
-					if (icon) {
-						icon.pckzSymbol = state.symbol_links;
-						icon.pckzRole = 'icon-left';
-						icon.pckzSourceUrl = meta.url;
-						this.placeInRef(icon, leftRef, 'icon-left');
-						this.objects.iconLeft = icon;
-						this.canvas.add(icon);
+			const iconBgRightKey = this.iconBgLayerKey(nextState, 'right');
+			if (iconBgRightKey !== this._layerState.iconBgRight) {
+				this.removeRole('iconBgRight');
+				const resolvedIconRight = resolvedAssets.icon_right || {};
+				const bgRightUrl = resolvedIconRight.bg_url || (bgRight && bgRight.url) || '';
+				if (nextState.symbol_rechts && nextState.symbol_rechts !== 'none' && bgRightUrl) {
+					const bg = await this.loadSvgAsset(bgRightUrl, null, false);
+					if (!this.isRenderCurrent(gen)) {
+						return;
+					}
+					if (bg) {
+						bg.pckzRole = 'icon-bg-right';
+						this.placeInRef(bg, bgRight, 'icon-bg-right');
+						bg.pckzSourceUrl = bgRightUrl;
+						this.objects.iconBgRight = bg;
+						this.canvas.add(bg);
 					}
 				}
+				this._layerState.iconBgRight = iconBgRightKey;
 			}
-			if (state.symbol_rechts && state.symbol_rechts !== 'none') {
-				const meta = { ...(this.iconCatalog[state.symbol_rechts] || {}), ...resolvedIconRight };
-				if (meta && meta.url) {
-					const tint = this.resolveIconTint(state.symbol_rechts, state, 'right');
-					const icon = await this.loadSvgAsset(
-						meta.url,
-						tint.tintable ? tint.color : null,
-						tint.tintable
-					);
-					if (icon) {
-						icon.pckzSymbol = state.symbol_rechts;
-						icon.pckzRole = 'icon-right';
-						icon.pckzSourceUrl = meta.url;
-						this.placeInRef(icon, rightRef, 'icon-right');
-						this.objects.iconRight = icon;
-						this.canvas.add(icon);
+
+			const iconLeftKey = this.iconLayerKey(nextState, 'left');
+			if (iconLeftKey !== this._layerState.iconLeft) {
+				this.removeRole('iconLeft');
+				if (nextState.symbol_links && nextState.symbol_links !== 'none') {
+					const meta = {
+						...(this.iconCatalog[nextState.symbol_links] || {}),
+						...(resolvedAssets.icon_left || {}),
+					};
+					if (meta && meta.url) {
+						const tint = this.resolveIconTint(nextState.symbol_links, nextState, 'left');
+						const icon = await this.loadSvgAsset(
+							meta.url,
+							tint.tintable ? tint.color : null,
+							tint.tintable
+						);
+						if (!this.isRenderCurrent(gen)) {
+							return;
+						}
+						if (icon) {
+							icon.pckzSymbol = nextState.symbol_links;
+							icon.pckzRole = 'icon-left';
+							icon.pckzSourceUrl = meta.url;
+							this.placeInRef(icon, leftRef, 'icon-left');
+							this.objects.iconLeft = icon;
+							this.canvas.add(icon);
+						}
 					}
 				}
+				this._layerState.iconLeft = iconLeftKey;
+			}
+
+			const iconRightKey = this.iconLayerKey(nextState, 'right');
+			if (iconRightKey !== this._layerState.iconRight) {
+				this.removeRole('iconRight');
+				if (nextState.symbol_rechts && nextState.symbol_rechts !== 'none') {
+					const meta = {
+						...(this.iconCatalog[nextState.symbol_rechts] || {}),
+						...(resolvedAssets.icon_right || {}),
+					};
+					if (meta && meta.url) {
+						const tint = this.resolveIconTint(nextState.symbol_rechts, nextState, 'right');
+						const icon = await this.loadSvgAsset(
+							meta.url,
+							tint.tintable ? tint.color : null,
+							tint.tintable
+						);
+						if (!this.isRenderCurrent(gen)) {
+							return;
+						}
+						if (icon) {
+							icon.pckzSymbol = nextState.symbol_rechts;
+							icon.pckzRole = 'icon-right';
+							icon.pckzSourceUrl = meta.url;
+							this.placeInRef(icon, rightRef, 'icon-right');
+							this.objects.iconRight = icon;
+							this.canvas.add(icon);
+						}
+					}
+				}
+				this._layerState.iconRight = iconRightKey;
+			}
+
+			if (!this.isRenderCurrent(gen)) {
+				return;
 			}
 			this.normalizeIconPairAlignment();
 
-			// Text.
+			const textKeyStr = this.textLayerKey(nextState);
 			if (!this.objects.text) {
 				const box = this.refToCanvas(textRef);
 				const fontSize = (textRef.fontSize || 55) * (this.bgBounds.width / this.designW);
-				this.objects.text = new fabric.IText(state.custom_text || ' ', {
+				this.objects.text = new fabric.IText(nextState.custom_text || ' ', {
 					left: box.cx,
 					top: box.cy,
 					originX: 'center',
 					originY: 'center',
-					fontFamily: state.font_family || 'Russo One',
+					fontFamily: nextState.font_family || 'Russo One',
 					fontSize: Math.max(12, fontSize),
-					fill: state.text_color || '#ffffff',
+					fill: nextState.text_color || '#ffffff',
 					fontWeight: 'normal',
 					textAlign: 'center',
 					textBaseline: 'middle',
-					stroke: state.text_color === '#ffffff' || !state.text_color ? '#000000' : null,
-					strokeWidth: textRef.stroke ? textRef.stroke * (this.bgBounds.width / this.designW) : 0,
+					stroke:
+						nextState.text_color === '#ffffff' || !nextState.text_color ? '#000000' : null,
+					strokeWidth: textRef.stroke
+						? textRef.stroke * (this.bgBounds.width / this.designW)
+						: 0,
 					paintFirst: 'stroke',
 					pckzRole: 'main-text',
 					selectable: false,
 					evented: false,
 				});
 				this.canvas.add(this.objects.text);
-			} else {
-				this.objects.text.set('text', state.custom_text || ' ');
-				this.objects.text.set('fill', state.text_color || '#ffffff');
-				if (state.font_family) {
-					this.objects.text.set('fontFamily', state.font_family);
+			} else if (textKeyStr !== this._layerState.text) {
+				this.objects.text.set('text', nextState.custom_text || ' ');
+				this.objects.text.set('fill', nextState.text_color || '#ffffff');
+				if (nextState.font_family) {
+					this.objects.text.set('fontFamily', nextState.font_family);
 				}
 				const box = this.refToCanvas(textRef);
 				this.objects.text.set({ left: box.cx, top: box.cy });
 				this.scaleTextToRef(this.objects.text, textRef);
 			}
+			this._layerState.text = textKeyStr;
 
-			this.applyLedGlow(state);
+			this.applyLedGlow(nextState);
 
-			// Z-order: line → icons → text on top.
-			[this.objects.line, this.objects.iconBgLeft, this.objects.iconBgRight, this.objects.iconLeft, this.objects.iconRight, this.objects.text]
+			[
+				this.objects.line,
+				this.objects.iconBgLeft,
+				this.objects.iconBgRight,
+				this.objects.iconLeft,
+				this.objects.iconRight,
+				this.objects.text,
+			]
 				.filter(Boolean)
 				.forEach((o) => this.canvas.bringToFront(o));
 			if (this.objects.text) {
 				this.canvas.bringToFront(this.objects.text);
 			}
 
-			if (this.canvas && global.PCKZCECanvas) { global.PCKZCECanvas.safeRender(this.canvas); } else if (this.canvas && this.canvas.renderAll) { this.canvas.renderAll(); }
+			if (!this.isRenderCurrent(gen)) {
+				return;
+			}
+			this._productionReadyHash = this.stateRenderHash(nextState);
+			this.requestCanvasPaint();
 		}
 
 		scaleTextToRef(textObj, textRef) {
@@ -1953,8 +2167,12 @@
 		 * @returns {Promise<void>}
 		 */
 		async waitForProductionReady(state) {
-			if (typeof this.render === 'function') {
-				await this.render(state || this.lastState || {});
+			const nextState = state || this.lastState || {};
+			const nextHash = this.stateRenderHash(nextState);
+			if (nextHash !== this._productionReadyHash || !this.hasFabricEngraveObjects()) {
+				if (typeof this.render === 'function') {
+					await this.render(nextState);
+				}
 			}
 			const frame = global.PCKZCECanvas;
 			if (frame && frame.waitForPreviewFrame) {
@@ -1968,6 +2186,7 @@
 			if (frame && frame.safeRender && this.canvas) {
 				await frame.safeRender(this.canvas);
 			}
+			this._productionReadyHash = nextHash;
 		}
 
 		/**

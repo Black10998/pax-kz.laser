@@ -1,6 +1,24 @@
 ## Production installation packages
 
-Canonical package for v2.28.18:
+Canonical package for v2.28.19:
+
+- `pckz-canonical-engine-2.28.19-protected.zip`
+
+SHA256:
+
+- `2873bb58465946f78eca2f48c045ab29029b1b19671b1e63a6d77d0db1c8c397`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.19/pckz-canonical-engine-2.28.19-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.19-protected.zip`
+
+What changed in v2.28.19: configurator performance — batch asset resolver (one AJAX instead of four), incremental preview rendering with stale-render cancellation (no overlapping icons/text), in-flight SVG cache deduplication, font preloading on init, and text-only in-place updates without reloading icons/lines.
+
+Previous release (v2.28.18):
 
 - `pckz-canonical-engine-2.28.18-protected.zip`
 
