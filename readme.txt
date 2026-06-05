@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.20
+Stable tag: 2.28.21
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,11 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.21 =
+
+* Default line on first load: first line in the customer Linien picker (top red library model) loads automatically with text and icons.
+* Icon placement: ~0.5 cm (5 mm) inward from original Cloudlift refs (left refX ~850.5, right refX ~2715.5) for all icons in preview and export.
 
 = 2.28.20 =
 

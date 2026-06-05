@@ -18,6 +18,25 @@ class PCKZ_Ledos_Preview {
 	const DESIGN_WIDTH  = 3651;
 	const DESIGN_HEIGHT = 2132;
 
+	/** Original Cloudlift icon refX before centerward calibration (~0.5 cm / 5 mm inward). */
+	const ICON_LEFT_REF_X_ORIGINAL  = 816;
+	const ICON_RIGHT_REF_X_ORIGINAL = 2750;
+	const ICON_CENTER_INWARD_MM     = 5.0;
+
+	/**
+	 * Icon layer refX after ~0.5 cm inward shift from original Cloudlift layout.
+	 *
+	 * @param string $side left|right
+	 * @return float
+	 */
+	public static function icon_ref_x( $side ) {
+		$shift = ( self::ICON_CENTER_INWARD_MM / 529.1 ) * self::DESIGN_WIDTH;
+		if ( 'right' === $side ) {
+			return self::ICON_RIGHT_REF_X_ORIGINAL - $shift;
+		}
+		return self::ICON_LEFT_REF_X_ORIGINAL + $shift;
+	}
+
 	/**
 	 * Config payload for JavaScript preview engine.
 	 *
@@ -51,13 +70,13 @@ class PCKZ_Ledos_Preview {
 				'stroke'    => 30,
 			),
 			'iconLeft'     => array(
-				'refX'      => 817.5,
+				'refX'      => self::icon_ref_x( 'left' ),
 				'refY'      => 1243,
 				'refWidth'  => 81,
 				'refHeight' => 114,
 			),
 			'iconRight'    => array(
-				'refX'      => 2748.5,
+				'refX'      => self::icon_ref_x( 'right' ),
 				'refY'      => 1243,
 				'refWidth'  => 81,
 				'refHeight' => 114,
@@ -648,7 +667,7 @@ class PCKZ_Ledos_Preview {
 				'type'    => 'icon_select',
 				'label'   => 'Linien',
 				'choices' => $line_choices,
-				'default' => 'none',
+				'default' => $start_defaults['linien'] ?? ( class_exists( 'PCKZ_Line_Library' ) ? PCKZ_Line_Library::default_customer_line_slug() : 'type_1' ),
 			),
 			)
 		);
