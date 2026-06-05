@@ -199,11 +199,9 @@ class PCKZ_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Creator product not found.', 'pckz-canonical-engine' ) ), 404 );
 		}
 
-		$fonts  = class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::get_customer_fonts() : array();
-		$default_family = 'Ubuntu';
-		if ( ! empty( $fonts[0]['family'] ) && is_string( $fonts[0]['family'] ) ) {
-			$default_family = $fonts[0]['family'];
-		}
+		$default_family = class_exists( 'PCKZ_Font_Library' )
+			? PCKZ_Font_Library::default_customer_font_family()
+			: 'Ubuntu';
 
 		$payload = array(
 			'defaultFontFamily' => $default_family,

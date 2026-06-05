@@ -81,6 +81,7 @@ class PCKZ_Activator {
 		if ( version_compare( (string) $stored, PCKZCE_VERSION, '<' ) ) {
 			self::maybe_backfill_preview_images();
 			self::maybe_upgrade_product_config();
+			self::maybe_upgrade_customer_start_defaults();
 			self::maybe_merge_default_fonts();
 			if ( class_exists( 'PCKZ_Font_Library' ) ) {
 				PCKZ_Font_Library::clear_google_font_cache();
@@ -151,6 +152,38 @@ class PCKZ_Activator {
 			if ( $update ) {
 				update_post_meta( $post_id, '_pckz_config', $config );
 			}
+		}
+	}
+
+	/**
+	 * Persist global customer start layout defaults into stored product configs.
+	 */
+	public static function maybe_upgrade_customer_start_defaults() {
+		if ( ! class_exists( 'PCKZ_Customizer_Options' ) || ! class_exists( 'PCKZ_Post_Type' ) ) {
+			return;
+		}
+
+		$posts = get_posts(
+			array(
+				'post_type'   => PCKZ_Post_Type::POST_TYPE,
+				'post_status' => 'any',
+				'numberposts' => -1,
+				'fields'      => 'ids',
+			)
+		);
+
+		foreach ( $posts as $post_id ) {
+			$config = get_post_meta( $post_id, '_pckz_config', true );
+			if ( ! is_array( $config ) || empty( $config['customer_options'] ) ) {
+				continue;
+			}
+			$before  = wp_json_encode( $config['customer_options'] );
+			$config['customer_options'] = PCKZ_Customizer_Options::apply_customer_start_defaults( $config['customer_options'] );
+			$after = wp_json_encode( $config['customer_options'] );
+			if ( $before === $after ) {
+				continue;
+			}
+			update_post_meta( $post_id, '_pckz_config', $config );
 		}
 	}
 

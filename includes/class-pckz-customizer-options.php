@@ -13,6 +13,42 @@ defined( 'ABSPATH' ) || exit;
 class PCKZ_Customizer_Options {
 
 	/**
+	 * Initial customer layout defaults (first configurator load).
+	 *
+	 * @return array<string,string>
+	 */
+	public static function customer_start_default_map() {
+		return array(
+			'custom_text'   => 'Lumi-Plate',
+			'symbol_links'  => 'instagram',
+			'symbol_rechts' => 'tiktok',
+			'font_family'   => class_exists( 'PCKZ_Font_Library' )
+				? PCKZ_Font_Library::default_customer_font_family()
+				: 'Russo One',
+		);
+	}
+
+	/**
+	 * Apply global customer start defaults to option definitions.
+	 *
+	 * @param array $options Customer option rows.
+	 * @return array
+	 */
+	public static function apply_customer_start_defaults( $options ) {
+		if ( ! is_array( $options ) || empty( $options ) ) {
+			return $options;
+		}
+		$map = self::customer_start_default_map();
+		foreach ( $options as $idx => $option ) {
+			$id = $option['id'] ?? '';
+			if ( isset( $map[ $id ] ) ) {
+				$options[ $idx ]['default'] = $map[ $id ];
+			}
+		}
+		return $options;
+	}
+
+	/**
 	 * Default Ledos-style option set (German customer UI).
 	 *
 	 * @return array
@@ -24,7 +60,8 @@ class PCKZ_Customizer_Options {
 
 		$symbols = PCKZ_Icons::symbol_choices();
 
-		return array(
+		return self::apply_customer_start_defaults(
+			array(
 			array(
 				'id'          => 'preview_mode',
 				'type'        => 'radio',
@@ -110,6 +147,7 @@ class PCKZ_Customizer_Options {
 				'label'   => 'Eigenes Logo / Bild (optional)',
 				'maps_to' => 'canvas_image',
 			),
+			)
 		);
 	}
 

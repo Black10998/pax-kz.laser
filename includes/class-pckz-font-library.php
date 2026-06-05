@@ -217,6 +217,19 @@ class PCKZ_Font_Library {
 	}
 
 	/**
+	 * First font shown in the customer font picker (category, then label).
+	 *
+	 * @return string Font family name.
+	 */
+	public static function default_customer_font_family() {
+		$fonts = self::get_customer_fonts();
+		if ( ! empty( $fonts[0]['family'] ) && is_string( $fonts[0]['family'] ) ) {
+			return $fonts[0]['family'];
+		}
+		return 'Russo One';
+	}
+
+	/**
 	 * Upload directory (creates if needed).
 	 *
 	 * @return string
