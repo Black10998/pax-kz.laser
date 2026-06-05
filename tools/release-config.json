@@ -1,0 +1,43 @@
+{
+  "version_source": "pckz-canonical-engine.php",
+  "readme_source": "readme.txt",
+  "slug": "pckz-canonical-engine",
+  "protected_zip_template": "pckz-canonical-engine-{version}-protected.zip",
+  "exclude_directories": [
+    ".git",
+    ".github",
+    ".cursor",
+    "node_modules",
+    "release-packages",
+    "dist",
+    "tmp",
+    "tests",
+    "import",
+    "tools",
+    ".DS_Store",
+    ".env"
+  ],
+  "client_exclude_paths": [
+    "includes/class-pckz-master-control.php",
+    "admin/views/partials/licensing-master-overview.php",
+    "admin/views/partials/licensing-master-fleet.php",
+    "admin/views/partials/licensing-master-releases.php",
+    "admin/views/partials/licensing-master-licenses.php",
+    "admin/views/partials/licensing-master-records.php",
+    "admin/views/partials/licensing-master-nav.php",
+    "admin/views/partials/licensing-master-management.php",
+    "README.md"
+  ],
+  "forbidden_archive_paths": [
+    "release-packages/",
+    "tools/",
+    ".git/",
+    ".github/",
+    "includes/class-pckz-master-control.php",
+    "admin/views/partials/licensing-master-"
+  ],
+  "js_strip_source_when_min_exists": true,
+  "css_strip_source_when_min_exists": true,
+  "strip_source_maps": true,
+  "channel": "customer-protected"
+}

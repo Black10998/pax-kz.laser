@@ -126,6 +126,7 @@ $required = array(
 	'admin_post_pckzce_generate_protected_release',
 	'admin_post_pckzce_download_protected_release',
 	'admin_post_pckzce_publish_release',
+	'admin_post_pckzce_release_now',
 	'admin_post_pckzce_save_release_meta',
 );
 foreach ( $required as $hook ) {

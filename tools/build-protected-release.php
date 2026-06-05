@@ -192,20 +192,28 @@ if ( 0 !== pckzce_validate_source_release_version( $root, $version ) ) {
 	exit( 1 );
 }
 
-$excludes = array(
-	'.git',
-	'.github',
-	'.cursor',
-	'dist',
-	'release-packages',
-	'tmp',
-	'node_modules',
-	'tests',
-	'import',
-	'tools',
-	'.DS_Store',
-	'.env',
-);
+$config_path = $root . '/tools/release-config.json';
+$config = is_readable( $config_path ) ? json_decode( (string) file_get_contents( $config_path ), true ) : array();
+$excludes = isset( $config['exclude_directories'] ) && is_array( $config['exclude_directories'] )
+	? $config['exclude_directories']
+	: array(
+		'.git',
+		'.github',
+		'.cursor',
+		'dist',
+		'release-packages',
+		'tmp',
+		'node_modules',
+		'tests',
+		'import',
+		'tools',
+		'.DS_Store',
+		'.env',
+	);
+$client_excludes = isset( $config['client_exclude_paths'] ) && is_array( $config['client_exclude_paths'] )
+	? $config['client_exclude_paths']
+	: array();
+$excludes = array_merge( $excludes, $client_excludes );
 
 $tempRoot = sys_get_temp_dir() . '/pckzce-release-' . bin2hex(random_bytes(6));
 $stageDir = $tempRoot . '/' . $slug;
