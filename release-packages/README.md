@@ -1,6 +1,24 @@
 ## Production installation packages
 
-Canonical package for v2.28.16:
+Canonical package for v2.28.17:
+
+- `pckz-canonical-engine-2.28.17-protected.zip`
+
+SHA256:
+
+- `c6827f6e525ab449f3dcda8ad5aa41b101f281df4ba06936bcbb5b7d984fe430`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.17/pckz-canonical-engine-2.28.17-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.17-protected.zip`
+
+What changed in v2.28.17: strict release build validation — pre-build checks plugin header, PCKZCE_VERSION, PCKZCE_BUILD, and readme Stable tag before packaging; post-build extracts the ZIP and verifies header/constants/manifest/filename all match the release version (fixes Master Control publish rejection when versions drift).
+
+Previous release (v2.28.16):
 
 - `pckz-canonical-engine-2.28.16-protected.zip`
 

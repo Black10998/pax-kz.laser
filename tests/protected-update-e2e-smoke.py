@@ -2,8 +2,7 @@
 """
 End-to-end smoke: Master publish -> client discovery -> update install path.
 
-Simulates the protected update workflow using the same validation rules as
-PCKZ_Licensing without requiring a live WordPress install.
+Uses the same version/header validation rules as PCKZ_Licensing.
 """
 
 from __future__ import annotations
@@ -16,20 +15,18 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "2.28.16"
+sys.path.insert(0, str(ROOT / "tools"))
+from release_version import validate_protected_zip  # noqa: E402
+
+VERSION = "2.28.17"
 ZIP_NAME = f"pckz-canonical-engine-{VERSION}-protected.zip"
 ZIP_PATH = ROOT / "release-packages" / ZIP_NAME
-INSTALLED_VERSION = "2.28.15"
+INSTALLED_VERSION = "2.28.16"
 
 
 def fail(message: str) -> None:
     print(f"FAIL: {message}", file=sys.stderr)
     sys.exit(1)
-
-
-def plugin_header_version(content: str) -> str:
-    match = re.search(r"^\s*\*\s*Version:\s*(.+)$", content, re.MULTILINE)
-    return match.group(1).strip() if match else ""
 
 
 def build_release_token(meta: dict) -> str:
@@ -45,35 +42,9 @@ def build_release_token(meta: dict) -> str:
     return hashlib.sha256(payload.encode()).hexdigest()[:32]
 
 
-def validate_zip(path: Path, expected_version: str) -> dict:
-    if not path.is_file():
-        fail(f"Missing protected ZIP: {path}")
-    package_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
-    with zipfile.ZipFile(path) as zf:
-        main = zf.read("pckz-canonical-engine/pckz-canonical-engine.php").decode("utf-8", "replace")
-        header_version = plugin_header_version(main)
-        if header_version != expected_version:
-            fail(f"Plugin header version {header_version!r} != {expected_version!r}")
-        manifest_raw = zf.read("pckz-canonical-engine/RELEASE_MANIFEST.json")
-        manifest = json.loads(manifest_raw)
-        if manifest.get("version") != expected_version:
-            fail(f"Manifest version mismatch: {manifest.get('version')}")
-        files = manifest.get("files") or {}
-        for rel, expected in files.items():
-            data = zf.read(f"pckz-canonical-engine/{rel}")
-            actual = hashlib.sha256(data).hexdigest()
-            if actual != expected:
-                fail(f"Manifest hash mismatch for {rel}")
-    return {
-        "package_sha256": package_sha256,
-        "manifest_version": manifest.get("version"),
-        "manifest_file_count": len(files),
-    }
-
-
 def master_publish(meta: dict) -> dict:
     meta = dict(meta)
-    meta["published_at"] = "2026-06-05 12:00:00"
+    meta["published_at"] = "2026-06-05 14:00:00"
     meta["release_token"] = build_release_token(meta)
     return meta
 
@@ -119,10 +90,8 @@ def resolve_client_update_meta(state: dict, cache: dict, installed: str) -> dict
 
     if cached_ver and master_latest and _vcmp(cached_ver, master_latest) > 0:
         cache = {}
-        cached_ver = cached_token = ""
     if master_token and cached_token and cached_token != master_token:
         cache = {}
-        cached_ver = cached_token = ""
     if master_latest and _vcmp(master_latest, installed) <= 0:
         if cache.get("update_available") or (cached_ver and _vcmp(cached_ver, installed) > 0):
             cache = {}
@@ -171,11 +140,13 @@ def simulate_install(package_path: Path, target_dir: Path) -> str:
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(zf.read(name))
     main = (target_dir / "pckz-canonical-engine.php").read_text(encoding="utf-8")
-    return plugin_header_version(main)
+    from release_version import plugin_header_version_from_content
+
+    return plugin_header_version_from_content(main)
 
 
 def main() -> int:
-    validated = validate_zip(ZIP_PATH, VERSION)
+    validated = validate_protected_zip(ZIP_PATH, VERSION)
     package_url = (
         f"https://github.com/Black10998/pax-kz.laser/releases/download/v{VERSION}/{ZIP_NAME}"
     )
@@ -189,7 +160,7 @@ def main() -> int:
 
     check_in = client_check_in(published, INSTALLED_VERSION)
     if not check_in["update_available"]:
-        fail("Client check-in should report update_available for 2.28.15 -> 2.28.16")
+        fail(f"Client check-in should report update_available for {INSTALLED_VERSION} -> {VERSION}")
 
     update_meta = client_update_meta(published, INSTALLED_VERSION)
     if not update_meta.get("update_available") or not update_meta.get("package"):
@@ -212,7 +183,7 @@ def main() -> int:
     if not resolved.get("update_available"):
         fail("Resolved client meta should show update available")
 
-    install_dir = Path("/tmp/pckz-e2e-install")
+    install_dir = Path("/tmp/pckz-e2e-install-217")
     if install_dir.exists():
         import shutil
 
@@ -222,10 +193,10 @@ def main() -> int:
         fail(f"Simulated install version {installed_version!r} != {VERSION!r}")
 
     print("OK protected-update-e2e-smoke")
-    print(f"  ZIP validated: {ZIP_PATH.name}")
+    print(f"  ZIP validated (Master Control publish rules): {ZIP_PATH.name}")
     print(f"  SHA256: {validated['package_sha256']}")
+    print(f"  header_version: {validated['header_version']}")
     print(f"  Master publish version: {published['version']}")
-    print(f"  Release token: {published['release_token']}")
     print(f"  Client update available: {check_in['update_available']}")
     print(f"  Simulated install version: {installed_version}")
     return 0

@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Build protected customer ZIP package with RELEASE_MANIFEST.json."""
+"""Build protected customer ZIP package with strict version validation."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -31,6 +30,13 @@ EXCLUDES = {
     ".env",
 }
 
+sys.path.insert(0, str(ROOT / "tools"))
+from release_version import (  # noqa: E402
+    validate_protected_zip,
+    validate_source_matches_release,
+    sync_release_version,
+)
+
 
 def should_skip(rel: Path) -> bool:
     return any(part in EXCLUDES for part in rel.parts)
@@ -45,6 +51,9 @@ def sha256_file(path: Path) -> str:
 
 
 def build(version: str, build_id: str, output_dir: Path, channel: str) -> Path:
+    print(f"Pre-build validation for {version}...")
+    validate_source_matches_release(ROOT, version)
+
     stage_root = Path(tempfile.mkdtemp(prefix="pckzce-release-"))
     stage_dir = stage_root / SLUG
     stage_dir.mkdir(parents=True, exist_ok=True)
@@ -96,20 +105,40 @@ def build(version: str, build_id: str, output_dir: Path, channel: str) -> Path:
             cwd=stage_root,
             check=True,
         )
+
+        print(f"Post-build validation for {zip_path.name}...")
+        result = validate_protected_zip(zip_path, version)
+        print("Post-build validation passed.")
+        print(f"  header_version: {result['header_version']}")
+        print(f"  manifest_version: {result['manifest_version']}")
+        print(f"  manifest_file_count: {result['manifest_file_count']}")
         return zip_path
     finally:
         shutil.rmtree(stage_root, ignore_errors=True)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--version", required=True)
-    parser.add_argument("--build", default="")
+    parser = argparse.ArgumentParser(description="Build a validated protected release ZIP.")
+    parser.add_argument("--version", required=True, help="Release semver, must match plugin source.")
+    parser.add_argument("--build", default="", help="Build identifier written to PCKZCE_BUILD/manifest.")
     parser.add_argument("--output", default=str(ROOT / "release-packages"))
     parser.add_argument("--channel", default="customer-protected")
+    parser.add_argument(
+        "--sync-version",
+        action="store_true",
+        help="Write --version/--build into pckz-canonical-engine.php and readme.txt before building.",
+    )
     args = parser.parse_args()
-    build_id = args.build or args.version
-    zip_path = build(args.version, build_id, Path(args.output), args.channel)
+    version = args.version.strip()
+    build_id = (args.build or version).strip()
+
+    if args.sync_version:
+        print(f"Syncing source files to version {version} (build {build_id})...")
+        sync_release_version(ROOT, version, build_id)
+    else:
+        validate_source_matches_release(ROOT, version)
+
+    zip_path = build(version, build_id, Path(args.output), args.channel)
     digest = sha256_file(zip_path)
     print(f"Built protected release: {zip_path}")
     print(f"SHA256: {digest}")
@@ -117,4 +146,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        raise SystemExit(main())
+    except (ValueError, FileNotFoundError) as exc:
+        print(f"BUILD FAILED: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
