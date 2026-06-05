@@ -783,6 +783,29 @@ class PCKZ_Line_Library {
 	}
 
 	/**
+	 * First line shown in the customer Linien picker (after "Keine Linien").
+	 *
+	 * @return string Line slug, or empty when no lines are available.
+	 */
+	public static function default_customer_line_slug() {
+		foreach ( self::get_customer_line_choices() as $choice ) {
+			$slug = sanitize_key( (string) ( $choice['value'] ?? '' ) );
+			if ( $slug && 'none' !== $slug ) {
+				return $slug;
+			}
+		}
+		if ( class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			foreach ( PCKZ_Ledos_Preview::line_catalog( true, true ) as $slug => $data ) {
+				unset( $data );
+				if ( 'none' !== $slug ) {
+					return sanitize_key( (string) $slug );
+				}
+			}
+		}
+		return 'type_1';
+	}
+
+	/**
 	 * Filter catalog entries for customer UI.
 	 *
 	 * @param array<string,array> $items Line catalog.

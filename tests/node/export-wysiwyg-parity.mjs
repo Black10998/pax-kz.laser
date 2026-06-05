@@ -33,7 +33,7 @@ function centerMm(obj) {
 }
 
 const refs = {
-  iconLeft: { refX: 817.5, refY: 1243, refWidth: 81, refHeight: 114 },
+  iconLeft: { refX: 850.5, refY: 1243, refWidth: 81, refHeight: 114 },
 };
 const iconUrl = 'file://' + path.join(pluginRoot, 'public/images/icons/instagram-black.svg');
 

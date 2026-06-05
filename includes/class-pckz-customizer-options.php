@@ -25,6 +25,9 @@ class PCKZ_Customizer_Options {
 			'font_family'   => class_exists( 'PCKZ_Font_Library' )
 				? PCKZ_Font_Library::default_customer_font_family()
 				: 'Russo One',
+			'linien'        => class_exists( 'PCKZ_Line_Library' )
+				? PCKZ_Line_Library::default_customer_line_slug()
+				: 'type_1',
 		);
 	}
 

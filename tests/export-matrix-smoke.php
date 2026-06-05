@@ -31,7 +31,7 @@ $ty   = $mm_h + $bg_t * $sy;
 $sy   = -$sy;
 
 // Icon center on canvas (example).
-$canvas_x = $bg_l + ( 817.5 + 40.5 ) * ( $bg_w / 3651 );
+$canvas_x = $bg_l + ( 850.5 + 40.5 ) * ( $bg_w / 3651 );
 $canvas_y = $bg_t + ( 1243 + 57 ) * ( $bg_h / 2132 );
 $expect_mm_x = $sx * $canvas_x + $tx;
 $expect_mm_y = ( $mm_h / $bg_h ) * ( $bg_t + $bg_h - $canvas_y );
