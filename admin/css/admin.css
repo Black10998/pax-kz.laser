@@ -1342,6 +1342,41 @@
 	margin-top: 6px;
 }
 
+.pckz-release-ssot__grid {
+	display: grid;
+	gap: 12px 24px;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	margin: 0;
+}
+
+.pckz-release-ssot__grid dt {
+	color: #50575e;
+	font-size: 12px;
+	font-weight: 600;
+	margin: 0 0 4px;
+	text-transform: uppercase;
+}
+
+.pckz-release-ssot__grid dd {
+	margin: 0;
+}
+
+.pckz-release-now-panel {
+	border: 1px solid #c3e6cb;
+	background: #f6fff8;
+}
+
+.pckz-release-now-actions {
+	margin-bottom: 0;
+}
+
+.pckz-mc-alert.is-warning {
+	background: #fff8e5;
+	border-left: 4px solid #dba617;
+	margin: 12px 0 0;
+	padding: 10px 12px;
+}
+
 .pckz-release-flow {
 	display: flex;
 	flex-direction: column;

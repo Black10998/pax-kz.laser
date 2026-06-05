@@ -19,7 +19,9 @@
 
 declare(strict_types=1);
 
-$root     = dirname(__DIR__);
+$opts = getopt('', array('root::'));
+$root = isset($opts['root']) ? (string) $opts['root'] : dirname(__DIR__);
+$root = rtrim($root, DIRECTORY_SEPARATOR);
 $publicJs = $root . '/public/js';
 $publicCss = $root . '/public/css';
 $strict   = getenv('PCKZCE_JS_PROTECT_STRICT') ? true : false;
