@@ -1,5 +1,22 @@
 ## Production installation packages
 
+### v2.28.25 — Master Build (paxdesign.at only)
+
+Full plugin tree with Master Control UI, Release Now, fleet/licensing admin, and on-server release tooling.
+
+- `pckz-canonical-engine-2.28.25-master.zip`
+- SHA256: `acdfff4bec058cb5ed17a0800cba08bc06a01626ac955986d0000497173596e1`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.25/pckz-canonical-engine-2.28.25-master.zip
+
+Install on **paxdesign.at only** — not for licensed customer sites.
+
+### v2.28.25 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.25-protected.zip`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.25/pckz-canonical-engine-2.28.25-protected.zip
+
+---
+
 Canonical package for v2.28.24:
 
 - `pckz-canonical-engine-2.28.24-protected.zip`

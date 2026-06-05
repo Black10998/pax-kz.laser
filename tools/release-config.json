@@ -3,6 +3,7 @@
   "readme_source": "readme.txt",
   "slug": "pckz-canonical-engine",
   "protected_zip_template": "pckz-canonical-engine-{version}-protected.zip",
+  "master_zip_template": "pckz-canonical-engine-{version}-master.zip",
   "exclude_directories": [
     ".git",
     ".github",
