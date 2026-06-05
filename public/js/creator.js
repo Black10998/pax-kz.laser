@@ -78,6 +78,7 @@
 			this._exportValidationPromise = null;
 			this._exportValidationSeq = 0;
 			this._assetResolveSeq = 0;
+			this._exportPreparing = false;
 			this.iconColorUserSet = { left: false, right: false };
 			this.customerArtworkToken = '';
 			this.customerArtworkFilename = '';
@@ -101,10 +102,7 @@
 					this.bindGlobalUiClosers();
 					this.initMobileViewportStability();
 					this.initCanvas();
-					this.updateCheckoutInteractable(
-						I18N.exportWaitingPreview ||
-							'Die Vorschau wird vorbereitet. Sie koennen die Bestellung gleich abschliessen.'
-					);
+					this.updateCheckoutState();
 					this.showPaymentSuccessIfReturned();
 					window.addEventListener('resize', () => this.handleWindowResize());
 					setTimeout(() => this.markCreatorReady(), 12000);
@@ -220,10 +218,21 @@
 			this.resolvedAssets = next;
 			this._resolvedAssetFingerprint = fingerprint;
 			if (next.font && next.font.url) {
-				const key = String(next.font.family_key || fontFamily || '').toLowerCase();
+				const key = String(next.font.family_key || fontFamily || '')
+					.trim()
+					.toLowerCase();
 				pckzceConfig.fontFiles = pckzceConfig.fontFiles || {};
+				const prevUrl = key ? pckzceConfig.fontFiles[key] : '';
 				if (key) {
 					pckzceConfig.fontFiles[key] = next.font.url;
+				}
+				if (next.font.font_id) {
+					pckzceConfig.fontFilesById = pckzceConfig.fontFilesById || {};
+					pckzceConfig.fontFilesById[next.font.font_id] = next.font.url;
+				}
+				if (this.previewEngine && key && prevUrl !== next.font.url) {
+					delete this.previewEngine._openTypeFontUrls[key];
+					delete this.previewEngine._openTypeFonts[key];
 				}
 			}
 			if (this.useCloudlift && this.previewEngine) {
@@ -1572,9 +1581,9 @@
 			this._preparedExportPayload = null;
 			this._preparedExportFingerprint = '';
 			this.exportReady = false;
-			this.updateCheckoutInteractable(
-				I18N.exportValidating || 'Bestelldaten werden im Hintergrund geprueft.'
-			);
+			this.root.__pckzExportReady = false;
+			this._exportPreparing = true;
+			this.updateCheckoutState();
 			this._exportReadyTimer = setTimeout(() => {
 				this.refreshExportReadyState();
 			}, 180);
@@ -1585,24 +1594,72 @@
 			return !!(this.bgLoaded && this.previewEngine && text);
 		}
 
+		isAdminViewer() {
+			return !!(pckzceConfig.isAdminViewer || pckzceConfig.adminViewer);
+		}
+
+		customerExportErrorMessage() {
+			return (
+				I18N.exportPrepareFailed ||
+				'Ihre Bestellung konnte gerade nicht vorbereitet werden. Bitte passen Sie das Design leicht an oder laden Sie die Seite neu.'
+			);
+		}
+
+		logExportDebug(context, detail, payload) {
+			try {
+				console.error(
+					'[PCKZ export]',
+					context || 'debug',
+					detail || '',
+					payload || this._lastExportDebug || ''
+				);
+			} catch (err) {
+				// ignore logging failures
+			}
+		}
+
+		getPayButtonLabel() {
+			if (this.exportReady) {
+				return I18N.exportPayNow || I18N.exportReadyPaypal || 'Weiter zur Zahlung';
+			}
+			if (this.canBeginCheckout() && this._exportPreparing) {
+				return I18N.exportPreparingButton || 'Wird vorbereitet…';
+			}
+			return COMMERCE.paymentButtonLabel || 'Jetzt mit PayPal bezahlen';
+		}
+
+		updateCheckoutState() {
+			this.setCheckoutButtonsEnabled(this.canBeginCheckout() && this.exportReady);
+		}
+
 		updateCheckoutInteractable(hintMessage) {
-			const canInteract = this.canBeginCheckout();
-			this.setCheckoutButtonsEnabled(canInteract, hintMessage);
+			this.updateCheckoutState();
 		}
 
 		setCheckoutButtonsEnabled(enabled, hintMessage) {
 			const paypalOnly = !!COMMERCE.checkoutPaypalOnly;
-			const canInteract = this.canBeginCheckout();
+			const canDesign = this.canBeginCheckout();
+			const preparing = canDesign && !this.exportReady && !!this._exportPreparing;
+			const payReady = canDesign && this.exportReady;
 			const buttons = this.root.querySelectorAll(
 				'[data-action="paypal-checkout"], [data-action="add-to-cart"], [data-action="submit-design"]'
 			);
 			buttons.forEach((btn) => {
 				const isPaypal = btn.dataset.action === 'paypal-checkout';
 				if (isPaypal && paypalOnly) {
-					btn.disabled = false;
-					btn.classList.toggle('is-disabled', !canInteract);
-					btn.setAttribute('aria-disabled', canInteract ? 'false' : 'true');
-					btn.classList.toggle('is-checkout-ready', this.exportReady);
+					const label = btn.querySelector('.pckz-btn__text');
+					const spinner = btn.querySelector('.pckz-btn__spinner');
+					btn.disabled = !payReady || this._checkoutInFlight;
+					btn.classList.toggle('is-disabled', !canDesign);
+					btn.classList.toggle('is-preparing', preparing && !this._checkoutInFlight);
+					btn.classList.toggle('is-checkout-ready', payReady && !this._checkoutInFlight);
+					btn.setAttribute('aria-disabled', payReady && !this._checkoutInFlight ? 'false' : 'true');
+					if (label && !this._checkoutInFlight) {
+						label.textContent = this.getPayButtonLabel();
+					}
+					if (spinner) {
+						spinner.classList.toggle('pckz-hidden', !preparing || this._checkoutInFlight);
+					}
 					return;
 				}
 				btn.disabled = !enabled;
@@ -1611,14 +1668,13 @@
 			});
 			const hint = this.root.querySelector('[data-export-ready-hint]');
 			if (hint) {
-				if (enabled && this.exportReady) {
-					hint.classList.add('pckz-hidden');
-				} else {
-					hint.classList.remove('pckz-hidden');
-					if (hintMessage) {
-						hint.textContent = hintMessage;
-					}
-				}
+				hint.classList.add('pckz-hidden');
+			}
+			const status = this.root.querySelector('[data-payment-status]');
+			if (status && status.classList.contains('is-export-error')) {
+				status.textContent = '';
+				status.classList.add('pckz-hidden');
+				status.classList.remove('is-error', 'is-export-error');
 			}
 		}
 
@@ -1956,30 +2012,27 @@
 		}
 
 		async refreshExportReadyState() {
-			const waitingPreview = I18N.exportWaitingPreview || 'Die Vorschau wird vorbereitet. Sie koennen die Bestellung gleich abschliessen.';
-			const waitingText = I18N.exportWaitingText || 'Bitte geben Sie einen Text ein, damit Ihre Bestellung produziert werden kann.';
-			const validating = I18N.exportValidating || 'Bestelldaten werden im Hintergrund geprueft.';
-			const defaultHint = I18N.exportReadyHint || 'Vorschau und Exportdaten werden im Hintergrund geprueft.';
-			const readyHint =
-				I18N.exportReadyPaypal || 'Bereit zur Zahlung. Die Bestelldaten sind geprueft.';
-
 			if (!this.bgLoaded || !this.previewEngine) {
 				this.exportReady = false;
 				this.root.__pckzExportReady = false;
-				this.updateCheckoutInteractable(waitingPreview);
+				this._exportPreparing = false;
+				this.updateCheckoutState();
 				return;
 			}
 			const text = (this.selections.custom_text || '').trim();
 			if (!text) {
 				this.exportReady = false;
 				this.root.__pckzExportReady = false;
-				this.updateCheckoutInteractable(waitingText);
+				this._exportPreparing = false;
+				this.updateCheckoutState();
 				return;
 			}
 			const seq = ++this._exportValidationSeq;
-			this.updateCheckoutInteractable(validating);
+			this._exportPreparing = true;
+			this.updateCheckoutState();
 			try {
 				await this.waitForAssetsReady();
+				await this.resolveSelectedAssets().catch(() => null);
 				const fontFamily = this.selections.font_family || 'Russo One';
 				await this.previewEngine.preloadExportFont(fontFamily);
 				const fingerprint = this.getExportFingerprint();
@@ -1991,24 +2044,21 @@
 				const ok = !!(validated.res && validated.res.success);
 				this.exportReady = ok;
 				this.root.__pckzExportReady = ok;
+				this._exportPreparing = false;
 				this._lastExportDebug = validated.res?.data?.export_debug || null;
 				if (ok) {
 					this._preparedExportPayload = preparedPayload;
 					this._preparedExportFingerprint = fingerprint;
-					this.updateCheckoutInteractable(readyHint);
 					this.clearValidationErrors();
+					this.setPaymentStatus('', false);
 				} else {
 					this._preparedExportPayload = null;
 					this._preparedExportFingerprint = '';
 					const lines = validated.res ? this.formatExportDebugLines(validated.res) : [];
-					const failHint = lines.length
-						? lines[0]
-						: I18N.exportNotReady || defaultHint;
-					this.updateCheckoutInteractable(failHint);
-					if (validated.res && lines.length) {
-						this.showValidationErrors(validated.res, lines[0]);
-					}
+					this.logExportDebug('validation-failed', lines.join(' · '), validated.res);
+					this.showValidationErrors(validated.res, this.customerExportErrorMessage());
 				}
+				this.updateCheckoutState();
 			} catch (err) {
 				if (seq !== this._exportValidationSeq) {
 					return;
@@ -2017,8 +2067,11 @@
 				this._preparedExportFingerprint = '';
 				this.exportReady = false;
 				this.root.__pckzExportReady = false;
+				this._exportPreparing = false;
 				this._lastExportDebug = null;
-				this.updateCheckoutInteractable(err?.message || I18N.exportNotReady || defaultHint);
+				this.logExportDebug('validation-error', err?.message || err, err);
+				this.showValidationErrors(null, this.customerExportErrorMessage());
+				this.updateCheckoutState();
 			}
 		}
 
@@ -2032,10 +2085,7 @@
 				await this._exportValidationPromise;
 			}
 			if (!this.exportReady) {
-				throw new Error(
-					I18N.exportNotReady ||
-						'Vorschau wird noch geladen. Bitte warten Sie, bis die Vorschau vollständig angezeigt ist, und versuchen Sie es erneut.'
-				);
+				throw new Error(this.customerExportErrorMessage());
 			}
 		}
 
@@ -2206,11 +2256,10 @@
 				return false;
 			}
 			if (requireExportReady && !this.exportReady) {
-				this.toast(
-					I18N.exportNotReady ||
-						'Vorschau wird noch geladen. Bitte warten Sie, bis die Vorschau vollständig angezeigt ist.',
-					true
-				);
+				if (this._exportPreparing) {
+					return false;
+				}
+				this.setPaymentStatus(this.customerExportErrorMessage(), true);
 				return false;
 			}
 			if (COMMERCE.requireEmail !== false && !this.validateCommerce()) {
@@ -2251,6 +2300,7 @@
 				await this.previewEngine.waitForProductionReady(
 					this.buildCloudliftState ? this.buildCloudliftState() : this.selections
 				);
+				await this.resolveSelectedAssets().catch(() => null);
 				const fontFamily = this.selections.font_family || 'Russo One';
 				await this.previewEngine.preloadExportFont(fontFamily);
 			}
@@ -2364,31 +2414,23 @@
 				return;
 			}
 			btn.classList.toggle('is-loading', !!loading);
-			if (!loading) {
-				this.setCheckoutButtonsEnabled(!!this.exportReady);
-				return;
-			}
-			btn.disabled = true;
-			btn.setAttribute('aria-disabled', 'true');
 			const spinner = btn.querySelector('.pckz-btn__spinner');
 			if (spinner) {
 				spinner.classList.toggle('pckz-hidden', !loading);
 			}
 			const label = btn.querySelector('.pckz-btn__text');
-			if (label && !loading) {
-				if (btn.dataset.action === 'paypal-checkout') {
-					label.textContent = COMMERCE.paymentButtonLabel || 'Jetzt mit PayPal bezahlen';
-				} else if (btn.dataset.action === 'add-to-cart') {
-					label.textContent = 'Zur Kasse – Bestellung abschließen';
-				} else {
-					label.textContent = 'Bestellung prüfen und fortfahren';
-				}
-			} else if (label && loading) {
+			if (label && loading) {
 				label.textContent =
 					btn.dataset.action === 'paypal-checkout'
 						? I18N.paymentRedirect || I18N.paypalRedirect || I18N.preparingCheckout
 						: I18N.addingToCart || I18N.preparingCheckout;
 			}
+			if (!loading) {
+				this.updateCheckoutState();
+				return;
+			}
+			btn.disabled = true;
+			btn.setAttribute('aria-disabled', 'true');
 		}
 
 		setPaymentStatus(message, isError) {
@@ -2399,6 +2441,7 @@
 			el.textContent = message || '';
 			el.classList.toggle('pckz-hidden', !message);
 			el.classList.toggle('is-error', !!isError);
+			el.classList.toggle('is-export-error', !!isError);
 		}
 
 		submitPaypal() {
@@ -2413,6 +2456,9 @@
 			}
 			if (!this.canBeginCheckout()) {
 				this.toast(I18N.requireDesign || 'Bitte geben Sie einen Text ein.', true);
+				return;
+			}
+			if (!this.exportReady) {
 				return;
 			}
 			this.collectCheckoutFields();
@@ -2450,23 +2496,19 @@
 					this.toast(msg, true);
 				})
 				.catch((err) => {
-					this.exportReady = false;
-					this.updateCheckoutInteractable(err?.message || I18N.exportNotReady);
+					this.logExportDebug('checkout-failed', err?.message || err, err?.payload);
 					if (err && err.payload) {
-						this.showValidationErrors(err.payload, err.message);
+						this.showValidationErrors(err.payload, this.customerExportErrorMessage());
 						return;
 					}
-					this.setPaymentStatus(err.message || I18N.paypalError, true);
-					this.toast(err.message || I18N.paypalError, true);
+					const msg = err?.message || I18N.paypalError;
+					this.setPaymentStatus(msg, true);
+					this.toast(msg, true);
 				})
 				.finally(() => {
 					this._checkoutInFlight = false;
 					this.setSubmitLoading(false, 'paypal-checkout');
-					this.updateCheckoutInteractable(
-						this.exportReady
-							? I18N.exportReadyPaypal || ''
-							: I18N.exportNotReady || ''
-					);
+					this.updateCheckoutState();
 				});
 		}
 
@@ -2557,23 +2599,29 @@
 		}
 
 		showValidationErrors(payload, fallbackMessage) {
-			let lines = this.formatValidationErrors(payload);
-			const debugLines = this.formatExportDebugLines(payload);
+			let lines = payload ? this.formatValidationErrors(payload) : [];
+			const debugLines = payload ? this.formatExportDebugLines(payload) : [];
 			if (!lines.length && debugLines.length) {
 				lines = debugLines;
 			} else if (debugLines.length && lines.length === 1) {
 				lines = debugLines;
 			}
-			const message = lines.length
+			const technical = lines.length
 				? lines.join(' · ')
 				: fallbackMessage || I18N.validationFailed || 'Export validation failed.';
+			const customerMessage = fallbackMessage || this.customerExportErrorMessage();
+			this.logExportDebug('validation-panel', technical, payload);
+			this.setPaymentStatus(customerMessage, true);
+			if (!this.isAdminViewer()) {
+				return;
+			}
 			if (this.validationPanel && this.validationList) {
 				if (this.validationTitle) {
 					this.validationTitle.textContent =
 						I18N.validationFailedTitle || 'Export validation failed';
 				}
 				this.validationList.innerHTML = '';
-				(lines.length ? lines : [message]).forEach((line) => {
+				(lines.length ? lines : [technical]).forEach((line) => {
 					const li = document.createElement('li');
 					li.textContent = line;
 					this.validationList.appendChild(li);
@@ -2581,7 +2629,6 @@
 				this.validationPanel.classList.remove('pckz-hidden');
 				this.validationPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 			}
-			this.toast(message, true);
 		}
 
 		clearValidationErrors() {

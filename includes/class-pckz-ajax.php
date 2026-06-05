@@ -271,13 +271,21 @@ class PCKZ_Ajax {
 			if ( '' === $font_id ) {
 				wp_send_json_error( array( 'message' => __( 'Font not found.', 'pckz-canonical-engine' ) ), 404 );
 			}
-			$family = sanitize_text_field( $value );
+			$family    = sanitize_text_field( $value );
+			$entries   = class_exists( 'PCKZ_Font_Library' ) ? PCKZ_Font_Library::all_entries() : array();
+			$font_row  = isset( $entries[ $font_id ] ) && is_array( $entries[ $font_id ] ) ? $entries[ $font_id ] : array();
+			$font_url  = class_exists( 'PCKZ_Font_Library' )
+				? PCKZ_Font_Library::export_url_for_frontend( $font_id, $font_row )
+				: '';
+			if ( '' === $font_url ) {
+				$font_url = $this->secure_creator_asset_url( $product_id, 'font', $font_id );
+			}
 			$data = array(
-				'kind'       => 'font',
-				'font_id'    => $font_id,
-				'font_family'=> $family,
-				'family_key' => strtolower( $family ),
-				'url'        => $this->secure_creator_asset_url( $product_id, 'font', $font_id ),
+				'kind'        => 'font',
+				'font_id'     => $font_id,
+				'font_family' => $family,
+				'family_key'  => strtolower( $family ),
+				'url'         => $font_url,
 			);
 		} else {
 			wp_send_json_error( array( 'message' => __( 'Unsupported asset type.', 'pckz-canonical-engine' ) ), 400 );

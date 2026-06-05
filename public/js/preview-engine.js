@@ -2633,8 +2633,11 @@
 			if (!u) {
 				return false;
 			}
-			// Same-origin font proxy endpoint streams export-safe binaries (ttf/otf/woff).
+			// Same-origin font proxy endpoints stream export-safe binaries (ttf/otf/woff).
 			if (/[?&]action=pckzce_font_file(?:&|$)/i.test(u)) {
+				return true;
+			}
+			if (/[?&]action=pckzce_secure_asset(?:&|$)/i.test(u)) {
 				return true;
 			}
 			if (/\.woff2(\?|$)/i.test(u)) {

@@ -47,13 +47,13 @@ $is_admin_viewer     = current_user_can( 'manage_options' );
 					<button type="button" class="pckz-quantity__btn" data-qty="plus" aria-label="Anzahl erhöhen">+</button>
 				</div>
 			</div>
-			<p class="pckz-checkout__export-hint" data-export-ready-hint>
-				<?php esc_html_e( 'Vorschau und Exportdaten werden im Hintergrund geprüft, damit der Checkout ohne Unterbrechung startet.', 'pckz-canonical-engine' ); ?>
+			<p class="pckz-checkout__export-hint pckz-hidden" data-export-ready-hint aria-hidden="true">
+				<?php esc_html_e( 'Exportdaten werden im Hintergrund vorbereitet.', 'pckz-canonical-engine' ); ?>
 			</p>
-			<button type="button" class="pckz-btn pckz-btn--paypal pckz-btn--checkout-primary" data-action="paypal-checkout" data-provider="<?php echo esc_attr( $payment_provider ); ?>" aria-disabled="false">
+			<button type="button" class="pckz-btn pckz-btn--paypal pckz-btn--checkout-primary" data-action="paypal-checkout" data-provider="<?php echo esc_attr( $payment_provider ); ?>" disabled aria-disabled="true">
 				<span class="pckz-btn__paypal-mark" aria-hidden="true"><?php echo esc_html( $payment_provider_label ); ?></span>
-				<span class="pckz-btn__text"><?php echo esc_html( $payment_button_label ); ?></span>
-				<span class="pckz-btn__spinner" aria-hidden="true"></span>
+				<span class="pckz-btn__text"><?php esc_html_e( 'Weiter zur Zahlung', 'pckz-canonical-engine' ); ?></span>
+				<span class="pckz-btn__spinner pckz-hidden" aria-hidden="true"></span>
 			</button>
 			<p class="pckz-checkout__paypal-hint"><?php echo esc_html( $payment_hint ); ?></p>
 		</div>

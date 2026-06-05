@@ -466,6 +466,7 @@ class PCKZ_Assets {
 				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
 				'nonce'        => wp_create_nonce( 'pckzce_creator' ),
 				'productId'    => $product_id,
+				'isAdminViewer'=> current_user_can( 'manage_options' ),
 				'config'       => self::public_creator_config( $config ),
 				'runtimeAction' => 'pckzce_runtime_config',
 				'i18n'         => array(
@@ -475,6 +476,9 @@ class PCKZ_Assets {
 					'saving'                => 'Bestellung wird vorbereitet…',
 					'loading'               => 'Vorschau wird geladen…',
 					'exportNotReady'        => 'Die Exportdaten sind noch nicht vollständig bereit. Bitte versuchen Sie es in wenigen Sekunden erneut.',
+					'exportPrepareFailed'   => 'Ihre Bestellung konnte gerade nicht vorbereitet werden. Bitte passen Sie das Design leicht an oder laden Sie die Seite neu.',
+					'exportPreparingButton' => 'Wird vorbereitet…',
+					'exportPayNow'          => 'Weiter zur Zahlung',
 					'fabricExportMissing'   => 'Fabric-Produktions-SVG fehlt. Bitte speichern, nachdem die Vorschau vollständig geladen ist.',
 					'vectorTextMissing'     => 'Vektortext-Pfade fehlen. Bitte warten Sie, bis die Vorschau vollständig geladen ist.',
 					'vectorTextInvalid'     => 'Vektortext-Pfade konnten nicht erzeugt werden. Bitte Schrift oder Seite neu laden.',

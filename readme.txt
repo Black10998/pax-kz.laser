@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.17
+Stable tag: 2.28.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.18 =
+
+* Fixed Roboto (and all Google fonts) export URL resolution: font asset resolver now returns same-origin `pckzce_font_file` proxy URLs that OpenType.js accepts for SVG/LBRN2 export.
+* Extended export-safe font URL detection to accept signed `pckzce_secure_asset` endpoints as a fallback.
+* Redesigned checkout flow: export package prepares silently in the background while the customer finishes the design; payment button stays disabled with an inline preparing state until ready, then shows “Weiter zur Zahlung” for immediate Stripe/PayPal redirect.
+* Customer-facing export errors are now friendly; technical validation details are logged to the browser console and shown only to administrators.
 
 = 2.28.10 =
 
