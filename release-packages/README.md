@@ -1,6 +1,24 @@
 ## Production installation packages
 
-Canonical package for v2.28.21:
+Canonical package for v2.28.22:
+
+- `pckz-canonical-engine-2.28.22-protected.zip`
+
+SHA256:
+
+- `4234810af634f3e919a18f28d1bf21a5bce482e3b868a07a002b2f0c68054ac9`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.22/pckz-canonical-engine-2.28.22-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.22-protected.zip`
+
+What changed in v2.28.22: reverted v2.28.21 icon refX shift (icons back to v2.28.20 placement: left 817.5, right 2748.5); kept automatic default first line on first open.
+
+Previous release (v2.28.21):
 
 - `pckz-canonical-engine-2.28.21-protected.zip`
 

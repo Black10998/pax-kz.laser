@@ -7,14 +7,10 @@
 	'use strict';
 
 	const DEFAULT_DESIGN = { width: 3651, height: 2132 };
-	const ICON_LEFT_REF_X_ORIGINAL = 816;
-	const ICON_RIGHT_REF_X_ORIGINAL = 2750;
-	const ICON_CENTER_INWARD_MM = 5;
-	const ICON_REF_X_SHIFT = (ICON_CENTER_INWARD_MM / 529.1) * DEFAULT_DESIGN.width;
 	const DEFAULT_LAYERS = {
 		text: { refX: 1136, refY: 1256, refWidth: 1392, refHeight: 93, fontSize: 55, stroke: 30 },
-		iconLeft: { refX: ICON_LEFT_REF_X_ORIGINAL + ICON_REF_X_SHIFT, refY: 1243, refWidth: 81, refHeight: 114 },
-		iconRight: { refX: ICON_RIGHT_REF_X_ORIGINAL - ICON_REF_X_SHIFT, refY: 1243, refWidth: 81, refHeight: 114 },
+		iconLeft: { refX: 817.5, refY: 1243, refWidth: 81, refHeight: 114 },
+		iconRight: { refX: 2748.5, refY: 1243, refWidth: 81, refHeight: 114 },
 		iconBgLeft: { refX: 767, refY: 1244, refWidth: 178, refHeight: 113 },
 		iconBgRight: { refX: 2700, refY: 1244, refWidth: 178, refHeight: 113 },
 		lines: { refX: 609, refY: 1173, refWidth: 2424, refHeight: 254 },
