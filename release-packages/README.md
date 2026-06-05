@@ -1,6 +1,24 @@
 ## Production installation packages
 
-Canonical package for v2.28.17:
+Canonical package for v2.28.18:
+
+- `pckz-canonical-engine-2.28.18-protected.zip`
+
+SHA256:
+
+- `acbe48cc00caebef4dcba024d99f2966cc610cbc2b505a42a77ad0f95e6c7ca1`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.18/pckz-canonical-engine-2.28.18-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.18-protected.zip`
+
+What changed in v2.28.18: fixed Roboto (and all Google font) export URL resolution — font asset resolver returns `pckzce_font_file` proxy URLs that OpenType.js accepts; redesigned checkout so export prepares silently in the background and the payment button enables with “Weiter zur Zahlung” only when ready (no blocking wait messages before Stripe/PayPal redirect).
+
+Previous release (v2.28.17):
 
 - `pckz-canonical-engine-2.28.17-protected.zip`
 
