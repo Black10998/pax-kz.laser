@@ -1,5 +1,20 @@
 ## Production installation packages
 
+### v2.28.26 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.26-master.zip`
+- SHA256: `1d367399e22bef716189af7657f18879cae1816033651c017151365a6843e9c2`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.26/pckz-canonical-engine-2.28.26-master.zip
+
+Hotfix: Release Now / Generate no longer fatals when PHP `exec()` is disabled on shared hosting.
+
+### v2.28.26 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.26-protected.zip`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.26/pckz-canonical-engine-2.28.26-protected.zip
+
+---
+
 ### v2.28.25 — Master Build (paxdesign.at only)
 
 Full plugin tree with Master Control UI, Release Now, fleet/licensing admin, and on-server release tooling.

@@ -1954,6 +1954,130 @@ class PCKZ_Licensing {
 	}
 
 	/**
+	 * Release build warnings collected during the current request.
+	 *
+	 * @var array<int,string>
+	 */
+	private static $release_build_warnings = array();
+
+	/**
+	 * Whether PHP exec() is callable on this host.
+	 *
+	 * @return bool
+	 */
+	public static function exec_available() {
+		return self::is_php_function_available( 'exec' );
+	}
+
+	/**
+	 * Whether PHP shell_exec() is callable on this host.
+	 *
+	 * @return bool
+	 */
+	public static function shell_exec_available() {
+		return self::is_php_function_available( 'shell_exec' );
+	}
+
+	/**
+	 * Check function existence and disable_functions list.
+	 *
+	 * @param string $function Function name.
+	 * @return bool
+	 */
+	private static function is_php_function_available( $function ) {
+		$function = strtolower( sanitize_key( (string) $function ) );
+		if ( '' === $function || ! function_exists( $function ) ) {
+			return false;
+		}
+		$disabled = ini_get( 'disable_functions' );
+		if ( ! is_string( $disabled ) || '' === trim( $disabled ) ) {
+			return true;
+		}
+		$parts = array_map( 'trim', explode( ',', strtolower( $disabled ) ) );
+		return ! in_array( $function, $parts, true );
+	}
+
+	/**
+	 * Record a non-fatal release build warning and log it.
+	 *
+	 * @param string $message Warning message.
+	 */
+	private static function log_release_build_warning( $message ) {
+		$message = trim( (string) $message );
+		if ( '' === $message ) {
+			return;
+		}
+		self::$release_build_warnings[] = $message;
+		if ( function_exists( 'error_log' ) ) {
+			error_log( '[PCKZ Master Control] ' . $message ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+	}
+
+	/**
+	 * Return and clear release build warnings for the current request.
+	 *
+	 * @return array<int,string>
+	 */
+	public static function pop_release_build_warnings() {
+		$warnings = self::$release_build_warnings;
+		self::$release_build_warnings = array();
+		return is_array( $warnings ) ? $warnings : array();
+	}
+
+	/**
+	 * Append collected release warnings to an admin success/info notice.
+	 *
+	 * @param string $message Base notice message.
+	 * @param string $type    Notice type.
+	 * @return string Notice type after warnings are applied.
+	 */
+	private static function finalize_release_build_notice( $message, $type = 'notice-success' ) {
+		$warnings = self::pop_release_build_warnings();
+		if ( ! empty( $warnings ) ) {
+			$message .= ' ' . implode( ' ', $warnings );
+			if ( 'notice-success' === $type ) {
+				$type = 'notice-warning';
+			}
+		}
+		self::set_master_admin_notice( $message, $type );
+		return $type;
+	}
+
+	/**
+	 * Verify bundled min/protected assets exist when JS protection cannot run.
+	 *
+	 * @param string $plugin_root Plugin root directory.
+	 * @return true
+	 */
+	private static function verify_prebuilt_release_assets( $plugin_root ) {
+		$plugin_root = untrailingslashit( (string) $plugin_root );
+		$expected    = array(
+			'public/js/creator.min.js',
+			'public/js/creator.protected.js',
+			'public/js/preview-engine.min.js',
+			'public/js/preview-engine.protected.js',
+			'public/js/canonical-scene.min.js',
+			'public/js/canonical-scene.protected.js',
+		);
+		$missing = array();
+		foreach ( $expected as $rel ) {
+			if ( ! is_readable( $plugin_root . '/' . $rel ) ) {
+				$missing[] = $rel;
+			}
+		}
+		if ( ! empty( $missing ) ) {
+			self::log_release_build_warning(
+				sprintf(
+					/* translators: %s: comma-separated relative file paths */
+					__( 'Some prebuilt JS assets were missing (%s). The package was still generated using available files.', 'pckz-canonical-engine' ),
+					implode( ', ', $missing )
+				)
+			);
+		}
+		return true;
+	}
+
+	/**
 	 * Run JS/CSS protection tooling against a plugin directory.
 	 *
 	 * @param string $plugin_root Plugin directory.
@@ -1962,15 +2086,37 @@ class PCKZ_Licensing {
 	private static function run_js_protection_on_directory( $plugin_root ) {
 		$plugin_root = untrailingslashit( (string) $plugin_root );
 		$script      = trailingslashit( PCKZCE_PLUGIN_DIR ) . 'tools/build-js-protection.php';
-		if ( ! is_readable( $script ) ) {
+
+		if ( ! self::exec_available() ) {
+			self::verify_prebuilt_release_assets( $plugin_root );
+			self::log_release_build_warning(
+				__( 'Server exec() is disabled. JS protection step was skipped or fallback assets were used. Protected package was still generated.', 'pckz-canonical-engine' )
+			);
 			return true;
 		}
-		$php_bin = defined( 'PHP_BINARY' ) && is_string( PHP_BINARY ) && '' !== PHP_BINARY
-			? PHP_BINARY
-			: trim( (string) shell_exec( 'command -v php' ) );
-		if ( '' === $php_bin ) {
-			return new WP_Error( 'php_cli_missing', __( 'PHP CLI is required to harden JS/CSS assets during release builds.', 'pckz-canonical-engine' ) );
+
+		if ( ! is_readable( $script ) ) {
+			self::verify_prebuilt_release_assets( $plugin_root );
+			self::log_release_build_warning(
+				__( 'JS protection tooling was not found on this server. Prebuilt .min.js / .protected.js assets were used instead.', 'pckz-canonical-engine' )
+			);
+			return true;
 		}
+
+		$php_bin = '';
+		if ( defined( 'PHP_BINARY' ) && is_string( PHP_BINARY ) && '' !== PHP_BINARY && is_executable( PHP_BINARY ) ) {
+			$php_bin = PHP_BINARY;
+		} elseif ( self::shell_exec_available() ) {
+			$php_bin = trim( (string) shell_exec( 'command -v php' ) );
+		}
+		if ( '' === $php_bin ) {
+			self::verify_prebuilt_release_assets( $plugin_root );
+			self::log_release_build_warning(
+				__( 'PHP CLI is unavailable on this server. JS protection step was skipped; prebuilt assets were used and protected package generation continued.', 'pckz-canonical-engine' )
+			);
+			return true;
+		}
+
 		$command = sprintf(
 			'%s %s --root=%s 2>&1',
 			escapeshellarg( $php_bin ),
@@ -1981,14 +2127,15 @@ class PCKZ_Licensing {
 		$code   = 0;
 		exec( $command, $output, $code );
 		if ( 0 !== $code ) {
-			return new WP_Error(
-				'js_protection_failed',
+			self::verify_prebuilt_release_assets( $plugin_root );
+			self::log_release_build_warning(
 				sprintf(
 					/* translators: %s: command output */
-					__( 'JS/CSS protection build failed: %s', 'pckz-canonical-engine' ),
-					implode( "\n", $output )
+					__( 'JS/CSS protection build failed and was skipped: %s Prebuilt assets were used and protected package generation continued.', 'pckz-canonical-engine' ),
+					implode( ' ', $output )
 				)
 			);
+			return true;
 		}
 		return true;
 	}
@@ -2197,6 +2344,11 @@ class PCKZ_Licensing {
 			return $validated;
 		}
 
+		$warnings = self::$release_build_warnings;
+		if ( ! empty( $warnings ) ) {
+			$validated['build_warnings'] = $warnings;
+		}
+
 		return $validated;
 	}
 
@@ -2317,9 +2469,15 @@ class PCKZ_Licensing {
 			return true;
 		}
 
-		$zip_bin = trim( (string) shell_exec( 'command -v zip' ) );
+		$zip_bin = '';
+		if ( self::shell_exec_available() ) {
+			$zip_bin = trim( (string) shell_exec( 'command -v zip' ) );
+		}
 		if ( '' === $zip_bin ) {
 			return new WP_Error( 'zip_binary_missing', __( 'ZipArchive and system zip utility are unavailable on this server.', 'pckz-canonical-engine' ) );
+		}
+		if ( ! self::exec_available() ) {
+			return new WP_Error( 'exec_disabled', __( 'System zip utility requires exec(), which is disabled on this server. Enable the PHP ZipArchive extension instead.', 'pckz-canonical-engine' ) );
 		}
 		$command = sprintf(
 			'cd %s && %s -qr %s .',
@@ -4077,7 +4235,7 @@ class PCKZ_Licensing {
 				self::set_master_admin_notice( $published->get_error_message(), 'notice-error' );
 				self::redirect_master_control( 'releases' );
 			}
-			self::set_master_admin_notice(
+			self::finalize_release_build_notice(
 				sprintf(
 					/* translators: %s: version */
 					__( 'Protected package generated and published. Version %s is now the latest release for client updates.', 'pckz-canonical-engine' ),
@@ -4085,7 +4243,7 @@ class PCKZ_Licensing {
 				)
 			);
 		} else {
-			self::set_master_admin_notice(
+			self::finalize_release_build_notice(
 				sprintf(
 					/* translators: 1: filename, 2: version */
 					__( 'Protected package generated: %1$s (version %2$s). You can download or publish it from Master Control.', 'pckz-canonical-engine' ),
@@ -4207,7 +4365,7 @@ class PCKZ_Licensing {
 			self::redirect_master_control( 'releases' );
 		}
 
-		self::set_master_admin_notice(
+		self::finalize_release_build_notice(
 			sprintf(
 				/* translators: %s: version */
 				__( 'Automated release complete. Client protected build v%s is live for all licensed sites.', 'pckz-canonical-engine' ),
