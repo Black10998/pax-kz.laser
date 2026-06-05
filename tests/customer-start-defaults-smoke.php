@@ -75,14 +75,12 @@ foreach ( $map as $id => $value ) {
 }
 
 $refs = PCKZ_Ledos_Preview::layer_refs();
-$left_ref_x  = PCKZ_Ledos_Preview::icon_ref_x( 'left' );
-$right_ref_x = PCKZ_Ledos_Preview::icon_ref_x( 'right' );
-if ( abs( $left_ref_x - (float) ( $refs['iconLeft']['refX'] ?? 0 ) ) > 0.01 ) {
-	fwrite( STDERR, "FAIL: iconLeft refX must match ~0.5 cm inward shift\n" );
+if ( 817.5 !== (float) ( $refs['iconLeft']['refX'] ?? 0 ) ) {
+	fwrite( STDERR, "FAIL: iconLeft refX must be 817.5\n" );
 	exit( 1 );
 }
-if ( abs( $right_ref_x - (float) ( $refs['iconRight']['refX'] ?? 0 ) ) > 0.01 ) {
-	fwrite( STDERR, "FAIL: iconRight refX must match ~0.5 cm inward shift\n" );
+if ( 2748.5 !== (float) ( $refs['iconRight']['refX'] ?? 0 ) ) {
+	fwrite( STDERR, "FAIL: iconRight refX must be 2748.5\n" );
 	exit( 1 );
 }
 
