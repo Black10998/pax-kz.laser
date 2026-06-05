@@ -123,6 +123,8 @@ new PCKZ_Licensing();
 $required = array(
 	'admin_post_pckzce_clear_security_events',
 	'admin_post_pckzce_upload_protected_release',
+	'admin_post_pckzce_generate_protected_release',
+	'admin_post_pckzce_download_protected_release',
 	'admin_post_pckzce_publish_release',
 	'admin_post_pckzce_save_release_meta',
 );

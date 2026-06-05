@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__);
 
-$opts = getopt('', array('version:', 'build::', 'output::', 'channel::', 'slug::'));
+$opts = getopt('', array('version:', 'build::', 'output::', 'channel::', 'slug::', 'sync-version'));
 $version = isset($opts['version']) ? (string) $opts['version'] : '';
 $build = isset($opts['build']) ? (string) $opts['build'] : $version;
 $outputDir = isset($opts['output']) ? (string) $opts['output'] : ($root . '/dist');
@@ -24,6 +24,53 @@ $slug = isset($opts['slug']) ? (string) $opts['slug'] : 'pckz-canonical-engine';
 if ($version === '') {
 	fwrite(STDERR, "Missing required --version\n");
 	exit(1);
+}
+
+/**
+ * @param string $root Plugin root directory.
+ * @param string $version Release version.
+ * @param string $build_id Build identifier.
+ * @return int Exit code.
+ */
+function pckzce_sync_source_release_version( string $root, string $version, string $build_id ): int {
+	$main = $root . '/pckz-canonical-engine.php';
+	$readme = $root . '/readme.txt';
+	if ( ! is_readable( $main ) ) {
+		fwrite( STDERR, "Version sync failed: missing pckz-canonical-engine.php\n" );
+		return 1;
+	}
+	$content = (string) file_get_contents( $main );
+	$content = preg_replace( '/^\s*\*\s*Version:\s*.+$/m', ' * Version:           ' . $version, $content, 1 );
+	$content = preg_replace(
+		"/define\\s*\\(\\s*['\"]PCKZCE_VERSION['\"]\\s*,\\s*['\"][^'\"]+['\"]\\s*\\)/",
+		"define( 'PCKZCE_VERSION', '" . $version . "' )",
+		$content,
+		1
+	);
+	$content = preg_replace(
+		"/define\\s*\\(\\s*['\"]PCKZCE_BUILD['\"]\\s*,\\s*['\"][^'\"]+['\"]\\s*\\)/",
+		"define( 'PCKZCE_BUILD', '" . $build_id . "' )",
+		$content,
+		1
+	);
+	if ( false === file_put_contents( $main, $content ) ) {
+		fwrite( STDERR, "Version sync failed: could not write pckz-canonical-engine.php\n" );
+		return 1;
+	}
+	if ( is_readable( $readme ) ) {
+		$readme_content = (string) file_get_contents( $readme );
+		$readme_content = preg_replace( '/^Stable tag:\s*.+$/mi', 'Stable tag: ' . $version, $readme_content, 1 );
+		file_put_contents( $readme, $readme_content );
+	}
+	fwrite( STDOUT, "Synced source files to version {$version} (build {$build_id})\n" );
+	return 0;
+}
+
+if ( ! empty( $opts['sync-version'] ) ) {
+	$build = isset( $opts['build'] ) ? (string) $opts['build'] : $version;
+	if ( 0 !== pckzce_sync_source_release_version( $root, $version, $build ) ) {
+		exit( 1 );
+	}
 }
 
 /**

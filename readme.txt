@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.22
+Stable tag: 2.28.23
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,12 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.23 =
+
+* Master Control: generate publish-ready protected ZIP packages directly from the master installation with automatic version sync (plugin header, PCKZCE_VERSION, PCKZCE_BUILD, filename, manifest/checksums).
+* Protected release validation now checks all version fields together and reports detailed mismatch diagnostics (expected release version, filename, plugin header, constants, manifest).
+* Rejects invalid archive layouts (for example release-packages/ or repo-root folders instead of pckz-canonical-engine/).
 
 = 2.28.22 =
 
