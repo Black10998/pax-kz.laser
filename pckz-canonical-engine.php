@@ -18,8 +18,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PCKZCE_VERSION', '2.28.26' );
-define( 'PCKZCE_BUILD', '2.28.26.20260605-exec-fallback-hotfix' );
+define( 'PCKZCE_VERSION', '2.28.27' );
+define( 'PCKZCE_BUILD', '2.28.27.20260605-release-storage-management' );
 define( 'PCKZCE_PLUGIN_FILE', __FILE__ );
 define( 'PCKZCE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PCKZCE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

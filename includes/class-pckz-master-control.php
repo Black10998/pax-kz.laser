@@ -160,6 +160,8 @@ class PCKZ_Master_Control {
 			$key     = $type;
 			if ( 'rate_limit_exceeded' === $type ) {
 				$key = $type . '|' . sanitize_key( (string) ( $context['scope'] ?? 'unknown' ) );
+			} elseif ( in_array( $type, array( 'download_package_validation_failed', 'release_package_validation_failed' ), true ) ) {
+				$key = $type . '|' . sanitize_file_name( (string) ( $context['archive_filename'] ?? $context['zip_filename'] ?? 'unknown' ) );
 			} elseif ( ! empty( $event['domain'] ) ) {
 				$key = $type . '|' . sanitize_text_field( (string) $event['domain'] );
 			}
@@ -230,6 +232,7 @@ class PCKZ_Master_Control {
 			'integrity_mismatch'           => __( 'Integrity mismatch', 'pckz-canonical-engine' ),
 			'tamper_signals_acknowledged'  => __( 'Tamper signals acknowledged', 'pckz-canonical-engine' ),
 			'download_package_validation_failed' => __( 'Protected package validation failed', 'pckz-canonical-engine' ),
+			'release_package_validation_failed'  => __( 'Release package validation failed', 'pckz-canonical-engine' ),
 			'client_update_failed'         => __( 'Client update failed', 'pckz-canonical-engine' ),
 			'client_update_success'        => __( 'Client update success', 'pckz-canonical-engine' ),
 			'check_in_denied'              => __( 'Check-in denied', 'pckz-canonical-engine' ),

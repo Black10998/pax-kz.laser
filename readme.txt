@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.26
+Stable tag: 2.28.27
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,15 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.27 =
+
+* Release storage management page with full package inventory (type, version, build ID, validation/manifest/checksum/publish status, storage area, created date) plus search and filters.
+* Detailed protected archive validation errors now include ZIP filename, release version, storage location, all detected forbidden/master-only files, and recommended action.
+* Automatic quarantine for invalid packages containing master-only files; quarantined packages are excluded from publishing and client update distribution.
+* Storage maintenance tools: clean invalid packages, remove legacy releases, remove master-file packages, remove duplicate releases, rebuild metadata.
+* Improved monitoring alerts for release validation failures with filename, version, detection time, rule triggered, and recommended action.
+* Master Build ZIP uploads to the client protected workflow are blocked immediately with a clear explanation.
 
 = 2.28.24 =
 

@@ -20,6 +20,10 @@ $sections = array(
 		'label' => __( 'Software updates', 'pckz-canonical-engine' ),
 		'icon'  => 'dashicons-update',
 	),
+	'storage'  => array(
+		'label' => __( 'Release storage', 'pckz-canonical-engine' ),
+		'icon'  => 'dashicons-archive',
+	),
 	'licenses' => array(
 		'label' => __( 'Licenses & delivery', 'pckz-canonical-engine' ),
 		'icon'  => 'dashicons-admin-network',

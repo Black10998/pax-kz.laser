@@ -2421,3 +2421,50 @@
 		content: none;
 	}
 }
+
+.pckz-release-storage__summary {
+	margin-bottom: 12px;
+}
+
+.pckz-release-storage__maintenance-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 8px;
+}
+
+.pckz-release-storage__filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	margin: 0 0 12px;
+}
+
+.pckz-release-storage__filters label {
+	margin: 0;
+}
+
+.pckz-release-storage__issues {
+	margin: 6px 0 0;
+	padding-left: 18px;
+}
+
+.pckz-release-storage__reason {
+	margin-top: 4px;
+	color: #57606a;
+}
+
+.pckz-release-storage__bulk-actions {
+	margin-top: 8px;
+}
+
+.pckz-fleet-alert__meta-list {
+	margin: 6px 0 0;
+	padding-left: 18px;
+	color: #57606a;
+	font-size: 12px;
+}
+
+.pckz-fleet-alert__meta-list li + li {
+	margin-top: 2px;
+}
