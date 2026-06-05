@@ -1,6 +1,24 @@
 ## Production installation packages
 
-Canonical package for v2.28.23:
+Canonical package for v2.28.24:
+
+- `pckz-canonical-engine-2.28.24-protected.zip`
+
+SHA256:
+
+- `b0267665006b8219f7621129ee16eab5e77d1d4c32b02140289de5fa490b7440`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.24/pckz-canonical-engine-2.28.24-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.24-protected.zip`
+
+What changed in v2.28.24: Master Control UX redesign — clearer sections, unified styling, improved download history filtering.
+
+Previous release (v2.28.23):
 
 - `pckz-canonical-engine-2.28.23-protected.zip`
 

@@ -206,12 +206,12 @@ if ( strlen( $rendered ) < 500 ) {
 }
 
 $expected_markers = array(
-	'Master Control Center',
-	'Licensed Installations',
-	'pckz-fleet-dashboard',
-	'pckz-license-stats',
-	'Create License',
-	'Customer Packages',
+	'Master Control',
+	'Customer fleet',
+	'pckz-mc-overview',
+	'Create license',
+	'Generate client package',
+	'License registry',
 	'client.example.com',
 );
 foreach ( $expected_markers as $needle ) {

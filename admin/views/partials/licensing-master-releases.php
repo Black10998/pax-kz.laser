@@ -26,24 +26,23 @@ if ( ! empty( $protected_releases ) && is_array( $protected_releases ) ) {
 }
 ?>
 
-<section class="pckz-license-card pckz-license-card--full pckz-release-hub">
-	<header class="pckz-release-hub__header">
+<section class="pckz-mc-section pckz-release-hub">
+	<header class="pckz-mc-section__header pckz-release-hub__header">
 		<div>
-			<h2><?php esc_html_e( 'Software Updates', 'pckz-canonical-engine' ); ?></h2>
+			<h2><?php esc_html_e( 'Software updates', 'pckz-canonical-engine' ); ?></h2>
 			<p class="description">
-				<?php esc_html_e( 'Publish a new plugin version for all licensed customer sites. After you publish, client dashboards and WordPress update screens pick up the release automatically — usually within a minute.', 'pckz-canonical-engine' ); ?>
+				<?php esc_html_e( 'Build, upload, and publish protected update packages for all licensed customer sites.', 'pckz-canonical-engine' ); ?>
 			</p>
 		</div>
 		<div class="pckz-release-live" aria-live="polite">
-			<span class="pckz-release-live__label"><?php esc_html_e( 'Live version for clients', 'pckz-canonical-engine' ); ?></span>
+			<span class="pckz-release-live__label"><?php esc_html_e( 'Live for clients', 'pckz-canonical-engine' ); ?></span>
 			<strong class="pckz-release-live__version">
-				<?php echo esc_html( $published_version ? $published_version : __( 'Not published yet', 'pckz-canonical-engine' ) ); ?>
+				<?php echo esc_html( $published_version ? $published_version : __( 'Not published', 'pckz-canonical-engine' ) ); ?>
 			</strong>
 			<?php if ( $published_at ) : ?>
 				<span class="pckz-release-live__meta">
 					<?php
 					printf(
-						/* translators: %s: publish datetime */
 						esc_html__( 'Published %s', 'pckz-canonical-engine' ),
 						esc_html( $format_datetime( $published_at ) )
 					);
@@ -53,33 +52,44 @@ if ( ! empty( $protected_releases ) && is_array( $protected_releases ) ) {
 		</div>
 	</header>
 
+	<div class="pckz-mc-panel pckz-release-notes-panel">
+		<label for="pckz-shared-release-changelog"><strong><?php esc_html_e( 'Release notes (shared)', 'pckz-canonical-engine' ); ?></strong></label>
+		<p class="description"><?php esc_html_e( 'Optional notes shown to administrators on client sites. Used when you generate, upload, or publish below.', 'pckz-canonical-engine' ); ?></p>
+		<textarea id="pckz-shared-release-changelog" rows="3" class="large-text pckz-shared-changelog-source" placeholder="<?php esc_attr_e( 'Brief notes for this update…', 'pckz-canonical-engine' ); ?>"><?php echo esc_textarea( $published_notes ); ?></textarea>
+	</div>
+
+	<div class="pckz-mc-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Release workflow', 'pckz-canonical-engine' ); ?>">
+		<button type="button" class="pckz-mc-tabs__tab is-active" data-pckz-release-tab="generate" role="tab" aria-selected="true"><?php esc_html_e( 'Generate', 'pckz-canonical-engine' ); ?></button>
+		<button type="button" class="pckz-mc-tabs__tab" data-pckz-release-tab="upload" role="tab" aria-selected="false"><?php esc_html_e( 'Upload', 'pckz-canonical-engine' ); ?></button>
+		<?php if ( ! empty( $pending_releases ) ) : ?>
+			<button type="button" class="pckz-mc-tabs__tab" data-pckz-release-tab="publish" role="tab" aria-selected="false"><?php esc_html_e( 'Publish pending', 'pckz-canonical-engine' ); ?></button>
+		<?php endif; ?>
+	</div>
+
 	<div class="pckz-release-flow">
-		<div class="pckz-release-flow__step">
-			<span class="pckz-release-flow__number">1</span>
-			<div class="pckz-release-flow__body">
+		<div class="pckz-mc-panel pckz-release-tab-panel is-active" data-pckz-release-panel="generate">
 				<h3><?php esc_html_e( 'Generate protected package', 'pckz-canonical-engine' ); ?></h3>
 				<p class="description">
-					<?php esc_html_e( 'Build a publish-ready protected ZIP from this master installation. Version fields, manifest, checksum metadata, and filename are synchronized automatically.', 'pckz-canonical-engine' ); ?>
+					<?php esc_html_e( 'Build a publish-ready protected ZIP from this master installation.', 'pckz-canonical-engine' ); ?>
 				</p>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-release-generate-form">
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-release-generate-form pckz-mc-form" data-pckz-sync-changelog>
 					<?php wp_nonce_field( 'pckzce_generate_protected_release', 'pckzce_generate_release_nonce' ); ?>
 					<input type="hidden" name="action" value="pckzce_generate_protected_release">
 					<input type="hidden" name="redirect_section" value="releases">
 					<input type="hidden" name="requires" value="6.0">
 					<input type="hidden" name="requires_php" value="7.4">
 					<input type="hidden" name="tested" value="<?php echo esc_attr( get_bloginfo( 'version' ) ); ?>">
-					<p>
-						<label for="pckz-generate-version"><strong><?php esc_html_e( 'Release version', 'pckz-canonical-engine' ); ?></strong></label>
-						<input id="pckz-generate-version" type="text" class="regular-text" name="release_version" value="<?php echo esc_attr( PCKZCE_VERSION ); ?>" required>
-					</p>
-					<p>
-						<label for="pckz-generate-build"><strong><?php esc_html_e( 'Build ID', 'pckz-canonical-engine' ); ?></strong></label>
-						<input id="pckz-generate-build" type="text" class="regular-text" name="release_build" value="<?php echo esc_attr( PCKZCE_BUILD ); ?>" placeholder="<?php esc_attr_e( 'Auto-generated when left blank', 'pckz-canonical-engine' ); ?>">
-					</p>
-					<p>
-						<label for="pckz-generate-changelog"><strong><?php esc_html_e( 'What is new in this update? (optional)', 'pckz-canonical-engine' ); ?></strong></label>
-						<textarea id="pckz-generate-changelog" name="changelog" rows="3" class="large-text" placeholder="<?php esc_attr_e( 'Brief notes shown to administrators on client sites…', 'pckz-canonical-engine' ); ?>"><?php echo esc_textarea( $published_notes ); ?></textarea>
-					</p>
+					<div class="pckz-mc-form__grid">
+						<p>
+							<label for="pckz-generate-version"><strong><?php esc_html_e( 'Release version', 'pckz-canonical-engine' ); ?></strong></label>
+							<input id="pckz-generate-version" type="text" class="regular-text" name="release_version" value="<?php echo esc_attr( PCKZCE_VERSION ); ?>" required>
+						</p>
+						<p>
+							<label for="pckz-generate-build"><strong><?php esc_html_e( 'Build ID', 'pckz-canonical-engine' ); ?></strong></label>
+							<input id="pckz-generate-build" type="text" class="regular-text" name="release_build" value="<?php echo esc_attr( PCKZCE_BUILD ); ?>" placeholder="<?php esc_attr_e( 'Auto-generated when blank', 'pckz-canonical-engine' ); ?>">
+						</p>
+					</div>
+					<input type="hidden" name="changelog" value="">
 					<p>
 						<label>
 							<input type="checkbox" name="download_after_generate" value="1" checked>
@@ -93,9 +103,7 @@ if ( ! empty( $protected_releases ) && is_array( $protected_releases ) ) {
 						</label>
 					</p>
 					<p class="pckz-release-generate-actions">
-						<button type="submit" class="button button-primary button-hero">
-							<?php esc_html_e( 'Generate Protected Package', 'pckz-canonical-engine' ); ?>
-						</button>
+						<button type="submit" class="button button-primary"><?php esc_html_e( 'Generate protected package', 'pckz-canonical-engine' ); ?></button>
 						<?php
 						$bundled_download = PCKZ_Licensing::protected_release_filename_for_version( PCKZCE_VERSION );
 						$bundled_url      = wp_nonce_url(
@@ -120,32 +128,24 @@ if ( ! empty( $protected_releases ) && is_array( $protected_releases ) ) {
 						</a>
 					</p>
 				</form>
-			</div>
 		</div>
 
-		<div class="pckz-release-flow__step">
-			<span class="pckz-release-flow__number">2</span>
-			<div class="pckz-release-flow__body">
+		<div class="pckz-mc-panel pckz-release-tab-panel" data-pckz-release-panel="upload">
 				<h3><?php esc_html_e( 'Upload update package', 'pckz-canonical-engine' ); ?></h3>
 				<p class="description">
 					<?php esc_html_e( 'Or upload a protected ZIP that was generated elsewhere. The archive must use the pckz-canonical-engine/ layout and matching version fields.', 'pckz-canonical-engine' ); ?>
 				</p>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" class="pckz-release-upload-form">
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" class="pckz-release-upload-form pckz-mc-form" data-pckz-sync-changelog>
 					<?php wp_nonce_field( 'pckzce_upload_protected_release', 'pckzce_upload_release_nonce' ); ?>
 					<input type="hidden" name="action" value="pckzce_upload_protected_release">
 					<input type="hidden" name="redirect_section" value="releases">
 					<input type="hidden" name="requires" value="6.0">
 					<input type="hidden" name="requires_php" value="7.4">
 					<input type="hidden" name="tested" value="<?php echo esc_attr( get_bloginfo( 'version' ) ); ?>">
+					<input type="hidden" name="changelog" value="">
 					<p>
-						<label for="pckz-protected-package" class="pckz-release-file-label">
-							<strong><?php esc_html_e( 'Update file', 'pckz-canonical-engine' ); ?></strong>
-						</label>
+						<label for="pckz-protected-package"><strong><?php esc_html_e( 'Protected ZIP file', 'pckz-canonical-engine' ); ?></strong></label>
 						<input id="pckz-protected-package" type="file" name="protected_package" accept=".zip,application/zip" required>
-					</p>
-					<p>
-						<label for="pckz-upload-changelog"><strong><?php esc_html_e( 'What is new in this update? (optional)', 'pckz-canonical-engine' ); ?></strong></label>
-						<textarea id="pckz-upload-changelog" name="changelog" rows="3" class="large-text" placeholder="<?php esc_attr_e( 'Brief notes shown to administrators on client sites…', 'pckz-canonical-engine' ); ?>"><?php echo esc_textarea( $published_notes ); ?></textarea>
 					</p>
 					<p>
 						<label>
@@ -153,24 +153,17 @@ if ( ! empty( $protected_releases ) && is_array( $protected_releases ) ) {
 							<?php esc_html_e( 'Publish immediately for all licensed clients', 'pckz-canonical-engine' ); ?>
 						</label>
 					</p>
-					<p>
-						<button type="submit" class="button button-primary button-hero">
-							<?php esc_html_e( 'Upload & Publish Update', 'pckz-canonical-engine' ); ?>
-						</button>
-					</p>
+					<p><button type="submit" class="button button-primary"><?php esc_html_e( 'Upload & publish', 'pckz-canonical-engine' ); ?></button></p>
 				</form>
-			</div>
 		</div>
 
 		<?php if ( ! empty( $pending_releases ) ) : ?>
-			<div class="pckz-release-flow__step">
-				<span class="pckz-release-flow__number">3</span>
-				<div class="pckz-release-flow__body">
-					<h3><?php esc_html_e( 'Switch to an uploaded package', 'pckz-canonical-engine' ); ?></h3>
+			<div class="pckz-mc-panel pckz-release-tab-panel" data-pckz-release-panel="publish">
+					<h3><?php esc_html_e( 'Publish pending package', 'pckz-canonical-engine' ); ?></h3>
 					<p class="description">
 						<?php esc_html_e( 'If you uploaded without publishing, select a package here and publish it as the live client version.', 'pckz-canonical-engine' ); ?>
 					</p>
-					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-release-publish-form">
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-release-publish-form pckz-mc-form" data-pckz-sync-changelog>
 						<?php wp_nonce_field( 'pckzce_publish_release', 'pckzce_publish_release_nonce' ); ?>
 						<input type="hidden" name="action" value="pckzce_publish_release">
 						<input type="hidden" name="redirect_section" value="releases">
@@ -197,25 +190,18 @@ if ( ! empty( $protected_releases ) && is_array( $protected_releases ) ) {
 								<?php endforeach; ?>
 							</select>
 						</p>
-						<p>
-							<label for="pckz-publish-changelog"><strong><?php esc_html_e( 'Release notes (optional)', 'pckz-canonical-engine' ); ?></strong></label>
-							<textarea id="pckz-publish-changelog" name="changelog" rows="3" class="large-text"><?php echo esc_textarea( $published_notes ); ?></textarea>
-						</p>
-						<p>
-							<button type="submit" class="button button-primary" data-pckz-confirm="<?php esc_attr_e( 'Publish this package so all licensed client sites can install it?', 'pckz-canonical-engine' ); ?>">
-								<?php esc_html_e( 'Publish Selected Package', 'pckz-canonical-engine' ); ?>
-							</button>
-						</p>
+						<input type="hidden" name="changelog" value="">
+						<p><button type="submit" class="button button-primary" data-pckz-confirm="<?php esc_attr_e( 'Publish this package for all licensed client sites?', 'pckz-canonical-engine' ); ?>"><?php esc_html_e( 'Publish selected package', 'pckz-canonical-engine' ); ?></button></p>
 					</form>
-				</div>
 			</div>
 		<?php endif; ?>
 	</div>
 
 	<?php if ( ! empty( $protected_releases ) ) : ?>
-		<div class="pckz-release-inventory pckz-release-inventory--simple">
-			<h3><?php esc_html_e( 'Packages on this server', 'pckz-canonical-engine' ); ?></h3>
-			<table class="widefat striped">
+		<article class="pckz-mc-panel pckz-release-inventory">
+			<h3><?php esc_html_e( 'Stored protected packages', 'pckz-canonical-engine' ); ?></h3>
+			<div class="pckz-mc-table-wrap">
+			<table class="widefat striped pckz-mc-table">
 				<thead>
 					<tr>
 						<th><?php esc_html_e( 'Version', 'pckz-canonical-engine' ); ?></th>
@@ -257,10 +243,11 @@ if ( ! empty( $protected_releases ) && is_array( $protected_releases ) ) {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
-		</div>
+			</div>
+		</article>
 	<?php endif; ?>
 
-	<details class="pckz-release-advanced">
+	<details class="pckz-mc-advanced pckz-release-advanced">
 		<summary><?php esc_html_e( 'Advanced settings (technical)', 'pckz-canonical-engine' ); ?></summary>
 		<p class="description">
 			<?php esc_html_e( 'Only use this if support asked you to set a custom download URL or minimum client version.', 'pckz-canonical-engine' ); ?>
