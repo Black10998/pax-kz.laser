@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.23
+Stable tag: 2.28.24
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,12 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.24 =
+
+* Master Control UX redesign: five clear sections (Dashboard, Customer fleet, Software updates, Licenses & delivery, Activity & logs).
+* Removed duplicate stats, changelog fields, and license status cards; unified panel/table styling and responsive layouts.
+* Protected download history now supports instant client-side search/filter; release workflow uses tabbed Generate/Upload/Publish panels.
 
 = 2.28.23 =
 

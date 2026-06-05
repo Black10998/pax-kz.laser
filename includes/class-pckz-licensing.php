@@ -1616,8 +1616,7 @@ class PCKZ_Licensing {
 			),
 			10 * MINUTE_IN_SECONDS
 		);
-		wp_safe_redirect( admin_url( 'admin.php?page=pckz-license-server' ) );
-		exit;
+		self::redirect_master_control( 'licenses' );
 	}
 
 	/**
@@ -2797,8 +2796,7 @@ class PCKZ_Licensing {
 			array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' )
 		);
 		set_transient( 'pckzce_last_created_license', $key, 10 * MINUTE_IN_SECONDS );
-		wp_safe_redirect( admin_url( 'admin.php?page=pckz-license-server' ) );
-		exit;
+		self::redirect_master_control( 'licenses' );
 	}
 
 	/**
@@ -2931,7 +2929,7 @@ class PCKZ_Licensing {
 	/**
 	 * Redirect back to Master Control preserving list filters and active section.
 	 *
-	 * @param string $section Optional section slug (fleet|releases|licenses|management).
+	 * @param string $section Optional section slug (overview|fleet|releases|licenses|records|management).
 	 */
 	private static function redirect_master_control( $section = '' ) {
 		$args = array( 'page' => 'pckz-license-server' );
@@ -2946,6 +2944,9 @@ class PCKZ_Licensing {
 		}
 		if ( '' === $section && ! empty( $_POST['redirect_section'] ) ) {
 			$section = sanitize_key( wp_unslash( $_POST['redirect_section'] ) );
+		}
+		if ( 'management' === $section ) {
+			$section = 'records';
 		}
 		if ( $section ) {
 			$args['pckz_section'] = $section;

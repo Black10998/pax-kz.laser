@@ -74,16 +74,14 @@ $format_datetime = static function ( $raw ) {
 	<div class="pckz-license-hero">
 		<div>
 			<h1>
-				<?php echo esc_html( $master_mode ? __( 'Master Control Center', 'pckz-canonical-engine' ) : __( 'License Dashboard', 'pckz-canonical-engine' ) ); ?>
+				<?php echo esc_html( $master_mode ? __( 'Master Control', 'pckz-canonical-engine' ) : __( 'License Dashboard', 'pckz-canonical-engine' ) ); ?>
 			</h1>
 			<p>
-				<?php
-				echo esc_html(
+				<?php echo esc_html(
 					$master_mode
-						? __( 'Manage licenses, publish updates, and deliver customer packages from one place — designed for day-to-day administration without technical setup.', 'pckz-canonical-engine' )
+						? __( 'Central hub for licenses, customer fleet health, protected updates, and delivery packages.', 'pckz-canonical-engine' )
 						: __( 'This installation is restricted to product-level license status and update health only.', 'pckz-canonical-engine' )
-				);
-				?>
+				); ?>
 			</p>
 		</div>
 		<span class="pckz-license-badge <?php echo esc_attr( $master_mode ? 'is-success' : 'is-muted' ); ?>">
@@ -177,18 +175,6 @@ $format_datetime = static function ( $raw ) {
 
 		<div class="pckz-license-client-cards">
 			<article class="pckz-license-card">
-				<h2><?php esc_html_e( 'License Status', 'pckz-canonical-engine' ); ?></h2>
-				<p class="pckz-license-value">
-					<span class="pckz-license-badge <?php echo esc_attr( $badge_class( $client_summary['license_status'] ?? 'unknown' ) ); ?>">
-						<?php echo esc_html( $status_label( $client_summary['license_status'] ?? 'unknown' ) ); ?>
-					</span>
-				</p>
-				<?php if ( ! empty( $client_summary['license_reason'] ) ) : ?>
-					<p class="description"><?php echo esc_html( $client_summary['license_reason'] ); ?></p>
-				<?php endif; ?>
-			</article>
-
-			<article class="pckz-license-card">
 				<h2><?php esc_html_e( 'Connected Server', 'pckz-canonical-engine' ); ?></h2>
 				<p class="pckz-license-value"><?php echo esc_html( $client_summary['connected_server'] ?? '' ); ?></p>
 			</article>
@@ -272,108 +258,24 @@ $format_datetime = static function ( $raw ) {
 			</article>
 		</div>
 	<?php else : ?>
-		<div class="pckz-license-shell">
+		<div class="pckz-license-shell pckz-mc-shell">
 			<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-nav.php'; ?>
-			<div class="pckz-license-panels">
-		<div id="pckz-master-section-fleet">
-		<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-fleet.php'; ?>
-		</div>
-
-		<div class="pckz-license-stats">
-			<article class="pckz-license-stat">
-				<h3><?php esc_html_e( 'Licenses', 'pckz-canonical-engine' ); ?></h3>
-				<p><?php echo esc_html( number_format_i18n( (int) $stats['licenses_total'] ) ); ?></p>
-				<small><?php echo esc_html( sprintf( __( '%d active', 'pckz-canonical-engine' ), (int) $stats['licenses_active'] ) ); ?></small>
-			</article>
-			<article class="pckz-license-stat">
-				<h3><?php esc_html_e( 'Installations', 'pckz-canonical-engine' ); ?></h3>
-				<p><?php echo esc_html( number_format_i18n( (int) $stats['installations_total'] ) ); ?></p>
-				<small><?php echo esc_html( sprintf( __( '%d active / %d blocked', 'pckz-canonical-engine' ), (int) $stats['installations_active'], (int) $stats['installations_blocked'] ) ); ?></small>
-			</article>
-			<article class="pckz-license-stat">
-				<h3><?php esc_html_e( 'Protected Downloads', 'pckz-canonical-engine' ); ?></h3>
-				<p><?php echo esc_html( number_format_i18n( (int) $stats['downloads_total'] ) ); ?></p>
-				<small><?php echo esc_html( sprintf( __( '%d in last 24h', 'pckz-canonical-engine' ), (int) $stats['downloads_24h'] ) ); ?></small>
-			</article>
-		</div>
-
-		<div id="pckz-master-section-releases">
-		<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-releases.php'; ?>
-		</div>
-
-		<div id="pckz-master-section-licenses" class="pckz-license-grid">
-			<section class="pckz-license-card">
-				<h2><?php esc_html_e( 'Create License', 'pckz-canonical-engine' ); ?></h2>
-				<p class="description"><?php esc_html_e( 'Issue a new license key for a customer site.', 'pckz-canonical-engine' ); ?></p>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<?php wp_nonce_field( 'pckzce_create_license', 'pckzce_license_nonce' ); ?>
-					<input type="hidden" name="action" value="pckzce_create_license">
-					<p>
-						<label for="pckz-license-label"><strong><?php esc_html_e( 'Customer label', 'pckz-canonical-engine' ); ?></strong></label>
-						<input id="pckz-license-label" type="text" class="regular-text" name="label" autocomplete="off">
-					</p>
-					<p>
-						<label for="pckz-license-domains"><strong><?php esc_html_e( 'Allowed domains', 'pckz-canonical-engine' ); ?></strong></label>
-						<textarea id="pckz-license-domains" name="domains" rows="4" class="large-text" placeholder="client.example.com"></textarea>
-					</p>
-					<p>
-						<label for="pckz-license-max"><strong><?php esc_html_e( 'Max installations', 'pckz-canonical-engine' ); ?></strong></label>
-						<input id="pckz-license-max" type="number" class="small-text" min="1" name="max_installs" value="1">
-					</p>
-					<p>
-						<label><input type="checkbox" name="perm_export" value="1" checked> <?php esc_html_e( 'Allow export authorization', 'pckz-canonical-engine' ); ?></label><br>
-						<label><input type="checkbox" name="perm_updates" value="1" checked> <?php esc_html_e( 'Allow protected updates', 'pckz-canonical-engine' ); ?></label><br>
-						<label><input type="checkbox" name="perm_asset_sync" value="1" checked> <?php esc_html_e( 'Allow asset synchronization', 'pckz-canonical-engine' ); ?></label>
-					</p>
-					<p><button type="submit" class="button button-primary"><?php esc_html_e( 'Create License', 'pckz-canonical-engine' ); ?></button></p>
-				</form>
-			</section>
-
-			<section class="pckz-license-card">
-				<h2><?php esc_html_e( 'Customer Packages', 'pckz-canonical-engine' ); ?></h2>
-				<p class="description"><?php esc_html_e( 'Build a ready-to-install ZIP for a specific customer license.', 'pckz-canonical-engine' ); ?></p>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<?php wp_nonce_field( 'pckzce_generate_customer_package', 'pckzce_package_nonce' ); ?>
-					<input type="hidden" name="action" value="pckzce_generate_customer_package">
-					<p>
-						<label for="pckz-package-license"><strong><?php esc_html_e( 'License', 'pckz-canonical-engine' ); ?></strong></label>
-						<select id="pckz-package-license" name="license_id" required>
-							<option value=""><?php esc_html_e( 'Select license', 'pckz-canonical-engine' ); ?></option>
-							<?php foreach ( $licenses as $license_row ) : ?>
-								<option value="<?php echo esc_attr( (string) $license_row['id'] ); ?>">
-									<?php echo esc_html( sprintf( '#%d %s (%s)', (int) $license_row['id'], $license_row['label'] ? $license_row['label'] : __( 'No label', 'pckz-canonical-engine' ), $status_label( $license_row['status'] ) ) ); ?>
-								</option>
-							<?php endforeach; ?>
-						</select>
-					</p>
-					<p>
-						<label for="pckz-package-domains"><strong><?php esc_html_e( 'Allowed domains', 'pckz-canonical-engine' ); ?></strong></label>
-						<textarea id="pckz-package-domains" name="domains" rows="3" class="large-text" placeholder="client.example.com"><?php echo isset( $_GET['pckz_install_s'] ) ? esc_textarea( wp_unslash( $_GET['pckz_install_s'] ) ) : ''; ?></textarea>
-					</p>
-					<p>
-						<input type="hidden" name="perm_export" value="0">
-						<label><input type="checkbox" name="perm_export" value="1" checked> <?php esc_html_e( 'Enable export permission', 'pckz-canonical-engine' ); ?></label><br>
-						<input type="hidden" name="perm_updates" value="0">
-						<label><input type="checkbox" name="perm_updates" value="1" checked> <?php esc_html_e( 'Enable update permission', 'pckz-canonical-engine' ); ?></label><br>
-						<input type="hidden" name="export_authorize" value="0">
-						<label><input type="checkbox" name="export_authorize" value="1"> <?php esc_html_e( 'Require export authorization from master', 'pckz-canonical-engine' ); ?></label><br>
-						<input type="hidden" name="export_remote_mode" value="0">
-						<label><input type="checkbox" name="export_remote_mode" value="1"> <?php esc_html_e( 'Enable remote export mode', 'pckz-canonical-engine' ); ?></label><br>
-						<input type="hidden" name="export_remote_strict" value="0">
-						<label><input type="checkbox" name="export_remote_strict" value="1"> <?php esc_html_e( 'Strict remote export (no fallback)', 'pckz-canonical-engine' ); ?></label>
-					</p>
-					<p>
-						<label for="pckz-package-grace"><strong><?php esc_html_e( 'Grace period (minutes)', 'pckz-canonical-engine' ); ?></strong></label>
-						<input id="pckz-package-grace" type="number" class="small-text" min="5" max="1440" name="grace_minutes" value="120">
-					</p>
-					<p><button type="submit" class="button button-primary"><?php esc_html_e( 'Generate Client Package', 'pckz-canonical-engine' ); ?></button></p>
-				</form>
-			</section>
-		</div>
-
-		<div id="pckz-master-section-management">
-		<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-management.php'; ?>
-		</div>
+			<div class="pckz-license-panels pckz-mc-panels">
+				<div id="pckz-master-section-overview">
+					<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-overview.php'; ?>
+				</div>
+				<div id="pckz-master-section-fleet">
+					<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-fleet.php'; ?>
+				</div>
+				<div id="pckz-master-section-releases">
+					<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-releases.php'; ?>
+				</div>
+				<div id="pckz-master-section-licenses">
+					<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-licenses.php'; ?>
+				</div>
+				<div id="pckz-master-section-records">
+					<?php include PCKZCE_PLUGIN_DIR . 'admin/views/partials/licensing-master-records.php'; ?>
+				</div>
 			</div>
 		</div>
 	<?php endif; ?>

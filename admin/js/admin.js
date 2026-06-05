@@ -206,5 +206,63 @@
 				copied();
 			}
 		});
+
+		const sharedChangelog = licenseDashboard.find('#pckz-shared-release-changelog');
+		if (sharedChangelog.length) {
+			licenseDashboard.on('submit', '[data-pckz-sync-changelog]', function () {
+				const form = $(this);
+				const notes = String(sharedChangelog.val() || '');
+				form.find('input[name="changelog"]').val(notes);
+			});
+		}
+
+		licenseDashboard.on('click', '[data-pckz-release-tab]', function () {
+			const tab = String($(this).data('pckzReleaseTab') || '');
+			if (!tab) {
+				return;
+			}
+			licenseDashboard.find('[data-pckz-release-tab]').removeClass('is-active').attr('aria-selected', 'false');
+			$(this).addClass('is-active').attr('aria-selected', 'true');
+			licenseDashboard.find('[data-pckz-release-panel]').removeClass('is-active');
+			licenseDashboard.find('[data-pckz-release-panel="' + tab + '"]').addClass('is-active');
+		});
+
+		const downloadFilter = licenseDashboard.find('[data-pckz-download-filter]');
+		if (downloadFilter.length) {
+			const applyDownloadFilter = function () {
+				const query = String(downloadFilter.val() || '').trim().toLowerCase();
+				let visible = 0;
+				licenseDashboard.find('#pckz-download-history-table .pckz-download-row').each(function () {
+					const row = $(this);
+					if (row.hasClass('pckz-download-row--empty')) {
+						return;
+					}
+					const blob = String(row.data('search') || row.text() || '').toLowerCase();
+					const match = !query || blob.indexOf(query) !== -1;
+					row.toggleClass('is-hidden', !match);
+					if (match) {
+						visible += 1;
+					}
+				});
+				const countEl = licenseDashboard.find('[data-pckz-download-count]');
+				if (countEl.length) {
+					countEl.text(query ? visible + ' shown' : '');
+				}
+			};
+			downloadFilter.on('input', applyDownloadFilter);
+			applyDownloadFilter();
+		}
+
+		const licenseSelect = licenseDashboard.find('[data-pckz-license-select]');
+		const packageDomains = licenseDashboard.find('#pckz-package-domains');
+		if (licenseSelect.length && packageDomains.length) {
+			licenseSelect.on('change', function () {
+				const option = $(this).find('option:selected');
+				const domains = String(option.data('domains') || '').trim();
+				if (domains && !String(packageDomains.val() || '').trim()) {
+					packageDomains.val(domains);
+				}
+			});
+		}
 	}
 })(jQuery);
