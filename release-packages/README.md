@@ -1,6 +1,24 @@
 ## Production installation packages
 
-Canonical package for v2.28.19:
+Canonical package for v2.28.20:
+
+- `pckz-canonical-engine-2.28.20-protected.zip`
+
+SHA256:
+
+- `2e0470d3e8a23a3c35bd5fe7d399bbddc11bd6c82c87d67a6b5b4d9c96aa6813`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.20/pckz-canonical-engine-2.28.20-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.20-protected.zip`
+
+What changed in v2.28.20: default customer configurator layout (Lumi-Plate text, Instagram left, TikTok right, first picker font, no lines on first load) applied to all customers on first open; icon placement nudged inward ~1.5 design units (left refX 817.5, right refX 2748.5) with preview/export parity unchanged.
+
+Previous release (v2.28.19):
 
 - `pckz-canonical-engine-2.28.19-protected.zip`
 

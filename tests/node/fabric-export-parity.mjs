@@ -169,7 +169,7 @@ async function main() {
 		'file://' + path.join(pluginRoot, 'public/images/icons/lines-black.svg');
 
 	const refs = {
-		iconLeft: { refX: 816, refY: 1243, refWidth: 81, refHeight: 114 },
+		iconLeft: { refX: 817.5, refY: 1243, refWidth: 81, refHeight: 114 },
 		lines: { refX: 609, refY: 1173, refWidth: 2424, refHeight: 254 },
 		text: { refX: 1136, refY: 1256, refWidth: 1392, refHeight: 93 },
 	};

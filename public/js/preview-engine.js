@@ -9,8 +9,8 @@
 	const DEFAULT_DESIGN = { width: 3651, height: 2132 };
 	const DEFAULT_LAYERS = {
 		text: { refX: 1136, refY: 1256, refWidth: 1392, refHeight: 93, fontSize: 55, stroke: 30 },
-		iconLeft: { refX: 816, refY: 1243, refWidth: 81, refHeight: 114 },
-		iconRight: { refX: 2750, refY: 1243, refWidth: 81, refHeight: 114 },
+		iconLeft: { refX: 817.5, refY: 1243, refWidth: 81, refHeight: 114 },
+		iconRight: { refX: 2748.5, refY: 1243, refWidth: 81, refHeight: 114 },
 		iconBgLeft: { refX: 767, refY: 1244, refWidth: 178, refHeight: 113 },
 		iconBgRight: { refX: 2700, refY: 1244, refWidth: 178, refHeight: 113 },
 		lines: { refX: 609, refY: 1173, refWidth: 2424, refHeight: 254 },

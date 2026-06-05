@@ -38,7 +38,7 @@ const engine = new PreviewEngine(fabricCanvas, {
 	designWidth: 3651,
 	designHeight: 2132,
 	layers: {
-		iconLeft: { refX: 816, refY: 1243, refWidth: 81, refHeight: 114 },
+		iconLeft: { refX: 817.5, refY: 1243, refWidth: 81, refHeight: 114 },
 	},
 	iconCatalog: {},
 });

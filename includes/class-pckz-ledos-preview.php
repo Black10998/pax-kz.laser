@@ -51,13 +51,13 @@ class PCKZ_Ledos_Preview {
 				'stroke'    => 30,
 			),
 			'iconLeft'     => array(
-				'refX'      => 816,
+				'refX'      => 817.5,
 				'refY'      => 1243,
 				'refWidth'  => 81,
 				'refHeight' => 114,
 			),
 			'iconRight'    => array(
-				'refX'      => 2750,
+				'refX'      => 2748.5,
 				'refY'      => 1243,
 				'refWidth'  => 81,
 				'refHeight' => 114,
@@ -546,7 +546,17 @@ class PCKZ_Ledos_Preview {
 			);
 		}
 
-		return array(
+		$start_defaults = class_exists( 'PCKZ_Customizer_Options' )
+			? PCKZ_Customizer_Options::customer_start_default_map()
+			: array(
+				'custom_text'   => 'Lumi-Plate',
+				'symbol_links'  => 'instagram',
+				'symbol_rechts' => 'tiktok',
+				'font_family'   => 'Russo One',
+			);
+
+		return PCKZ_Customizer_Options::apply_customer_start_defaults(
+			array(
 			array(
 				'id'          => 'led_enabled',
 				'type'        => 'radio',
@@ -586,7 +596,7 @@ class PCKZ_Ledos_Preview {
 				'type'        => 'text',
 				'label'       => 'Text',
 				'placeholder' => 'Ihr Text',
-				'default'     => '',
+				'default'     => $start_defaults['custom_text'] ?? 'Lumi-Plate',
 				'maxlength'   => 40,
 				'required'    => true,
 			),
@@ -594,7 +604,7 @@ class PCKZ_Ledos_Preview {
 				'id'      => 'font_family',
 				'type'    => 'font',
 				'label'   => 'Schriftart',
-				'default' => 'Russo One',
+				'default' => $start_defaults['font_family'] ?? 'Russo One',
 			),
 			array(
 				'id'      => 'text_color',
@@ -608,7 +618,7 @@ class PCKZ_Ledos_Preview {
 				'type'    => 'icon_select',
 				'label'   => 'Symbol links',
 				'choices' => $icon_choices,
-				'default' => 'none',
+				'default' => $start_defaults['symbol_links'] ?? 'instagram',
 			),
 			array(
 				'id'      => 'icon_color_left',
@@ -623,7 +633,7 @@ class PCKZ_Ledos_Preview {
 				'type'    => 'icon_select',
 				'label'   => 'Symbol rechts',
 				'choices' => $icon_choices,
-				'default' => 'none',
+				'default' => $start_defaults['symbol_rechts'] ?? 'tiktok',
 			),
 			array(
 				'id'      => 'icon_color_right',
@@ -640,6 +650,7 @@ class PCKZ_Ledos_Preview {
 				'choices' => $line_choices,
 				'default' => 'none',
 			),
+			)
 		);
 	}
 
