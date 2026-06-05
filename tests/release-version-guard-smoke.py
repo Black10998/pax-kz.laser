@@ -22,7 +22,7 @@ def main() -> int:
         return 1
 
     # Built artifact must pass post-build validation when version matches.
-    version = "2.28.17"
+    version = "2.28.23"
     zip_path = ROOT / "release-packages" / f"pckz-canonical-engine-{version}-protected.zip"
     if not zip_path.is_file():
         print(f"FAIL: missing built ZIP at {zip_path}", file=sys.stderr)
