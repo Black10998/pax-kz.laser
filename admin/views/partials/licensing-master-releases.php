@@ -64,6 +64,7 @@ if ( ! empty( $protected_releases ) && is_array( $protected_releases ) ) {
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" class="pckz-release-upload-form">
 					<?php wp_nonce_field( 'pckzce_upload_protected_release', 'pckzce_upload_release_nonce' ); ?>
 					<input type="hidden" name="action" value="pckzce_upload_protected_release">
+					<input type="hidden" name="redirect_section" value="releases">
 					<input type="hidden" name="requires" value="6.0">
 					<input type="hidden" name="requires_php" value="7.4">
 					<input type="hidden" name="tested" value="<?php echo esc_attr( get_bloginfo( 'version' ) ); ?>">
@@ -103,6 +104,7 @@ if ( ! empty( $protected_releases ) && is_array( $protected_releases ) ) {
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-release-publish-form">
 						<?php wp_nonce_field( 'pckzce_publish_release', 'pckzce_publish_release_nonce' ); ?>
 						<input type="hidden" name="action" value="pckzce_publish_release">
+						<input type="hidden" name="redirect_section" value="releases">
 						<input type="hidden" name="requires" value="6.0">
 						<input type="hidden" name="requires_php" value="7.4">
 						<input type="hidden" name="tested" value="<?php echo esc_attr( get_bloginfo( 'version' ) ); ?>">
@@ -179,6 +181,7 @@ if ( ! empty( $protected_releases ) && is_array( $protected_releases ) ) {
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<?php wp_nonce_field( 'pckzce_save_release_meta', 'pckzce_release_nonce' ); ?>
 			<input type="hidden" name="action" value="pckzce_save_release_meta">
+			<input type="hidden" name="redirect_section" value="releases">
 			<p>
 				<label for="pckz-release-version"><strong><?php esc_html_e( 'Version number', 'pckz-canonical-engine' ); ?></strong></label>
 				<input id="pckz-release-version" type="text" class="regular-text" name="version" value="<?php echo esc_attr( $release_meta['version'] ?? '' ); ?>">

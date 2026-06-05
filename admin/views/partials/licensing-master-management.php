@@ -48,12 +48,6 @@ $status_help = array(
 );
 ?>
 
-<?php if ( ! empty( $admin_notice ) && is_array( $admin_notice ) && ! empty( $admin_notice['message'] ) ) : ?>
-	<div class="notice <?php echo esc_attr( $admin_notice['type'] ?? 'notice-success' ); ?> is-dismissible">
-		<p><?php echo esc_html( (string) $admin_notice['message'] ); ?></p>
-	</div>
-<?php endif; ?>
-
 <section class="pckz-license-card pckz-license-card--full pckz-license-help">
 	<h2><?php esc_html_e( 'Status Guide', 'pckz-canonical-engine' ); ?></h2>
 	<p class="description"><?php esc_html_e( 'Use this reference when reviewing licenses and installation records.', 'pckz-canonical-engine' ); ?></p>

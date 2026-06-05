@@ -117,6 +117,12 @@ $format_datetime = static function ( $raw ) {
 		<div class="notice notice-error"><p><?php echo esc_html( $package_error ); ?></p></div>
 	<?php endif; ?>
 
+	<?php if ( $master_mode && ! empty( $admin_notice ) && is_array( $admin_notice ) && ! empty( $admin_notice['message'] ) ) : ?>
+		<div class="notice <?php echo esc_attr( $admin_notice['type'] ?? 'notice-success' ); ?> is-dismissible">
+			<p><?php echo esc_html( (string) $admin_notice['message'] ); ?></p>
+		</div>
+	<?php endif; ?>
+
 	<?php if ( ! $master_mode ) : ?>
 		<?php if ( ! empty( $client_notice ) && is_array( $client_notice ) && ! empty( $client_notice['message'] ) ) : ?>
 			<div class="notice <?php echo esc_attr( $client_notice['type'] ?? 'notice-success' ); ?> is-dismissible">

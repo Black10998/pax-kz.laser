@@ -1,6 +1,6 @@
 <?php
 /**
- * Smoke test: master release metadata auto-sync on version bump.
+ * Smoke test: master release metadata is not auto-published from disk scans.
  *
  * @package PCKZCanonicalEngine
  */
@@ -168,12 +168,6 @@ if ( '' === $discovered_latest || version_compare( $discovered_latest, PCKZCE_VE
 	exit( 1 );
 }
 
-$expected_url = PCKZ_Licensing::default_protected_package_url( $discovered_latest );
-if ( '' === $expected_url || false === strpos( $expected_url, 'pckz-canonical-engine-' . $discovered_latest . '-protected.zip' ) ) {
-	fwrite( STDERR, "Default protected package URL should include versioned zip name.\n" );
-	exit( 1 );
-}
-
 update_option(
 	PCKZ_Licensing::OPTION_RELEASE_META,
 	array(
@@ -188,41 +182,22 @@ $licensing = new PCKZ_Licensing();
 $licensing->bootstrap();
 
 $meta = get_option( PCKZ_Licensing::OPTION_RELEASE_META, array() );
-if ( ( $meta['version'] ?? '' ) !== $discovered_latest ) {
-	fwrite( STDERR, "Release version should sync to newest available protected package.\n" );
+if ( ( $meta['version'] ?? '' ) !== '2.23.0' ) {
+	fwrite( STDERR, "Bootstrap must not auto-publish newer on-disk packages over an existing release.\n" );
 	exit( 1 );
 }
-if ( ( $meta['package_url'] ?? '' ) !== $expected_url ) {
-	fwrite( STDERR, "Release package URL should sync to default protected package URL.\n" );
-	exit( 1 );
-}
-if ( empty( $meta['package_sha256'] ) ) {
-	fwrite( STDERR, "Release package SHA256 should be refreshed during sync.\n" );
+if ( ( $meta['package_url'] ?? '' ) !== 'https://releases.example.test/pckz-canonical-engine-2.23.0-protected.zip' ) {
+	fwrite( STDERR, "Bootstrap must preserve the manually published package URL.\n" );
 	exit( 1 );
 }
 if ( ( $meta['changelog'] ?? '' ) !== 'Manual changelog' ) {
-	fwrite( STDERR, "Existing changelog should be preserved during auto-sync.\n" );
+	fwrite( STDERR, "Existing changelog should be preserved.\n" );
+	exit( 1 );
+}
+if ( empty( $meta['release_token'] ) ) {
+	fwrite( STDERR, "Repair should backfill release_token on published metadata.\n" );
 	exit( 1 );
 }
 
-// Same-version custom package URL must never be overwritten by bootstrap sync.
-update_option(
-	PCKZ_Licensing::OPTION_RELEASE_META,
-	array(
-		'version'      => $discovered_latest,
-		'package_url'  => 'https://downloads.example.test/manual-release.zip',
-		'package_sha256' => 'manual-sha',
-		'changelog'    => 'Manual custom release',
-		'requires'     => '6.0',
-	)
-);
-
-$licensing_same_version = new PCKZ_Licensing();
-$licensing_same_version->bootstrap();
-$meta_same = get_option( PCKZ_Licensing::OPTION_RELEASE_META, array() );
-if ( ( $meta_same['package_url'] ?? '' ) !== 'https://downloads.example.test/manual-release.zip' ) {
-	fwrite( STDERR, "Same-version custom package URL must be preserved.\n" );
-	exit( 1 );
-}
-
-echo "OK release-meta-sync-smoke: master release metadata auto-sync works\n";
+echo "OK release-meta-sync-smoke: master release metadata stays publish-controlled\n";
+exit( 0 );

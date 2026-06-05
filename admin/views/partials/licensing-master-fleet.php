@@ -166,12 +166,14 @@ $fleet_base_url = admin_url( 'admin.php?page=pckz-license-server' );
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-fleet-alerts__clear-form">
 						<?php wp_nonce_field( 'pckzce_clear_security_events', 'pckzce_clear_events_nonce' ); ?>
 						<input type="hidden" name="action" value="pckzce_clear_security_events">
+						<input type="hidden" name="redirect_section" value="fleet">
 						<input type="hidden" name="clear_mode" value="resolved">
 						<button type="submit" class="button"><?php esc_html_e( 'Clear resolved alerts', 'pckz-canonical-engine' ); ?></button>
 					</form>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-fleet-alerts__clear-form" data-pckz-confirm="<?php esc_attr_e( 'Delete all stored security alerts?', 'pckz-canonical-engine' ); ?>">
 						<?php wp_nonce_field( 'pckzce_clear_security_events', 'pckzce_clear_events_nonce' ); ?>
 						<input type="hidden" name="action" value="pckzce_clear_security_events">
+						<input type="hidden" name="redirect_section" value="fleet">
 						<input type="hidden" name="clear_mode" value="all">
 						<button type="submit" class="button button-link-delete"><?php esc_html_e( 'Clear all alerts', 'pckz-canonical-engine' ); ?></button>
 					</form>

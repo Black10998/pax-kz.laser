@@ -1,6 +1,24 @@
 ## Production installation packages
 
-Canonical package for v2.28.15:
+Canonical package for v2.28.16:
+
+- `pckz-canonical-engine-2.28.16-protected.zip`
+
+SHA256:
+
+- (build after merge — run `php tools/build-protected-release.php --version=2.28.16 --build=2.28.16.20260605-master-control-actions-publish-truth --output=release-packages`)
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.16/pckz-canonical-engine-2.28.16-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.16-protected.zip`
+
+What changed in v2.28.16: Master Control admin-post actions (clear alerts, publish/upload releases) redirect back with visible success/error notices instead of blank admin-post.php pages; Master Control publish is the sole source of truth for client updates (removed disk auto-sync); clients always follow the published release token/version from check-in/update-meta with stale cache rejection; release-token republish detection; admin-side update polling enabled.
+
+Previous release (v2.28.15):
 
 - `pckz-canonical-engine-2.28.15-protected.zip`
 
