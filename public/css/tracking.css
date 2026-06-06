@@ -448,9 +448,142 @@
 	font-size: 0.88rem;
 }
 
+/* Shipment truck animation (Sendungen verfolgen — shipped status only) */
+.pckz-tracking__shipment-loader {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	max-width: min(100%, 420px);
+	margin: 0 auto;
+	padding: 8px 0 4px;
+	box-sizing: border-box;
+}
+
+.pckz-tracking__shipment-loader .loader {
+	width: fit-content;
+	height: fit-content;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transform: scale(clamp(0.72, calc(100vw / 280), 1));
+	transform-origin: center center;
+}
+
+.pckz-tracking__shipment-loader .truckWrapper {
+	width: 200px;
+	height: 100px;
+	display: flex;
+	flex-direction: column;
+	position: relative;
+	align-items: center;
+	justify-content: flex-end;
+	overflow-x: hidden;
+}
+
+.pckz-tracking__shipment-loader .truckBody {
+	width: 130px;
+	height: fit-content;
+	margin-bottom: 6px;
+	animation: pckz-truck-motion 1s linear infinite;
+}
+
+@keyframes pckz-truck-motion {
+	0% {
+		transform: translateY(0px);
+	}
+	50% {
+		transform: translateY(3px);
+	}
+	100% {
+		transform: translateY(0px);
+	}
+}
+
+.pckz-tracking__shipment-loader .truckTires {
+	width: 130px;
+	height: fit-content;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0px 10px 0px 15px;
+	position: absolute;
+	bottom: 0;
+}
+
+.pckz-tracking__shipment-loader .truckTires svg {
+	width: 24px;
+}
+
+.pckz-tracking__shipment-loader .road {
+	width: 100%;
+	height: 1.5px;
+	background-color: #282828;
+	position: relative;
+	bottom: 0;
+	align-self: flex-end;
+	border-radius: 3px;
+}
+
+.pckz-tracking__shipment-loader .road::before {
+	content: "";
+	position: absolute;
+	width: 20px;
+	height: 100%;
+	background-color: #282828;
+	right: -50%;
+	border-radius: 3px;
+	animation: pckz-truck-road-animation 1.4s linear infinite;
+	border-left: 10px solid white;
+}
+
+.pckz-tracking__shipment-loader .road::after {
+	content: "";
+	position: absolute;
+	width: 10px;
+	height: 100%;
+	background-color: #282828;
+	right: -65%;
+	border-radius: 3px;
+	animation: pckz-truck-road-animation 1.4s linear infinite;
+	border-left: 4px solid white;
+}
+
+.pckz-tracking__shipment-loader .lampPost {
+	position: absolute;
+	bottom: 0;
+	right: -90%;
+	height: 90px;
+	animation: pckz-truck-road-animation 1.4s linear infinite;
+}
+
+@keyframes pckz-truck-road-animation {
+	0% {
+		transform: translateX(0px);
+	}
+	100% {
+		transform: translateX(-350px);
+	}
+}
+
+@media (min-width: 821px) and (max-width: 1100px) {
+	.pckz-tracking__shipment-loader {
+		max-width: 360px;
+	}
+}
+
 @media (max-width: 820px) {
 	.pckz-tracking {
 		padding: 0 10px;
+	}
+
+	.pckz-tracking__shipment-loader {
+		max-width: 100%;
+		padding-inline: 4px;
+	}
+
+	.pckz-tracking__shipment-loader .loader {
+		transform: scale(clamp(0.68, calc((100vw - 48px) / 280), 0.92));
 	}
 
 	.pckz-tracking__form {
@@ -459,5 +592,14 @@
 
 	.pckz-tracking__submit {
 		width: 100%;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pckz-tracking__shipment-loader .truckBody,
+	.pckz-tracking__shipment-loader .road::before,
+	.pckz-tracking__shipment-loader .road::after,
+	.pckz-tracking__shipment-loader .lampPost {
+		animation: none;
 	}
 }

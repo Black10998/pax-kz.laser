@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.27
+Stable tag: 2.28.28
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,11 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.28 =
+
+* Sendungen verfolgen: integrated the provided truck/shipping animation on the order tracking page when status is Versendet (shipped).
+* Animation is responsive on desktop, tablet, and mobile; tracking logic unchanged.
 
 = 2.28.27 =
 

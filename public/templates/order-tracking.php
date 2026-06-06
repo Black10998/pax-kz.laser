@@ -97,6 +97,7 @@ defined( 'ABSPATH' ) || exit;
 			if ( ! empty( $shipping['shipment_status'] ) ) {
 				$shipping_stage_label = (string) $shipping['shipment_status'];
 			}
+			$show_shipment_animation = ( 'shipped' === $normalized_status );
 			?>
 			<section class="pckz-tracking__result">
 				<header class="pckz-tracking__result-header">
@@ -108,6 +109,10 @@ defined( 'ABSPATH' ) || exit;
 				</header>
 
 				<p class="pckz-tracking__status-message"><?php echo esc_html( $status_message ); ?></p>
+
+				<?php if ( $show_shipment_animation ) : ?>
+					<?php include PCKZCE_PLUGIN_DIR . 'public/templates/partials/order-tracking-shipment-loader.php'; ?>
+				<?php endif; ?>
 
 				<section class="pckz-tracking__progress-card" aria-label="<?php esc_attr_e( 'Fortschrittsübersicht', 'pckz-canonical-engine' ); ?>">
 					<div class="pckz-tracking__progress-head">
