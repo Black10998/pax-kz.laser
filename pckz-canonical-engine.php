@@ -19,7 +19,7 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'PCKZCE_VERSION', '2.28.28' );
-define( 'PCKZCE_BUILD', '2.28.28.20260605-shipment-tracking-animation' );
+define( 'PCKZCE_BUILD', '2.28.28.20260606154011-client-protected' );
 define( 'PCKZCE_PLUGIN_FILE', __FILE__ );
 define( 'PCKZCE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PCKZCE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

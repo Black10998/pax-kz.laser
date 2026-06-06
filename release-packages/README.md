@@ -1,5 +1,21 @@
 ## Production installation packages
 
+### v2.28.28 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.28-master.zip`
+- SHA256: `061af44f67f2c2f7a514c57e6bdb856c6d31f05fc8bb9d758f97ae28db4a4ac1`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.28/pckz-canonical-engine-2.28.28-master.zip
+
+Sendungen verfolgen: truck/shipping animation when order status is Versendet (shipped).
+
+### v2.28.28 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.28-protected.zip`
+- SHA256: `cae19f2ff59190590420bef7780270aedff9656d7b1dda44620796a3937428b9`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.28/pckz-canonical-engine-2.28.28-protected.zip
+
+---
+
 ### v2.28.27 — Master Build (paxdesign.at only)
 
 - `pckz-canonical-engine-2.28.27-master.zip`
