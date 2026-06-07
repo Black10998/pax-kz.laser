@@ -297,6 +297,10 @@ class PCKZ_Line_Library {
 		if ( ! $slug || 'none' === $slug ) {
 			return false;
 		}
+		if ( self::is_naruto_eye_bundled_line( $slug ) && self::bundled_asset_path( $slug ) ) {
+			self::ensure_bundled_naruto_lines_visible();
+			return false;
+		}
 		if ( ! in_array( $slug, self::permanently_deleted_slugs(), true ) ) {
 			return false;
 		}
@@ -478,6 +482,11 @@ class PCKZ_Line_Library {
 	 * Self-heals sites that upgraded before SVGs shipped or still carry stale delete flags.
 	 */
 	public static function ensure_bundled_naruto_lines_visible() {
+		static $ran = false;
+		if ( $ran ) {
+			return;
+		}
+		$ran = true;
 		if ( ! self::bundled_asset_path( 'type_' . self::NARUTO_EYE_TYPE_MIN ) ) {
 			return;
 		}
@@ -1017,6 +1026,7 @@ class PCKZ_Line_Library {
 		if ( ! class_exists( 'PCKZ_Ledos_Preview' ) ) {
 			return array();
 		}
+		self::ensure_bundled_naruto_lines_visible();
 		return PCKZ_Ledos_Preview::line_catalog( false, true );
 	}
 

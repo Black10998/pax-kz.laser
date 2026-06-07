@@ -54,3 +54,5 @@ c70f7c9add91e164c96ecf658b517826c96d6e4fe3c0d632b2bedd664195d046  pckz-canonical
 76fb5a3edec6b49378543ad41ac474bd59e2b3e77ebdaa89f02a01b41648934e  pckz-canonical-engine-2.28.33-protected.zip
 c339295a6824f39cdc7849521d7df9475542582a49787de73aee52f62e8a78a5  pckz-canonical-engine-2.28.34-master.zip
 31b69205b131696a51c2b6bd071352a6080f0e22fb23844b683b59fe0150289c  pckz-canonical-engine-2.28.34-protected.zip
+ffb99a279cd5a7c6a1677c0c73b1b7e507b48fd4fe88d778a5665fcd84141e98  pckz-canonical-engine-2.28.35-master.zip
+31b9ab55bb6d4f5685e81eceb6fc539831d5bf21fc4377ec0fc17a554980eb74  pckz-canonical-engine-2.28.35-protected.zip
