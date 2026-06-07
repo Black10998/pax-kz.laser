@@ -25,8 +25,8 @@ class PCKZ_Line_Library {
 	const RETIRED_BUNDLED_TYPE_MIN = 21;
 	const RETIRED_BUNDLED_TYPE_MAX = 40;
 
-	/** Incorrect procedural red lines (removed; never register again unless re-imported). */
-	const REMOVED_RED_LINE_TYPE_MIN = 102;
+	/** Incorrect procedural red lines type_112+ (removed; type_102–111 are official bundled Naruto eye models). */
+	const REMOVED_RED_LINE_TYPE_MIN = 112;
 	const REMOVED_RED_LINE_TYPE_MAX = 121;
 
 	/**
@@ -110,12 +110,34 @@ class PCKZ_Line_Library {
 	}
 
 	/**
+	 * Bundled line slug => label manifest (type_102+ named models).
+	 *
+	 * @return array<string,string>
+	 */
+	public static function bundled_labels() {
+		static $cache = null;
+		if ( null !== $cache ) {
+			return $cache;
+		}
+		$file  = PCKZCE_PLUGIN_DIR . 'includes/bundled-line-labels.php';
+		$cache = is_readable( $file ) ? include $file : array();
+		if ( ! is_array( $cache ) ) {
+			$cache = array();
+		}
+		return $cache;
+	}
+
+	/**
 	 * Default label for a line slug (Typ N for type_N).
 	 *
 	 * @param string $slug Line slug.
 	 * @return string
 	 */
 	public static function default_label_for_slug( $slug ) {
+		$bundled = self::bundled_labels();
+		if ( ! empty( $bundled[ $slug ] ) ) {
+			return $bundled[ $slug ];
+		}
 		if ( preg_match( '/^type_(\d+)$/', $slug, $m ) ) {
 			return 'Typ ' . $m[1];
 		}
@@ -321,7 +343,7 @@ class PCKZ_Line_Library {
 	}
 
 	/**
-	 * Remove incorrect red line models type_102–type_121 from disk and options.
+	 * Remove incorrect red line models type_112–type_121 from disk and options.
 	 *
 	 * @return int Number of slugs processed.
 	 */
@@ -338,7 +360,7 @@ class PCKZ_Line_Library {
 	}
 
 	/**
-	 * After a successful LBRN2/AI import, re-enable type_102–type_111 in catalogs.
+	 * After bundled type_102–type_111 ship or import, re-enable them in catalogs.
 	 */
 	public static function register_imported_customer_red_lines() {
 		for ( $i = 102; $i <= 111; $i++ ) {

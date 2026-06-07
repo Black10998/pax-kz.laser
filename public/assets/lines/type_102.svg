@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="950" height="35" viewBox="0 0 950 35" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M370.3 12 L367.36 17.5 L371.56 24.1 L400.96 26.74 L403.9 17.5 L400.12 9.14 L373.24 14.2 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#FFFFFF" stroke="#000000" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M375.5 17.5 A9.5 9.5 0 1 0 394.5 17.5 A9.5 9.5 0 1 0 375.5 17.5 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#E02020" stroke="none"/>
+  <path d="M382.2 17.5 A2.8 2.8 0 1 0 387.8 17.5 A2.8 2.8 0 1 0 382.2 17.5 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#000000" stroke="none"/>
+  <path d="M389.7631 20.25 C390.7027 23.9733 392.3224 20.3104 384.7748 17.37 C395.0937 21.9104 389.3171 23.1733 389.7631 20.25 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#000000" stroke="none"/>
+  <path d="M380.2369 20.25 C376.5426 19.2021 378.9049 22.4362 385.2252 17.37 C376.1336 24.0362 377.9283 18.4021 380.2369 20.25 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#000000" stroke="none"/>
+  <path d="M385 12 C387.7546 9.3246 383.7727 9.7534 385 17.76 C383.7727 6.5534 387.7546 10.9246 385 12 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#000000" stroke="none"/>
+  <path d="M550.3 12 L547.36 17.5 L551.56 24.1 L580.96 26.74 L583.9 17.5 L580.12 9.14 L553.24 14.2 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#FFFFFF" stroke="#000000" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M555.5 17.5 A9.5 9.5 0 1 0 574.5 17.5 A9.5 9.5 0 1 0 555.5 17.5 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#E02020" stroke="none"/>
+  <path d="M562.2 17.5 A2.8 2.8 0 1 0 567.8 17.5 A2.8 2.8 0 1 0 562.2 17.5 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#000000" stroke="none"/>
+  <path d="M569.7631 20.25 C570.7027 23.9733 572.3224 20.3104 564.7748 17.37 C575.0937 21.9104 569.3171 23.1733 569.7631 20.25 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#000000" stroke="none"/>
+  <path d="M560.2369 20.25 C556.5426 19.2021 558.9049 22.4362 565.2252 17.37 C556.1336 24.0362 557.9283 18.4021 560.2369 20.25 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#000000" stroke="none"/>
+  <path d="M565 12 C567.7546 9.3246 563.7727 9.7534 565 17.76 C563.7727 6.5534 567.7546 10.9246 565 12 Z" fill-rule="evenodd" clip-rule="evenodd" fill="#000000" stroke="none"/>
+</svg>
