@@ -1,24 +1,40 @@
 # Naruto anime eye line models (type_102–type_111)
 
-Ten colored eye-pair models shipped with the plugin. Rebuild from definitions:
+**Do not use procedural or hand-drawn substitutes.** Import only from your reference sheet artwork.
+
+## Required source
+
+Commit the exact 2×5 reference sheet PNG you provided (lossless PNG):
+
+```
+import/naruto-eye-models/reference-sheet.png
+```
+
+The sheet must contain these 10 models only (reading order left→right, top→bottom):
+
+1. Sharingan (3 Tomoe)
+2. Mangekyo Sharingan
+3. Rinnegan
+4. Mangekyo (Itachi)
+5. Rinnegan (Tomoe)
+6. Byakugan
+7. Sage Mode
+8. Tenseigan
+9. Ketsuryugan
+10. Eien no Mangekyo Sharingan
+
+## Import
 
 ```bash
 bash tools/import-naruto-eye-line-models.sh
 ```
 
-Output: `public/assets/lines/type_102.svg` … `type_111.svg` — 950×35, multi-color, `preserve_colors` in catalog.
+This color-traces each grid cell with vtracer (labels/numbers stripped), preserves native colors, and writes:
 
-Labels: `includes/bundled-line-labels.php`
+`public/assets/lines/type_102.svg` … `type_111.svg` — 950×35, `preserve_colors` in catalog.
 
-| type | Label |
-|------|-------|
-| type_102 | Sharingan (3 Tomoe) |
-| type_103 | Mangekyo Sharingan |
-| type_104 | Rinnegan |
-| type_105 | Mangekyo (Itachi) |
-| type_106 | Rinnegan (Tomoe) |
-| type_107 | Byakugan |
-| type_108 | Sage Mode |
-| type_109 | Tenseigan |
-| type_110 | Ketsuryugan |
-| type_111 | Eien no Mangekyo Sharingan |
+Labels are defined in `includes/bundled-line-labels.php`.
+
+## Note for Cloud / CI builds
+
+Reference images attached in Cursor chat are **not** stored on the build VM. You must commit `reference-sheet.png` to this folder before import can run in CI or release builds.

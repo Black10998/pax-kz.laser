@@ -17,6 +17,13 @@ if ( 10 !== count( $expected ) ) {
 	exit( 1 );
 }
 
+$ref_png = PCKZCE_PLUGIN_DIR . 'import/naruto-eye-models/reference-sheet.png';
+if ( ! is_readable( $ref_png ) ) {
+	fwrite( STDERR, "FAIL missing import/naruto-eye-models/reference-sheet.png — commit the reference sheet, then run:\n" );
+	fwrite( STDERR, "  bash tools/import-naruto-eye-line-models.sh\n" );
+	exit( 1 );
+}
+
 $catalog = PCKZ_Ledos_Preview::line_catalog( true );
 $choices = PCKZ_Line_Library::get_customer_line_choices();
 
