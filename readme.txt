@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.36
+Stable tag: 2.28.37
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,15 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.37 =
+
+* Complete Naruto eye line integration fix: type_102–type_111 now always register in Admin Line Library and the customer Linien picker when bundled SVG assets exist.
+* Self-heal visibility on init and admin_init when stale permanent-delete, disabled, inactive, or admin-hidden flags remain from older purge builds.
+* Force-merge official Naruto bundled lines into catalog/line_types even when option flags would otherwise exclude them.
+* Block permanent admin delete of official Naruto eye models (type_102–111); assets remain bundled and catalog-visible.
+* Import pipeline prefers 10 separate source SVG files (`import/naruto-eye-models/sources/`) with label/number stripping; falls back to LightBurn LBT or reference sheet.
+* Regenerated type_102–type_111 SVGs (950×35, preserve_colors, no embedded text labels).
 
 = 2.28.32 =
 

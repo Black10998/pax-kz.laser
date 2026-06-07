@@ -2,9 +2,18 @@
 
 **Do not use procedural or hand-drawn substitutes.** Import only from your reference sheet artwork.
 
-## Required source
+## Required source (priority order)
 
-Preferred source is the LightBurn project (embedded 2×5 sheet thumbnail):
+**Preferred:** 10 separate source SVG files (labels/numbers stripped on import):
+
+```
+import/naruto-eye-models/sources/01-sharingan.svg
+import/naruto-eye-models/sources/02-mangekyo-sharingan.svg
+…
+import/naruto-eye-models/sources/10-eien-no-mangekyo.svg
+```
+
+**Fallback:** LightBurn project (embedded 2×5 sheet thumbnail):
 
 ```
 import/naruto-eye-models/10 line.vector naroto aye.lbt

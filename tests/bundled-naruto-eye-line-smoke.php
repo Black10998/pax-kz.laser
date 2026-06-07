@@ -17,10 +17,9 @@ if ( 10 !== count( $expected ) ) {
 	exit( 1 );
 }
 
-$ref_png = PCKZCE_PLUGIN_DIR . 'import/naruto-eye-models/reference-sheet.png';
-if ( ! is_readable( $ref_png ) ) {
-	fwrite( STDERR, "FAIL missing import/naruto-eye-models/reference-sheet.png — commit the reference sheet, then run:\n" );
-	fwrite( STDERR, "  bash tools/import-naruto-eye-line-models.sh\n" );
+$path102 = PCKZ_Ledos_Preview::line_assets_dir() . 'type_102.svg';
+if ( ! is_readable( $path102 ) ) {
+	fwrite( STDERR, "FAIL missing bundled type_102.svg — run: bash tools/import-naruto-eye-line-models.sh\n" );
 	exit( 1 );
 }
 
