@@ -29,6 +29,10 @@ class PCKZ_Line_Library {
 	const REMOVED_RED_LINE_TYPE_MIN = 112;
 	const REMOVED_RED_LINE_TYPE_MAX = 121;
 
+	/** Official bundled Naruto anime eye models shipped with the plugin. */
+	const NARUTO_EYE_TYPE_MIN = 102;
+	const NARUTO_EYE_TYPE_MAX = 111;
+
 	/**
 	 * Safe option getter for CLI smoke environments.
 	 *
@@ -361,13 +365,76 @@ class PCKZ_Line_Library {
 
 	/**
 	 * After bundled type_102–type_111 ship or import, re-enable them in catalogs.
+	 *
+	 * Clears stale permanent-delete markers from older purge builds (v2.27.31–2.27.34
+	 * removed type_102–121) and restores customer visibility + display order.
+	 *
+	 * @return int Number of slugs re-enabled.
 	 */
 	public static function register_imported_customer_red_lines() {
-		for ( $i = 102; $i <= 111; $i++ ) {
+		$count = 0;
+		for ( $i = self::NARUTO_EYE_TYPE_MIN; $i <= self::NARUTO_EYE_TYPE_MAX; $i++ ) {
 			$slug = 'type_' . $i;
-			if ( self::bundled_asset_path( $slug ) ) {
-				self::clear_permanently_deleted( $slug );
-				self::append_to_display_order( $slug );
+			if ( ! self::bundled_asset_path( $slug ) ) {
+				continue;
+			}
+			self::clear_permanently_deleted( $slug );
+			self::enable_bundled_slug_for_customers( $slug );
+			self::append_to_display_order( $slug );
+			++$count;
+		}
+		return $count;
+	}
+
+	/**
+	 * Ensure bundled Naruto eye models are visible when SVG assets exist on disk.
+	 *
+	 * Self-heals sites that upgraded before SVGs shipped or still carry stale delete flags.
+	 */
+	public static function ensure_bundled_naruto_lines_visible() {
+		if ( ! self::bundled_asset_path( 'type_' . self::NARUTO_EYE_TYPE_MIN ) ) {
+			return;
+		}
+		$needs_fix = false;
+		for ( $i = self::NARUTO_EYE_TYPE_MIN; $i <= self::NARUTO_EYE_TYPE_MAX; $i++ ) {
+			$slug = 'type_' . $i;
+			if ( ! self::bundled_asset_path( $slug ) ) {
+				continue;
+			}
+			if (
+				self::is_permanently_deleted_bundled( $slug )
+				|| ! self::is_active( $slug )
+				|| ! self::is_visible( $slug )
+			) {
+				$needs_fix = true;
+				break;
+			}
+		}
+		if ( $needs_fix ) {
+			self::register_imported_customer_red_lines();
+		}
+	}
+
+	/**
+	 * Re-enable a bundled slug in customer/admin catalogs (remove hide flags).
+	 *
+	 * @param string $slug Line slug.
+	 */
+	public static function enable_bundled_slug_for_customers( $slug ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( ! $slug || 'none' === $slug ) {
+			return;
+		}
+		foreach (
+			array(
+				self::OPTION_DISABLED,
+				self::OPTION_INACTIVE,
+				self::OPTION_ADMIN_HIDDEN,
+			) as $key
+		) {
+			$raw = self::sanitize_slug_list( self::option_get( $key, array() ) );
+			if ( in_array( $slug, $raw, true ) ) {
+				self::option_update( $key, array_values( array_diff( $raw, array( $slug ) ) ) );
 			}
 		}
 	}
@@ -1490,6 +1557,7 @@ class PCKZ_Line_Library {
 	 * Register frontend hooks (picker preview SVG endpoint).
 	 */
 	public static function register_hooks() {
+		add_action( 'init', array( __CLASS__, 'ensure_bundled_naruto_lines_visible' ), 6 );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_serve_picker_preview' ), 0 );
 	}
 

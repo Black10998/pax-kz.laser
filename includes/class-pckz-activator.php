@@ -70,6 +70,10 @@ class PCKZ_Activator {
 
 		self::maybe_create_demo_product();
 		self::maybe_backfill_preview_images();
+		if ( class_exists( 'PCKZ_Line_Library' ) ) {
+			PCKZ_Line_Library::purge_removed_red_line_models();
+			PCKZ_Line_Library::register_imported_customer_red_lines();
+		}
 		update_option( 'pckz_plugin_version', PCKZCE_VERSION );
 	}
 
