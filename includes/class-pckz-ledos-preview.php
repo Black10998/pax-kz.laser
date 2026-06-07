@@ -144,6 +144,10 @@ class PCKZ_Ledos_Preview {
 	 * @return array<string,string>
 	 */
 	public static function base_line_types() {
+		if ( class_exists( 'PCKZ_Line_Library' ) ) {
+			// Self-heal bundled Naruto eye visibility before building the catalog.
+			PCKZ_Line_Library::ensure_bundled_naruto_lines_visible();
+		}
 		$base = 'https://cdn.shopify.com/s/files/1/0746/3672/2449/files/';
 		$map  = array(
 			'none'   => '',
