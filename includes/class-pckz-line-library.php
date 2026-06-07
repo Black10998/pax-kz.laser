@@ -114,21 +114,107 @@ class PCKZ_Line_Library {
 	}
 
 	/**
-	 * Bundled line slug => label manifest (type_102+ named models).
+	 * Bundled Naruto eye line manifest (type_102–type_111).
 	 *
-	 * @return array<string,string>
+	 * @return array<string,array{label:string,preserve_colors?:bool}>
 	 */
-	public static function bundled_labels() {
+	public static function bundled_manifest() {
 		static $cache = null;
 		if ( null !== $cache ) {
 			return $cache;
 		}
-		$file  = PCKZCE_PLUGIN_DIR . 'includes/bundled-line-labels.php';
+		$file  = PCKZCE_PLUGIN_DIR . 'includes/bundled-line-manifest.php';
 		$cache = is_readable( $file ) ? include $file : array();
 		if ( ! is_array( $cache ) ) {
 			$cache = array();
 		}
 		return $cache;
+	}
+
+	/**
+	 * Bundled line slug => label manifest (type_102+ named models).
+	 *
+	 * @return array<string,string>
+	 */
+	public static function bundled_labels() {
+		$labels = array();
+		foreach ( self::bundled_manifest() as $slug => $row ) {
+			if ( is_array( $row ) && ! empty( $row['label'] ) ) {
+				$labels[ $slug ] = (string) $row['label'];
+			} elseif ( is_string( $row ) && '' !== $row ) {
+				$labels[ $slug ] = $row;
+			}
+		}
+		if ( ! empty( $labels ) ) {
+			return $labels;
+		}
+		$file = PCKZCE_PLUGIN_DIR . 'includes/bundled-line-labels.php';
+		$legacy = is_readable( $file ) ? include $file : array();
+		return is_array( $legacy ) ? $legacy : array();
+	}
+
+	/**
+	 * Whether slug is an official bundled Naruto eye model.
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function is_naruto_eye_bundled_line( $slug ) {
+		if ( ! preg_match( '/^type_(\d+)$/', sanitize_key( (string) $slug ), $m ) ) {
+			return false;
+		}
+		$n = (int) $m[1];
+		return $n >= self::NARUTO_EYE_TYPE_MIN && $n <= self::NARUTO_EYE_TYPE_MAX;
+	}
+
+	/**
+	 * Whether bundled line SVG is already on the standard 950×35 artboard.
+	 *
+	 * @param string      $slug Line slug.
+	 * @param string|null $svg  Optional SVG body.
+	 * @return bool
+	 */
+	public static function is_artboard_normalized_bundled_line( $slug, $svg = null ) {
+		if ( self::is_naruto_eye_bundled_line( $slug ) && self::bundled_asset_path( $slug ) ) {
+			return true;
+		}
+		if ( is_string( $svg ) && preg_match( '/viewBox="0 0 950 35"/', $svg ) ) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Whether a bundled slug should preserve native colors (manifest-first).
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function bundled_preserve_colors( $slug ) {
+		$slug = sanitize_key( (string) $slug );
+		$row  = self::bundled_manifest()[ $slug ] ?? null;
+		if ( is_array( $row ) && array_key_exists( 'preserve_colors', $row ) ) {
+			return ! empty( $row['preserve_colors'] );
+		}
+		return self::is_naruto_eye_bundled_line( $slug );
+	}
+
+	/**
+	 * Normalize line SVG for picker/preview display without heavy geometry on large bundled art.
+	 *
+	 * @param string $slug      Line slug.
+	 * @param string $svg       Source SVG.
+	 * @param bool   $connected Connected right-side continuation.
+	 * @return string
+	 */
+	public static function normalize_line_svg_for_display( $slug, $svg, $connected = false ) {
+		if ( ! class_exists( 'PCKZ_Svg_Library' ) || ! is_string( $svg ) || '' === $svg ) {
+			return (string) $svg;
+		}
+		if ( self::is_artboard_normalized_bundled_line( $slug, $svg ) ) {
+			return $svg;
+		}
+		return PCKZ_Svg_Library::normalize_line_svg_for_picker_preview( $svg, $connected );
 	}
 
 	/**
@@ -395,24 +481,7 @@ class PCKZ_Line_Library {
 		if ( ! self::bundled_asset_path( 'type_' . self::NARUTO_EYE_TYPE_MIN ) ) {
 			return;
 		}
-		$needs_fix = false;
-		for ( $i = self::NARUTO_EYE_TYPE_MIN; $i <= self::NARUTO_EYE_TYPE_MAX; $i++ ) {
-			$slug = 'type_' . $i;
-			if ( ! self::bundled_asset_path( $slug ) ) {
-				continue;
-			}
-			if (
-				self::is_permanently_deleted_bundled( $slug )
-				|| ! self::is_active( $slug )
-				|| ! self::is_visible( $slug )
-			) {
-				$needs_fix = true;
-				break;
-			}
-		}
-		if ( $needs_fix ) {
-			self::register_imported_customer_red_lines();
-		}
+		self::register_imported_customer_red_lines();
 	}
 
 	/**
@@ -1572,6 +1641,18 @@ class PCKZ_Line_Library {
 		if ( ! $slug || 'none' === $slug ) {
 			return '';
 		}
+		if ( self::is_artboard_normalized_bundled_line( $slug ) && class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			$asset = PCKZ_Ledos_Preview::line_types()[ $slug ] ?? '';
+			if ( $asset ) {
+				if ( ! function_exists( 'add_query_arg' ) ) {
+					return $asset . ( false === strpos( $asset, '?' ) ? '?' : '&' ) . 'pckz_v=' . rawurlencode( (string) self::picker_preview_version( $slug ) );
+				}
+				return add_query_arg(
+					array( 'pckz_v' => self::picker_preview_version( $slug ) ),
+					$asset
+				);
+			}
+		}
 		$base = home_url( '/' );
 		if ( ! function_exists( 'add_query_arg' ) ) {
 			return $base . '?pckz_line_picker=' . rawurlencode( $slug ) . '&pckz_v=' . rawurlencode( (string) self::picker_preview_version( $slug ) );
@@ -1626,7 +1707,7 @@ class PCKZ_Line_Library {
 			exit;
 		}
 		$connected = self::connected_right_for_slug( $slug );
-		$body      = PCKZ_Svg_Library::normalize_line_svg_for_picker_preview( $svg, $connected );
+		$body      = self::normalize_line_svg_for_display( $slug, $svg, $connected );
 		if ( function_exists( 'nocache_headers' ) ) {
 			nocache_headers();
 		}

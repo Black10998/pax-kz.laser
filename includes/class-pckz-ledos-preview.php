@@ -282,12 +282,17 @@ class PCKZ_Ledos_Preview {
 				'label'   => self::default_line_label( $slug ),
 				'custom'  => false,
 			);
-			$file = self::line_assets_dir() . $slug . '.svg';
-			if ( is_readable( $file ) && class_exists( 'PCKZ_Svg_Library' ) ) {
-				$svg_body = (string) file_get_contents( $file );
-				if ( 'preserve' === PCKZ_Svg_Library::line_color_mode_for_svg( $svg_body ) ) {
-					$entry['preserve_colors'] = true;
-					$entry['tintable']        = false;
+			if ( class_exists( 'PCKZ_Line_Library' ) && PCKZ_Line_Library::bundled_preserve_colors( $slug ) ) {
+				$entry['preserve_colors'] = true;
+				$entry['tintable']        = false;
+			} else {
+				$file = self::line_assets_dir() . $slug . '.svg';
+				if ( is_readable( $file ) && class_exists( 'PCKZ_Svg_Library' ) ) {
+					$svg_body = (string) file_get_contents( $file );
+					if ( 'preserve' === PCKZ_Svg_Library::line_color_mode_for_svg( $svg_body ) ) {
+						$entry['preserve_colors'] = true;
+						$entry['tintable']        = false;
+					}
 				}
 			}
 			$items[ $slug ] = $entry;

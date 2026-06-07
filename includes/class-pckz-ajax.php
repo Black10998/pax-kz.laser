@@ -531,7 +531,7 @@ class PCKZ_Ajax {
 			exit;
 		}
 		if ( class_exists( 'PCKZ_Svg_Library' ) ) {
-			$svg = PCKZ_Svg_Library::normalize_line_svg_for_picker_preview( $svg, PCKZ_Line_Library::connected_right_for_slug( $slug ) );
+			$svg = PCKZ_Line_Library::normalize_line_svg_for_display( $slug, $svg, PCKZ_Line_Library::connected_right_for_slug( $slug ) );
 		}
 		$this->send_svg_response( $svg );
 	}
