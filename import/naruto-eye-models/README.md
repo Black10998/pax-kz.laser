@@ -4,7 +4,13 @@
 
 ## Required source
 
-Commit the exact 2×5 reference sheet PNG you provided (lossless PNG):
+Preferred source is the LightBurn project (embedded 2×5 sheet thumbnail):
+
+```
+import/naruto-eye-models/10 line.vector naroto aye.lbt
+```
+
+The import script will extract the embedded thumbnail into:
 
 ```
 import/naruto-eye-models/reference-sheet.png
@@ -37,4 +43,4 @@ Labels are defined in `includes/bundled-line-labels.php`.
 
 ## Note for Cloud / CI builds
 
-Reference images attached in Cursor chat are **not** stored on the build VM. You must commit `reference-sheet.png` to this folder before import can run in CI or release builds.
+Reference images attached in Cursor chat are **not** stored on the build VM. Commit the `.lbt` (or `reference-sheet.png`) to this folder before import can run in CI or release builds.
