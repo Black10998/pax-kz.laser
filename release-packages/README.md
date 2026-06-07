@@ -1,5 +1,21 @@
 ## Production installation packages
 
+### v2.28.34 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.34-master.zip`
+- SHA256: `c339295a6824f39cdc7849521d7df9475542582a49787de73aee52f62e8a78a5`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.34/pckz-canonical-engine-2.28.34-master.zip
+
+Fix: re-imported the 10 Naruto eye line models (type_102–type_111) from the latest customer-provided reference sheet and bundled them for the customer Linien picker.
+
+### v2.28.34 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.34-protected.zip`
+- SHA256: `31b69205b131696a51c2b6bd071352a6080f0e22fb23844b683b59fe0150289c`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.34/pckz-canonical-engine-2.28.34-protected.zip
+
+---
+
 ### v2.28.33 — Master Build (paxdesign.at only)
 
 - `pckz-canonical-engine-2.28.33-master.zip`
