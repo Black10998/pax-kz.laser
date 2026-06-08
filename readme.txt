@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.44
+Stable tag: 2.28.45
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,12 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.45 =
+
+* Hotfix: configurator no longer stays stuck on “Vorschau wird geladen…” after upgrading from broken v2.28.29–v2.28.44 builds.
+* Restores fast default preview boot (collect form defaults before first render, load line/icon catalogs via runtime config, use direct preview URLs instead of slow secure-token round-trips).
+* Rebuilds protected/minified creator and preview-engine assets so protected-asset mode serves the corrected boot logic.
 
 = 2.28.44 =
 

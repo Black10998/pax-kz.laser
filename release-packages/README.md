@@ -1,5 +1,21 @@
 ## Production installation packages
 
+### v2.28.45 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.45-master.zip`
+- SHA256: `8bf7404d5c60dcd36d578c9a03b79402b2dcf691343fe03996f5dfef138cc271`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.45/pckz-canonical-engine-2.28.45-master.zip
+
+Hotfix: configurator loading — fixes stuck “Vorschau wird geladen…” screen; restores fast default preview on page load.
+
+### v2.28.45 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.45-protected.zip`
+- SHA256: `7fdebd65a99779311acc3ba0ebc11127e4aac15d8a42ff1104224ebe2ce25a65`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.45/pckz-canonical-engine-2.28.45-protected.zip
+
+---
+
 ### v2.28.44 — Master Build (paxdesign.at only)
 
 - `pckz-canonical-engine-2.28.44-master.zip`
