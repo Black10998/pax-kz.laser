@@ -91,10 +91,10 @@ class PCKZ_Ledos_Preview {
 	const LINE_ASSETS_DIR = 'public/assets/lines/';
 
 	/**
-	 * First / last bundled line type index (model 21–81 SVGs).
+	 * First / last bundled line type index (model 21–91 SVGs).
 	 */
 	const BUNDLED_LINE_TYPE_MIN = 21;
-	const BUNDLED_LINE_TYPE_MAX = 81;
+	const BUNDLED_LINE_TYPE_MAX = 101;
 
 	/**
 	 * Absolute path to bundled line SVG directory.
@@ -115,7 +115,7 @@ class PCKZ_Ledos_Preview {
 	}
 
 	/**
-	 * Line overlay SVGs shipped with the plugin (type_21–type_81).
+	 * Line overlay SVGs shipped with the plugin (type_21–type_101; type_102+ when imported).
 	 *
 	 * @return array<string,string>
 	 */
@@ -282,17 +282,12 @@ class PCKZ_Ledos_Preview {
 				'label'   => self::default_line_label( $slug ),
 				'custom'  => false,
 			);
-			if ( class_exists( 'PCKZ_Line_Library' ) && PCKZ_Line_Library::bundled_preserve_colors( $slug ) ) {
-				$entry['preserve_colors'] = true;
-				$entry['tintable']        = false;
-			} else {
-				$file = self::line_assets_dir() . $slug . '.svg';
-				if ( is_readable( $file ) && class_exists( 'PCKZ_Svg_Library' ) ) {
-					$svg_body = (string) file_get_contents( $file );
-					if ( 'preserve' === PCKZ_Svg_Library::line_color_mode_for_svg( $svg_body ) ) {
-						$entry['preserve_colors'] = true;
-						$entry['tintable']        = false;
-					}
+			$file = self::line_assets_dir() . $slug . '.svg';
+			if ( is_readable( $file ) && class_exists( 'PCKZ_Svg_Library' ) ) {
+				$svg_body = (string) file_get_contents( $file );
+				if ( 'preserve' === PCKZ_Svg_Library::line_color_mode_for_svg( $svg_body ) ) {
+					$entry['preserve_colors'] = true;
+					$entry['tintable']        = false;
 				}
 			}
 			$items[ $slug ] = $entry;
@@ -353,32 +348,6 @@ class PCKZ_Ledos_Preview {
 		}
 
 		return $items;
-	}
-
-	/**
-	 * Icon catalog metadata for JS preview (direct preview URLs; no secure tokens).
-	 *
-	 * @return array<string,array>
-	 */
-	public static function icon_catalog_for_js() {
-		$catalog = array();
-		foreach ( self::icon_catalog( false ) as $slug => $data ) {
-			if ( 'none' === $slug || ! is_array( $data ) ) {
-				continue;
-			}
-			$preview = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
-			if ( ! $preview ) {
-				continue;
-			}
-			$catalog[ $slug ] = array(
-				'url'             => esc_url_raw( $preview ),
-				'preview'         => esc_url_raw( $preview ),
-				'label'           => $data['label'] ?? $slug,
-				'tintable'        => ! empty( $data['tintable'] ),
-				'preserve_colors' => ! empty( $data['preserve_colors'] ),
-			);
-		}
-		return $catalog;
 	}
 
 	/**

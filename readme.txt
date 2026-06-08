@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.43
+Stable tag: 2.28.44
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,80 +55,11 @@ Yes. Each creator product has configurable canvas and safe zone dimensions in mi
 
 == Changelog ==
 
-= 2.28.43 =
+= 2.28.44 =
 
-* Remove mistaken procedural bundled line models type_82–type_101 (empty wide black picker entries); purge on activate/upgrade so they cannot reappear after update, reinstall, or cache clear.
-* Restore original default configurator state: Lumi-Plate text, fiery red CDN line (type_1), Instagram left, TikTok right on first page load.
-* `BUNDLED_LINE_TYPE_MAX` lowered to 81; product configs with purged line defaults migrate to type_1 automatically.
-
-= 2.28.42 =
-
-* Fix configurator default preview on page load: collect form defaults before the first asset resolve/render so default line, text, and icons appear immediately.
-* Restore fast line/icon switching: re-resolve assets when selections change and skip incomplete resolve cache hits.
-* Serve icon preview URLs directly from the catalog (CDN/bundled/custom) instead of slow secure token admin-ajax URLs; icon backgrounds use the direct CDN layer URL.
-* Expose `iconCatalog` in runtime config for client-side preview fallbacks; optimize SVG loading (fetch only same-origin display/cached line SVGs, direct URL load for CDN icons).
-
-= 2.28.41 =
-
-* Remove all bundled Naruto eye line models (type_102–type_111): assets, manifest, forced registration, self-heal visibility, protected delete, and display-normalized bundled files.
-* Line models type_102+ are now manual-only via Admin Line Library SVG upload or URL import; uploaded colored SVGs keep native colors and use fast direct/cached preview URLs.
-* Upgrade purges legacy bundled type_102–111 from disk while preserving custom uploads at the same slug.
-* `BUNDLED_LINE_TYPE_MAX` restored to 101; no hardcoded Naruto-specific catalog or preview logic remains.
-
-= 2.28.40 =
-
-* Comprehensive live preview line fix: ship display-normalized SVG files at `public/assets/lines/display/` for compact bundled lines (Naruto eyes type_102–111) so picker thumbnails and Fabric canvas load the same direct `.svg` URL as working line models.
-* `picker_preview_url()` now prefers static display assets, then custom upload previews, then `admin-ajax.php?action=pckzce_line_preview` (reliable fallback vs homepage query strings blocked by cache/CDN).
-* Preview engine: client-side compact-line normalization fallback, uncapped width boost (12×), no-store fetch for line SVGs, and blocks raw export bundled URLs from reaching the canvas.
-* Activator regenerates display previews on upgrade; runtime config re-triggers line resolve after catalog load.
-
-= 2.28.39 =
-
-* Fix live preview frame line rendering for Naruto eye models and uploaded/imported SVG lines: selected lines now appear on the Fabric canvas immediately at the same scaled width as built-in line models.
-* Live preview uses the same display-normalized picker preview URL (`?pckz_line_picker=`) as the Linien selector thumbnail, not the raw bundled asset or secure admin-ajax token URL.
-* Restore `ledosPreview` (line catalog, line types, layer refs) via the runtime config AJAX endpoint for canvas fallbacks.
-* Asset batch resolve no longer fails entirely when a single asset (e.g. font) is missing; line resolve includes `preview_url` and separate `export_url`.
-* Preview engine: fetch-based SVG loading, draw-bounds width boost for compact art, and picker DOM fallback when AJAX resolve is empty.
-
-= 2.28.38 =
-
-* Fix uploaded and URL-imported line SVG preview: compact artwork on 950×35 artboards (including Naruto eye models) now scales to fill the line preview area in admin, customer Linien picker, and live canvas preview.
-* Display normalization uses drawable path coverage instead of viewBox size alone, so valid viewBox SVGs are not broken while narrow designs still scale like built-in CDN lines.
-* Admin Line Library thumbnails and cached custom preview files use the same picker display scaling as bundled lines; export and LightBurn continue to use original upload assets with colors preserved.
-
-= 2.28.37 =
-
-* Complete Naruto eye line integration fix: type_102–type_111 now always register in Admin Line Library and the customer Linien picker when bundled SVG assets exist.
-* Self-heal visibility on init and admin_init when stale permanent-delete, disabled, inactive, or admin-hidden flags remain from older purge builds.
-* Force-merge official Naruto bundled lines into catalog/line_types even when option flags would otherwise exclude them.
-* Block permanent admin delete of official Naruto eye models (type_102–111); assets remain bundled and catalog-visible.
-* Import pipeline prefers 10 separate source SVG files (`import/naruto-eye-models/sources/`) with label/number stripping; falls back to LightBurn LBT or reference sheet.
-* Regenerated type_102–type_111 SVGs (950×35, preserve_colors, no embedded text labels).
-
-= 2.28.32 =
-
-* Fix protected ZIP runtime asset loading: when source JS/CSS files are stripped, frontend now auto-falls back to min/protected assets even if the protection toggle is off.
-* Restores creator page scripts/styles in protected installs (no blank/boot-stuck creator).
-* Keeps Naruto eye lines (type_102–type_111) visible/selectable with preserved colors and bundled labels via manifest-based registration.
-
-= 2.28.31 =
-
-* Fix creator page failures and missing Naruto eye models in the Linien picker caused by heavy SVG geometry processing on large traced bundled lines.
-* Register type_102–type_111 via bundled-line-manifest.php (labels + preserve_colors) without parsing multi-megabyte SVG bodies on every request.
-* Serve pre-normalized 950×35 Naruto eye SVGs directly for picker thumbnails and live preview (same asset path as other bundled lines).
-* Always re-enable bundled Naruto eye models on init when SVG assets exist (clears stale delete/disabled flags from older purge builds).
-
-= 2.28.30 =
-
-* Fix Naruto anime eye line models (type_102–111) not appearing in the customer Linien picker after upgrade from older purge builds.
-* Re-enable bundled type_102–111 on plugin activation and on init when SVG assets exist but stale permanent-delete or disabled flags remain.
-* Clear incorrect permanent-delete, disabled, inactive, and admin-hidden flags for official Naruto eye models when bundled SVGs are present.
-
-= 2.28.29 =
-
-* Add 10 bundled Naruto anime eye line models (type_102–type_111) traced from the customer reference sheet with native colors preserved.
-* Models register in the Linien picker with exact reference names: Sharingan, Mangekyo Sharingan, Rinnegan, Byakugan, Sage Mode, Tenseigan, Ketsuryugan, and related variants.
-* Reference import pipeline: `tools/import-naruto-eye-line-models.sh` (vtracer color trace, 950×35 artboard).
+* Full restore to the exact v2.28.28 master code and frontend behavior (configurator, default preview, line/icon switching, line model system, and performance).
+* Removed all experimental changes added after v2.28.28 (Naruto eye models, display-normalization preview logic, procedural line purges, manifest/self-heal catalog changes, and broken protected-asset loading paths).
+* Activation and upgrade now automatically clear stale update transients, runtime/config cache, line preview cache, and other data left by broken newer versions so the restored behavior loads immediately.
 
 = 2.28.28 =
 

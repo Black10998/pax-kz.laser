@@ -70,12 +70,7 @@ class PCKZ_Activator {
 
 		self::maybe_create_demo_product();
 		self::maybe_backfill_preview_images();
-		if ( class_exists( 'PCKZ_Line_Library' ) ) {
-			PCKZ_Line_Library::purge_removed_red_line_models();
-			PCKZ_Line_Library::purge_legacy_bundled_naruto_models();
-			PCKZ_Line_Library::purge_legacy_procedural_bundled_line_models();
-			PCKZ_Line_Library::ensure_bundled_display_previews();
-		}
+		self::clear_broken_version_stale_cache();
 		update_option( 'pckz_plugin_version', PCKZCE_VERSION );
 	}
 
@@ -85,10 +80,10 @@ class PCKZ_Activator {
 	public static function maybe_upgrade() {
 		$stored = get_option( 'pckz_plugin_version', '' );
 		if ( version_compare( (string) $stored, PCKZCE_VERSION, '<' ) ) {
+			self::clear_broken_version_stale_cache();
 			self::maybe_backfill_preview_images();
 			self::maybe_upgrade_product_config();
 			self::maybe_upgrade_customer_start_defaults();
-			self::maybe_fixup_purged_line_defaults();
 			self::maybe_merge_default_fonts();
 			if ( class_exists( 'PCKZ_Font_Library' ) ) {
 				PCKZ_Font_Library::clear_google_font_cache();
@@ -101,11 +96,80 @@ class PCKZ_Activator {
 			}
 			if ( class_exists( 'PCKZ_Line_Library' ) ) {
 				PCKZ_Line_Library::purge_removed_red_line_models();
-				PCKZ_Line_Library::purge_legacy_bundled_naruto_models();
-				PCKZ_Line_Library::purge_legacy_procedural_bundled_line_models();
-				PCKZ_Line_Library::ensure_bundled_display_previews();
+				PCKZ_Line_Library::register_imported_customer_red_lines();
 			}
 			update_option( 'pckz_plugin_version', PCKZCE_VERSION );
+		}
+	}
+
+	/**
+	 * Invalidate caches and stale runtime data left by broken releases after v2.28.28.
+	 */
+	public static function clear_broken_version_stale_cache() {
+		if ( class_exists( 'PCKZ_Licensing' ) && method_exists( 'PCKZ_Licensing', 'invalidate_client_update_caches' ) ) {
+			PCKZ_Licensing::invalidate_client_update_caches();
+		} else {
+			delete_transient( 'pckzce_update_meta_cache' );
+			if ( function_exists( 'delete_site_transient' ) ) {
+				delete_site_transient( 'update_plugins' );
+			}
+		}
+
+		if ( class_exists( 'PCKZ_Font_Library' ) ) {
+			PCKZ_Font_Library::clear_google_font_cache();
+		}
+
+		delete_option( 'pckzce_client_asset_sync' );
+		if ( function_exists( 'wp_cache_delete' ) ) {
+			wp_cache_delete( 'pckzce_client_asset_sync', 'options' );
+			wp_cache_delete( 'pckz_settings', 'options' );
+		}
+
+		$upload = wp_upload_dir();
+		if ( ! empty( $upload['basedir'] ) ) {
+			$cache_dirs = array(
+				trailingslashit( $upload['basedir'] ) . 'pckz-canonical-engine/lines',
+				trailingslashit( $upload['basedir'] ) . 'pckz-canonical-engine/cache',
+				trailingslashit( $upload['basedir'] ) . 'pckz-canonical-engine/runtime',
+			);
+			foreach ( $cache_dirs as $dir ) {
+				if ( ! is_dir( $dir ) ) {
+					continue;
+				}
+				if ( class_exists( 'PCKZ_Line_Library' ) && false !== strpos( $dir, '/lines' ) ) {
+					for ( $i = 102; $i <= 121; $i++ ) {
+						$slug    = 'type_' . $i;
+						$preview = $dir . '/' . PCKZ_Line_Library::preview_filename( $slug );
+						if ( is_readable( $preview ) ) {
+							if ( function_exists( 'wp_delete_file' ) ) {
+								wp_delete_file( $preview );
+							} else {
+								// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+								@unlink( $preview );
+							}
+						}
+					}
+					continue;
+				}
+				$entries = @scandir( $dir );
+				if ( ! is_array( $entries ) ) {
+					continue;
+				}
+				foreach ( $entries as $entry ) {
+					if ( '.' === $entry || '..' === $entry ) {
+						continue;
+					}
+					$path = $dir . '/' . $entry;
+					if ( is_file( $path ) ) {
+						if ( function_exists( 'wp_delete_file' ) ) {
+							wp_delete_file( $path );
+						} else {
+							// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+							@unlink( $path );
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -193,49 +257,6 @@ class PCKZ_Activator {
 				continue;
 			}
 			update_post_meta( $post_id, '_pckz_config', $config );
-		}
-	}
-
-	/**
-	 * Reset stored linien defaults that point at purged bundled line slugs.
-	 */
-	public static function maybe_fixup_purged_line_defaults() {
-		if ( ! class_exists( 'PCKZ_Line_Library' ) || ! class_exists( 'PCKZ_Customizer_Options' ) || ! class_exists( 'PCKZ_Post_Type' ) ) {
-			return;
-		}
-
-		$fallback = PCKZ_Line_Library::default_customer_line_slug();
-		$posts    = get_posts(
-			array(
-				'post_type'   => PCKZ_Post_Type::POST_TYPE,
-				'post_status' => 'any',
-				'numberposts' => -1,
-				'fields'      => 'ids',
-			)
-		);
-
-		foreach ( $posts as $post_id ) {
-			$config = get_post_meta( $post_id, '_pckz_config', true );
-			if ( ! is_array( $config ) || empty( $config['customer_options'] ) ) {
-				continue;
-			}
-			$changed = false;
-			foreach ( $config['customer_options'] as $idx => $option ) {
-				if ( 'linien' !== ( $option['id'] ?? '' ) ) {
-					continue;
-				}
-				$default = sanitize_key( (string) ( $option['default'] ?? '' ) );
-				if ( ! $default || 'none' === $default ) {
-					continue;
-				}
-				if ( PCKZ_Line_Library::is_purged_bundled_line_slug( $default ) ) {
-					$config['customer_options'][ $idx ]['default'] = $fallback;
-					$changed                                      = true;
-				}
-			}
-			if ( $changed ) {
-				update_post_meta( $post_id, '_pckz_config', $config );
-			}
 		}
 	}
 

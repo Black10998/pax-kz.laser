@@ -71,4 +71,30 @@ if ( empty( $js_catalog[ $slug ]['preserve_colors'] ) ) {
 
 PCKZ_Line_Library::delete_custom( $slug );
 
+$bundled = 'type_102';
+$bundled_path = PCKZ_Ledos_Preview::line_assets_dir() . $bundled . '.svg';
+if ( is_readable( $bundled_path ) ) {
+	$catalog = PCKZ_Ledos_Preview::line_catalog( true );
+	if ( empty( $catalog[ $bundled ]['preserve_colors'] ) || ! empty( $catalog[ $bundled ]['tintable'] ) ) {
+		fwrite( STDERR, "FAIL bundled matte-red line {$bundled} should preserve colors in catalog\n" );
+		exit( 1 );
+	}
+	$choices = PCKZ_Line_Library::get_customer_line_choices();
+	$found_bundled = false;
+	foreach ( $choices as $choice ) {
+		if ( ( $choice['value'] ?? '' ) === $bundled ) {
+			$found_bundled = true;
+			if ( empty( $choice['preserve_colors'] ) ) {
+				fwrite( STDERR, "FAIL bundled preserve line should expose preserve_colors in customer choices\n" );
+				exit( 1 );
+			}
+			break;
+		}
+	}
+	if ( ! $found_bundled ) {
+		fwrite( STDERR, "FAIL {$bundled} missing from customer line choices\n" );
+		exit( 1 );
+	}
+}
+
 echo "OK line-color-preserve-smoke\n";

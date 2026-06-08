@@ -152,7 +152,7 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 		><?php echo esc_textarea( $payload_json ); ?></textarea>
 
 		<p class="description">
-			<?php esc_html_e( 'Types 21–40 are retired. Delete removes built-in SVG files permanently and clears all library references. Incorrect procedural models type_82–101, type_112–121, and legacy bundled type_102–111 are purged automatically on upgrade.', 'pckz-canonical-engine' ); ?>
+			<?php esc_html_e( 'Types 21–40 are retired. Delete removes built-in SVG files permanently and clears all library references. Incorrect red models type_102–121 are purged automatically on upgrade.', 'pckz-canonical-engine' ); ?>
 		</p>
 
 		<p class="pckz-library-toolbar">
@@ -190,7 +190,7 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 					}
 					++$row_index;
 					$is_custom       = ! empty( $data['custom'] );
-					$thumb           = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
+					$thumb           = ( $is_custom && ! empty( $data['url'] ) ) ? $data['url'] : ( ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' ) );
 					$label           = $data['label'] ?? $slug;
 					$customer_visible = PCKZ_Line_Library::is_visible( $slug );
 					$admin_visible    = PCKZ_Line_Library::admin_visible_flag( $slug );

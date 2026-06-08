@@ -34,8 +34,8 @@ if ( $coverage < 0.88 || $coverage <= $raw_cov + 0.02 ) {
 }
 
 $url = PCKZ_Line_Library::picker_preview_url( 'type_41' );
-if ( false === strpos( $url, 'display/type_41.svg' ) && false === strpos( $url, 'pckz_line_picker=type_41' ) ) {
-	fwrite( STDERR, "FAIL picker_preview_url must use display asset or picker endpoint\n" );
+if ( false === strpos( $url, 'pckz_line_picker=type_41' ) ) {
+	fwrite( STDERR, "FAIL picker_preview_url missing query arg\n" );
 	exit( 1 );
 }
 
@@ -44,9 +44,8 @@ $found   = false;
 foreach ( $choices as $choice ) {
 	if ( 'type_41' === ( $choice['value'] ?? '' ) ) {
 		$found = true;
-		$img = (string) ( $choice['img'] ?? '' );
-		if ( false === strpos( $img, 'display/type_41.svg' ) && false === strpos( $img, 'pckz_line_picker' ) ) {
-			fwrite( STDERR, "FAIL customer choice should use display or picker preview URL\n" );
+		if ( false === strpos( (string) ( $choice['img'] ?? '' ), 'pckz_line_picker' ) ) {
+			fwrite( STDERR, "FAIL customer choice should use picker preview URL\n" );
 			exit( 1 );
 		}
 		break;

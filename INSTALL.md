@@ -57,7 +57,7 @@ python3 tools/pckz-line-import-convert.py your-design.lbrn2 /tmp/out.svg --fill-
 
 ## Line models (Typ 21–91)
 
-Bundled divider ornaments are included as `public/assets/lines/type_21.svg` … `type_81.svg`.  
+Bundled divider ornaments are included as `public/assets/lines/type_21.svg` … `type_91.svg`.  
 They appear in the customer **Linien** selector automatically (types **1–20** still use Cloudlift CDN).
 
 To regenerate SVGs after editing LightBurn sources in `import/line-models/`:

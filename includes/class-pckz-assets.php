@@ -169,8 +169,7 @@ class PCKZ_Assets {
 		if ( '' === $relative_path ) {
 			return $relative_path;
 		}
-		$source_path = PCKZCE_PLUGIN_DIR . $relative_path;
-		if ( is_readable( $source_path ) && ! self::prefer_protected_assets( $settings ) ) {
+		if ( ! self::prefer_protected_assets( $settings ) ) {
 			return $relative_path;
 		}
 		$candidates = self::production_candidates( $relative_path );

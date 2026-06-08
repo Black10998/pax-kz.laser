@@ -4,8 +4,21 @@
  * Customer configurator initial layout defaults.
  */
 define( 'ABSPATH', __DIR__ );
-require_once __DIR__ . '/smoke-bootstrap.php';
-
+if ( ! function_exists( '__' ) ) {
+	function __( $s, $d = '' ) {
+		return $s;
+	}
+}
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $key ) {
+		return strtolower( preg_replace( '/[^a-z0-9_\-]/', '', (string) $key ) );
+	}
+}
+if ( ! function_exists( 'esc_url_raw' ) ) {
+	function esc_url_raw( $url ) {
+		return (string) $url;
+	}
+}
 if ( ! defined( 'PCKZCE_PLUGIN_URL' ) ) {
 	define( 'PCKZCE_PLUGIN_URL', 'https://example.test/wp-content/plugins/pckz-canonical-engine/' );
 }
@@ -22,7 +35,7 @@ require_once dirname( __DIR__ ) . '/includes/class-pckz-post-type.php';
 
 $map = PCKZ_Customizer_Options::customer_start_default_map();
 $expected_font = PCKZ_Font_Library::default_customer_font_family();
-$expected_line = 'type_1';
+$expected_line = PCKZ_Line_Library::default_customer_line_slug();
 $fonts = PCKZ_Font_Library::get_customer_fonts();
 
 if ( 'Lumi-Plate' !== ( $map['custom_text'] ?? '' ) ) {
@@ -42,7 +55,7 @@ if ( ( $map['font_family'] ?? '' ) !== $expected_font ) {
 	exit( 1 );
 }
 if ( ( $map['linien'] ?? '' ) !== $expected_line || 'none' === ( $map['linien'] ?? '' ) ) {
-	fwrite( STDERR, "FAIL: linien default must be fiery red CDN line (type_1)\n" );
+	fwrite( STDERR, "FAIL: linien default must be first line in picker ({$expected_line})\n" );
 	exit( 1 );
 }
 if ( empty( $fonts[0]['family'] ) || $expected_font !== $fonts[0]['family'] ) {
@@ -71,4 +84,4 @@ if ( 2748.5 !== (float) ( $refs['iconRight']['refX'] ?? 0 ) ) {
 	exit( 1 );
 }
 
-echo "OK: customer start defaults, type_1 line default, and icon refX positions\n";
+echo "OK: customer start defaults, first line default, and icon refX positions\n";

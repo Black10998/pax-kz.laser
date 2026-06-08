@@ -20,7 +20,7 @@
 	const LINE_PREVIEW_WIDTH_COVERAGE = 0.88;
 	const LINE_PREVIEW_TARGET_WIDTH = 0.96;
 	const LINE_PREVIEW_TARGET_HEIGHT = 0.92;
-	const LINE_PREVIEW_MAX_DISPLAY_BOOST = 12;
+	const LINE_PREVIEW_MAX_DISPLAY_BOOST = 4;
 
 	if (typeof fabric !== 'undefined' && fabric.Object) {
 		fabric.Object.NUM_FRACTION_DIGITS = 8;
@@ -219,130 +219,6 @@
 			}
 			// Customer line color picker removed — keep native SVG colors (white/default art).
 			return { tintable: false, color: null };
-		}
-
-		/**
-		 * Resolve the display-normalized SVG URL for live preview / picker parity.
-		 *
-		 * @param {string} slug Line slug.
-		 * @param {object} resolvedLine Resolved asset row.
-		 * @return {string}
-		 */
-		resolveLinePreviewUrl(slug, resolvedLine) {
-			const row = resolvedLine && typeof resolvedLine === 'object' ? resolvedLine : {};
-			const exportLike = /\/public\/assets\/lines\/type_\d+\.svg(?:\?|$)/i;
-			const isRawBundledExport = (url) =>
-				!!(url && exportLike.test(String(url)) && !/\/display\//i.test(String(url)));
-			if ( row.preview_url && !isRawBundledExport( row.preview_url ) ) {
-				return row.preview_url;
-			}
-			if ( row.url && !isRawBundledExport( row.url ) ) {
-				return row.url;
-			}
-			if ( slug && this.lineTypes[slug] ) {
-				return this.lineTypes[slug];
-			}
-			const catalog = slug && this.lineCatalog[slug] ? this.lineCatalog[slug] : null;
-			if ( catalog ) {
-				return catalog.preview || catalog.url || this.lineTypes[slug] || '';
-			}
-			return '';
-		}
-
-		/**
-		 * Client-side display normalization when compact line art reaches the canvas unpadded.
-		 *
-		 * @param {string} markup SVG source.
-		 * @return {string}
-		 */
-		normalizeLineSvgMarkupForPreview(markup) {
-			const raw = String(markup || '').trim();
-			if (!raw || raw.indexOf('<svg') === -1) {
-				return raw;
-			}
-			const viewMatch = raw.match(/viewBox=["']([^"']+)["']/i);
-			let vpW = 950;
-			let vpH = 35;
-			if (viewMatch) {
-				const parts = viewMatch[1].trim().split(/[\s,]+/);
-				if (parts.length >= 4) {
-					vpW = Math.max(0.001, parseFloat(parts[2]) || vpW);
-					vpH = Math.max(0.001, parseFloat(parts[3]) || vpH);
-				}
-			}
-			const nums = raw.match(/[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?/g);
-			if (!nums || nums.length < 4) {
-				return raw;
-			}
-			let minX = Infinity;
-			let minY = Infinity;
-			let maxX = -Infinity;
-			let maxY = -Infinity;
-			for (let i = 0; i + 1 < nums.length; i += 2) {
-				const x = parseFloat(nums[i]);
-				const y = parseFloat(nums[i + 1]);
-				if (!isFinite(x) || !isFinite(y)) {
-					continue;
-				}
-				minX = Math.min(minX, x);
-				minY = Math.min(minY, y);
-				maxX = Math.max(maxX, x);
-				maxY = Math.max(maxY, y);
-			}
-			if (!isFinite(minX) || !isFinite(maxX)) {
-				return raw;
-			}
-			const drawW = Math.max(0.001, maxX - minX);
-			const drawH = Math.max(0.001, maxY - minY);
-			if (drawW / vpW >= LINE_PREVIEW_WIDTH_COVERAGE) {
-				return raw;
-			}
-			const scale = (LINE_PREVIEW_TARGET_WIDTH * vpW) / drawW;
-			if (!(scale > 1.01)) {
-				return raw;
-			}
-			const inner = raw.replace(/^[\s\S]*?<svg\b[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
-			const drawCx = minX + drawW / 2;
-			const drawCy = minY + drawH / 2;
-			const offsetX = vpW / 2 - drawCx * scale;
-			const offsetY = vpH / 2 - drawCy * scale;
-			return (
-				'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
-				vpW +
-				' ' +
-				vpH +
-				'" fill="none"><g transform="translate(' +
-				offsetX +
-				',' +
-				offsetY +
-				') scale(' +
-				scale +
-				')">' +
-				inner +
-				'</g></svg>'
-			);
-		}
-
-		/**
-		 * Use fetch+string parse only for same-origin display/cached SVGs (fast path).
-		 *
-		 * @param {string} url Asset URL.
-		 * @return {boolean}
-		 */
-		shouldFetchSvgMarkupFirst(url) {
-			const raw = String(url || '');
-			if (!raw || /pckzce_secure_asset|action=pckzce_secure_asset/i.test(raw)) {
-				return false;
-			}
-			try {
-				const abs = new URL(raw, window.location.href);
-				if (abs.origin !== window.location.origin) {
-					return false;
-				}
-			} catch (err) {
-				return false;
-			}
-			return /\/display\/|pckzce_line_preview|-preview\.svg/i.test(raw);
 		}
 
 		builtinLinePreviewTargetBounds(box) {
@@ -659,6 +535,8 @@
 			const vpH = Math.max( 0.001, parseFloat( viewport.height ) || ref.height );
 			const vpX = parseFloat( viewport.x ) || 0;
 			const vpY = parseFloat( viewport.y ) || 0;
+			const fabricW = Math.max( 0.001, parseFloat( obj.width ) || vpW );
+			const fabricH = Math.max( 0.001, parseFloat( obj.height ) || vpH );
 			const drawW = Math.max( 0.001, parseFloat( draw.width ) || vpW );
 			const drawH = Math.max( 0.001, parseFloat( draw.height ) || vpH );
 			const drawCx = ( parseFloat( draw.x ) || 0 ) - vpX + drawW / 2;
@@ -667,12 +545,9 @@
 			const viewCy = vpH / 2;
 			const refRatioW = ref.width / vpW;
 			const refRatioH = ref.height / vpH;
-			const boost = this.linePreviewWidthBoostForDraw( draw, vpW );
-			const effectiveW = drawW * boost;
-			const effectiveH = drawH * boost;
 			return {
-				width: effectiveW * refRatioW,
-				height: effectiveH * refRatioH,
+				width: fabricW * refRatioW,
+				height: fabricH * refRatioH,
 				deltaX: ( drawCx - viewCx ) * refRatioW,
 				deltaY: ( drawCy - viewCy ) * refRatioH,
 			};
@@ -1035,42 +910,6 @@
 		}
 
 		/**
-		 * Build a Fabric group from parsed SVG objects and attach line metadata.
-		 *
-		 * @param {object[]} objects Parsed SVG objects.
-		 * @param {object}   options Fabric parse options.
-		 * @param {string|null} hex Optional tint hex.
-		 * @param {boolean}  tintable Whether tint applies.
-		 * @return {object|null}
-		 */
-		buildSvgAssetGroup(objects, options, hex, tintable) {
-			if (!objects || !objects.length) {
-				return null;
-			}
-			let group = fabric.util.groupSVGElements(objects, options);
-			if (typeof group.setCoords === 'function') {
-				group.setCoords();
-			}
-			const drawBounds =
-				this.resolveLineSvgDrawBounds(objects, options) ||
-				this.computeSvgObjectsBounds([group]) ||
-				this.computeSvgObjectsBounds(objects);
-			if (drawBounds) {
-				group.pckzSvgDrawBounds = drawBounds;
-				group.pckzSvgViewport = this.resolveSvgViewport(options || {}, drawBounds);
-			}
-			if (tintable && hex) {
-				this.recolorSvgObject(group, hex);
-			}
-			group.set({
-				selectable: false,
-				evented: false,
-				objectCaching: true,
-			});
-			return group;
-		}
-
-		/**
 		 * Load original SVG vector art (Cloudlift paths) — not flat raster tint.
 		 *
 		 * @param {string} url
@@ -1096,65 +935,43 @@
 				const fallbackRaster = () => {
 					this.loadRasterAsset(url, null).then(done);
 				};
-				const finishParsed = (objects, options, sourceMarkup) => {
-					if ((!objects || !objects.length) && sourceMarkup) {
-						const normalized = this.normalizeLineSvgMarkupForPreview(sourceMarkup);
-						if (normalized && normalized !== sourceMarkup && fabric.loadSVGFromString) {
-							fabric.loadSVGFromString(normalized, (nextObjects, nextOptions) => {
-								if (!finishParsed(nextObjects, nextOptions, null)) {
-									fallbackRaster();
-								}
-							});
-							return true;
-						}
-					}
-					const group = this.buildSvgAssetGroup(objects, options || {}, hex, tintable);
-					if (!group) {
-						return false;
-					}
-					this._imageCache[key] = group;
-					this.cloneCached(group).then(done);
-					return true;
-				};
-				const loadFromUrl = () => {
-					if (!fabric.loadSVGFromURL) {
-						fallbackRaster();
-						return;
-					}
-					fabric.loadSVGFromURL(
-						url,
-						(objects, options) => {
-							if (!finishParsed(objects, options, null)) {
-								fallbackRaster();
-							}
-						},
-						null,
-						{ crossOrigin: 'anonymous' }
-					);
-				};
-				if (typeof fetch === 'function' && fabric.loadSVGFromString) {
-					const useFetchFirst = this.shouldFetchSvgMarkupFirst(url);
-					if (useFetchFirst) {
-						fetch(url, { credentials: 'same-origin' })
-							.then((response) => (response && response.ok ? response.text() : ''))
-							.then((body) => {
-								const markup = String(body || '').trim();
-								if (!markup || markup.indexOf('<svg') === -1) {
-									loadFromUrl();
-									return;
-								}
-								const prepared = this.normalizeLineSvgMarkupForPreview(markup);
-								fabric.loadSVGFromString(prepared, (objects, options) => {
-									if (!finishParsed(objects, options, prepared)) {
-										loadFromUrl();
-									}
-								});
-							})
-							.catch(() => loadFromUrl());
-						return;
-					}
+				if (!fabric.loadSVGFromURL) {
+					fallbackRaster();
+					return;
 				}
-				loadFromUrl();
+				fabric.loadSVGFromURL(
+					url,
+					(objects, options) => {
+						if (!objects || !objects.length) {
+							fallbackRaster();
+							return;
+						}
+						let group = fabric.util.groupSVGElements(objects, options);
+						if (typeof group.setCoords === 'function') {
+							group.setCoords();
+						}
+						const drawBounds =
+							this.resolveLineSvgDrawBounds(objects, options) ||
+							this.computeSvgObjectsBounds([group]) ||
+							this.computeSvgObjectsBounds(objects);
+						if (drawBounds) {
+							group.pckzSvgDrawBounds = drawBounds;
+							group.pckzSvgViewport = this.resolveSvgViewport(options || {}, drawBounds);
+						}
+						if (tintable && hex) {
+							this.recolorSvgObject(group, hex);
+						}
+						group.set({
+							selectable: false,
+							evented: false,
+							objectCaching: true,
+						});
+						this._imageCache[key] = group;
+						this.cloneCached(group).then(done);
+					},
+					null,
+					{ crossOrigin: 'anonymous' }
+				);
 			}).finally(() => {
 				delete this._imageCachePending[key];
 			});
@@ -1452,7 +1269,7 @@
 		lineLayerKey(state) {
 			const lineKey = state.linien || 'none';
 			const resolvedLine = (state.resolved_assets || {}).line || {};
-			const lineUrl = this.resolveLinePreviewUrl(lineKey, resolvedLine);
+			const lineUrl = resolvedLine.url || this.lineTypes[lineKey] || '';
 			const lineMeta = { ...(this.lineCatalog[lineKey] || {}), ...resolvedLine };
 			const lineTint = this.resolveLineTint(lineKey, state);
 			return JSON.stringify({
@@ -1573,7 +1390,7 @@
 				this.removeRole('line');
 				const lineKey = nextState.linien || 'none';
 				const resolvedLine = resolvedAssets.line || {};
-				const lineUrl = this.resolveLinePreviewUrl(lineKey, resolvedLine);
+				const lineUrl = resolvedLine.url || this.lineTypes[lineKey] || '';
 				if (lineKey && lineKey !== 'none' && lineUrl) {
 					const lineMeta = { ...(this.lineCatalog[lineKey] || {}), ...resolvedLine };
 					const lineTint = this.resolveLineTint(lineKey, nextState);
@@ -2284,11 +2101,11 @@
 				if (!slug || slug === 'none') {
 					slug = role.includes('left') ? selections.symbol_links : selections.symbol_rechts;
 				}
-				if (role === 'icon-left' && resolvedAssets.icon_left) {
-					return resolvedAssets.icon_left.export_url || resolvedAssets.icon_left.url || '';
+				if (role === 'icon-left' && resolvedAssets.icon_left && resolvedAssets.icon_left.url) {
+					return resolvedAssets.icon_left.url;
 				}
-				if (role === 'icon-right' && resolvedAssets.icon_right) {
-					return resolvedAssets.icon_right.export_url || resolvedAssets.icon_right.url || '';
+				if (role === 'icon-right' && resolvedAssets.icon_right && resolvedAssets.icon_right.url) {
+					return resolvedAssets.icon_right.url;
 				}
 				if (role === 'icon-bg-left' && resolvedAssets.icon_left && resolvedAssets.icon_left.bg_url) {
 					return resolvedAssets.icon_left.bg_url;
@@ -2304,9 +2121,6 @@
 				let lt = obj.line_type || selections.linien || 'none';
 				if (lt === 'yes') {
 					lt = 'type_1';
-				}
-				if (resolvedAssets.line && resolvedAssets.line.export_url) {
-					return resolvedAssets.line.export_url;
 				}
 				if (resolvedAssets.line && resolvedAssets.line.url) {
 					return resolvedAssets.line.url;

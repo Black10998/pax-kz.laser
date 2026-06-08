@@ -23,8 +23,6 @@ if ( ! defined( 'PCKZCE_PLUGIN_DIR' ) ) {
 }
 
 require_once $root . '/includes/class-pckz-ledos-preview.php';
-require_once $root . '/includes/class-pckz-line-library.php';
-require_once $root . '/includes/class-pckz-svg-library.php';
 
 $dir       = PCKZ_Ledos_Preview::line_assets_dir();
 $red_min   = 102;
@@ -35,8 +33,8 @@ for ( $i = PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MIN; $i <= PCKZ_Ledos_Preview::
 	if ( ! is_readable( $path ) ) {
 		continue;
 	}
-	$svg    = file_get_contents( $path );
-	$is_red = ( $i >= $red_min && $i <= 111 && preg_match( '/#b22222/i', $svg ) );
+	$svg     = file_get_contents( $path );
+	$is_red  = ( $i >= $red_min );
 	if ( ! preg_match( '/viewBox="0 0 950 35"/', $svg ) ) {
 		fwrite( STDERR, "FAIL viewBox 950×35 for type_{$i}\n" );
 		exit( 1 );

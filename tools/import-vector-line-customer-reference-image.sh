@@ -27,5 +27,10 @@ if [[ "$imported" -ne "$COUNT" ]]; then
 	exit 1
 fi
 
+php -r "
+require '${ROOT}/tests/smoke-bootstrap.php';
+require PCKZCE_PLUGIN_DIR . 'includes/class-pckz-line-library.php';
+PCKZ_Line_Library::register_imported_customer_red_lines();
+" 2>/dev/null || true
 
 echo "Imported ${imported} line model(s) from reference sheet image"
