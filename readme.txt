@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.37
+Stable tag: 2.28.38
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,12 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.38 =
+
+* Fix uploaded and URL-imported line SVG preview: compact artwork on 950×35 artboards (including Naruto eye models) now scales to fill the line preview area in admin, customer Linien picker, and live canvas preview.
+* Display normalization uses drawable path coverage instead of viewBox size alone, so valid viewBox SVGs are not broken while narrow designs still scale like built-in CDN lines.
+* Admin Line Library thumbnails and cached custom preview files use the same picker display scaling as bundled lines; export and LightBurn continue to use original upload assets with colors preserved.
 
 = 2.28.37 =
 

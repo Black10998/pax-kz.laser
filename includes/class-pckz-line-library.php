@@ -168,20 +168,27 @@ class PCKZ_Line_Library {
 	}
 
 	/**
-	 * Whether bundled line SVG is already on the standard 950×35 artboard.
+	 * Whether line SVG artwork already fills the preview artboard width (skip display scaling).
 	 *
-	 * @param string      $slug Line slug.
-	 * @param string|null $svg  Optional SVG body.
+	 * Uses drawable path bounds vs viewBox width — not viewBox size alone. Uploaded/imported
+	 * SVGs on 950×35 with compact centered art (e.g. Naruto eyes) still need picker scaling.
+	 *
+	 * @param string      $slug Line slug (unused; kept for callers).
+	 * @param string|null $svg  SVG body to inspect.
 	 * @return bool
 	 */
 	public static function is_artboard_normalized_bundled_line( $slug, $svg = null ) {
-		if ( self::is_naruto_eye_bundled_line( $slug ) && self::bundled_asset_path( $slug ) ) {
-			return true;
+		unset( $slug );
+		if ( ! is_string( $svg ) || '' === $svg || ! class_exists( 'PCKZ_Svg_Library' ) ) {
+			return false;
 		}
-		if ( is_string( $svg ) && preg_match( '/viewBox="0 0 950 35"/', $svg ) ) {
-			return true;
+		$draw    = PCKZ_Svg_Library::infer_line_draw_bounds( $svg );
+		$viewbox = PCKZ_Svg_Library::parse_svg_viewbox( $svg );
+		if ( ! $draw || $viewbox['width'] <= 0 ) {
+			return false;
 		}
-		return false;
+		$coverage = (float) $draw['width'] / (float) $viewbox['width'];
+		return $coverage >= PCKZ_Svg_Library::LINE_PICKER_WIDTH_COVERAGE;
 	}
 
 	/**
@@ -899,7 +906,7 @@ class PCKZ_Line_Library {
 			return false;
 		}
 		$connected = ! empty( $custom[ $slug ]['connected_right'] );
-		$preview   = PCKZ_Svg_Library::normalize_line_svg_for_preview( $svg, $connected );
+		$preview   = self::normalize_line_svg_for_display( $slug, $svg, $connected );
 		$dest      = self::upload_dir() . '/' . self::preview_filename( $slug );
 		return (bool) file_put_contents( $dest, $preview );
 	}
@@ -1704,18 +1711,6 @@ class PCKZ_Line_Library {
 		$slug = sanitize_key( $slug );
 		if ( ! $slug || 'none' === $slug ) {
 			return '';
-		}
-		if ( self::is_artboard_normalized_bundled_line( $slug ) && class_exists( 'PCKZ_Ledos_Preview' ) ) {
-			$asset = PCKZ_Ledos_Preview::line_types()[ $slug ] ?? '';
-			if ( $asset ) {
-				if ( ! function_exists( 'add_query_arg' ) ) {
-					return $asset . ( false === strpos( $asset, '?' ) ? '?' : '&' ) . 'pckz_v=' . rawurlencode( (string) self::picker_preview_version( $slug ) );
-				}
-				return add_query_arg(
-					array( 'pckz_v' => self::picker_preview_version( $slug ) ),
-					$asset
-				);
-			}
 		}
 		$base = home_url( '/' );
 		if ( ! function_exists( 'add_query_arg' ) ) {

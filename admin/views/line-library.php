@@ -190,7 +190,7 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 					}
 					++$row_index;
 					$is_custom       = ! empty( $data['custom'] );
-					$thumb           = ( $is_custom && ! empty( $data['url'] ) ) ? $data['url'] : ( ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' ) );
+					$thumb           = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
 					$label           = $data['label'] ?? $slug;
 					$customer_visible = PCKZ_Line_Library::is_visible( $slug );
 					$admin_visible    = PCKZ_Line_Library::admin_visible_flag( $slug );

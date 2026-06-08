@@ -1,0 +1,90 @@
+<?php
+/**
+ * Smoke: uploaded/imported line SVGs with compact 950×35 art scale for picker and live preview.
+ *
+ * @package PCKZCanonicalEngine
+ */
+
+$root = dirname( __DIR__ );
+require_once $root . '/tests/smoke-bootstrap.php';
+
+require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-svg-library.php';
+require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-production-geometry.php';
+require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-line-library.php';
+
+$compact = file_get_contents( PCKZ_Ledos_Preview::line_assets_dir() . 'type_102.svg' );
+if ( ! is_string( $compact ) || '' === $compact ) {
+	fwrite( STDERR, "SKIP type_102.svg missing\n" );
+	exit( 0 );
+}
+
+if ( PCKZ_Line_Library::is_artboard_normalized_bundled_line( 'type_102', $compact ) ) {
+	fwrite( STDERR, "FAIL compact 950×35 eye line must not skip display normalization\n" );
+	exit( 1 );
+}
+
+$display = PCKZ_Line_Library::normalize_line_svg_for_display( 'type_102', $compact, false );
+if ( ! preg_match( '/scale\(([\d.]+)\)/', $display, $sm ) ) {
+	fwrite( STDERR, "FAIL compact line display preview missing scale transform\n" );
+	exit( 1 );
+}
+$scale = (float) $sm[1];
+if ( $scale < 5 ) {
+	fwrite( STDERR, "FAIL compact line display scale too low ({$scale})\n" );
+	exit( 1 );
+}
+if ( false === stripos( $display, 'fill="#fefefe"' ) && false === stripos( $display, 'fill="#FEFEFE"' ) ) {
+	fwrite( STDERR, "FAIL display normalization must preserve native path colors\n" );
+	exit( 1 );
+}
+
+$slug = 'type_99991';
+$result = PCKZ_Line_Library::store_custom_line_svg( $compact, $slug, 'Compact Upload Smoke', 'upload' );
+if ( is_wp_error( $result ) ) {
+	fwrite( STDERR, 'FAIL store_custom_line_svg: ' . $result->get_error_message() . "\n" );
+	exit( 1 );
+}
+
+$picker_url = PCKZ_Line_Library::picker_preview_url( $slug );
+if ( false === strpos( $picker_url, 'pckz_line_picker=' . $slug ) ) {
+	fwrite( STDERR, "FAIL custom upload picker_preview_url must use display endpoint\n" );
+	exit( 1 );
+}
+
+$preview_path = PCKZ_Line_Library::upload_dir() . '/' . PCKZ_Line_Library::preview_filename( $slug );
+if ( ! is_readable( $preview_path ) ) {
+	fwrite( STDERR, "FAIL cached preview SVG missing after upload\n" );
+	exit( 1 );
+}
+$cached = file_get_contents( $preview_path );
+if ( ! preg_match( '/scale\(/', (string) $cached ) ) {
+	fwrite( STDERR, "FAIL cached preview must include scale transform\n" );
+	exit( 1 );
+}
+
+$choices = PCKZ_Line_Library::get_customer_line_choices();
+$found   = false;
+foreach ( $choices as $choice ) {
+	if ( ( $choice['value'] ?? '' ) === $slug ) {
+		$found = true;
+		if ( false === strpos( (string) ( $choice['img'] ?? '' ), 'pckz_line_picker=' ) ) {
+			fwrite( STDERR, "FAIL customer picker thumb must use display preview URL\n" );
+			exit( 1 );
+		}
+		break;
+	}
+}
+if ( ! $found ) {
+	fwrite( STDERR, "FAIL uploaded compact line missing from customer choices\n" );
+	exit( 1 );
+}
+
+$export_url = PCKZ_Ledos_Preview::line_types()[ $slug ] ?? '';
+if ( '' === $export_url || false === strpos( $export_url, $slug . '.svg' ) ) {
+	fwrite( STDERR, "FAIL export line_types must still reference original upload asset\n" );
+	exit( 1 );
+}
+
+PCKZ_Line_Library::delete_custom( $slug );
+
+echo "OK line-upload-preview-scale-smoke\n";
