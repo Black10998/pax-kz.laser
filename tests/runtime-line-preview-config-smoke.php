@@ -41,13 +41,18 @@ if ( empty( $row['preserve_colors'] ) ) {
 }
 
 $picker = (string) ( $row['preview'] ?? $row['url'] ?? '' );
-if ( false === strpos( $picker, 'pckz_line_picker=type_102' ) ) {
-	fwrite( STDERR, "FAIL type_102 lineCatalog should expose picker preview URL\n" );
+if ( false === strpos( $picker, 'display/type_102.svg' ) && false === strpos( $picker, 'pckzce_line_preview' ) ) {
+	fwrite( STDERR, "FAIL type_102 lineCatalog should expose display preview URL\n" );
 	exit( 1 );
 }
 
-if ( empty( $ledos_preview['lineTypes']['type_102'] ) || false === strpos( (string) $ledos_preview['lineTypes']['type_102'], 'pckz_line_picker=' ) ) {
-	fwrite( STDERR, "FAIL type_102 lineTypes should map to picker preview URL\n" );
+if ( empty( $ledos_preview['lineTypes']['type_102'] ) ) {
+	fwrite( STDERR, "FAIL type_102 lineTypes should map to display preview URL\n" );
+	exit( 1 );
+}
+$lt = (string) $ledos_preview['lineTypes']['type_102'];
+if ( false === strpos( $lt, 'display/type_102.svg' ) && false === strpos( $lt, 'pckzce_line_preview' ) ) {
+	fwrite( STDERR, "FAIL type_102 lineTypes URL must be display preview endpoint\n" );
 	exit( 1 );
 }
 
@@ -58,8 +63,17 @@ if ( '' === $export || false === strpos( $export, 'type_102.svg' ) ) {
 }
 
 $resolved_preview = PCKZ_Line_Library::picker_preview_url( 'type_102' );
-if ( false === strpos( $resolved_preview, 'pckz_line_picker=type_102' ) ) {
-	fwrite( STDERR, "FAIL picker_preview_url must back live preview resolve path\n" );
+if (
+	false === strpos( $resolved_preview, 'display/type_102.svg' )
+	&& false === strpos( $resolved_preview, 'pckzce_line_preview' )
+) {
+	fwrite( STDERR, "FAIL picker_preview_url must return direct display SVG or admin-ajax preview\n" );
+	exit( 1 );
+}
+
+$display_path = PCKZ_Line_Library::display_asset_path( 'type_102' );
+if ( ! is_readable( $display_path ) ) {
+	fwrite( STDERR, "FAIL bundled display preview file missing for type_102\n" );
 	exit( 1 );
 }
 

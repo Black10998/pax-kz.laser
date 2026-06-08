@@ -46,8 +46,11 @@ if ( is_wp_error( $result ) ) {
 }
 
 $picker_url = PCKZ_Line_Library::picker_preview_url( $slug );
-if ( false === strpos( $picker_url, 'pckz_line_picker=' . $slug ) ) {
-	fwrite( STDERR, "FAIL custom upload picker_preview_url must use display endpoint\n" );
+if (
+	false === strpos( $picker_url, '-preview.svg' )
+	&& false === strpos( $picker_url, 'pckzce_line_preview' )
+) {
+	fwrite( STDERR, "FAIL custom upload picker_preview_url must use cached display preview\n" );
 	exit( 1 );
 }
 
@@ -67,7 +70,10 @@ $found   = false;
 foreach ( $choices as $choice ) {
 	if ( ( $choice['value'] ?? '' ) === $slug ) {
 		$found = true;
-		if ( false === strpos( (string) ( $choice['img'] ?? '' ), 'pckz_line_picker=' ) ) {
+		if (
+			false === strpos( (string) ( $choice['img'] ?? '' ), '-preview.svg' )
+			&& false === strpos( (string) ( $choice['img'] ?? '' ), 'pckzce_line_preview' )
+		) {
 			fwrite( STDERR, "FAIL customer picker thumb must use display preview URL\n" );
 			exit( 1 );
 		}

@@ -1698,11 +1698,130 @@ class PCKZ_Line_Library {
 	public static function register_hooks() {
 		add_action( 'init', array( __CLASS__, 'ensure_bundled_naruto_lines_visible' ), 6 );
 		add_action( 'admin_init', array( __CLASS__, 'ensure_bundled_naruto_lines_visible' ), 6 );
+		add_action( 'init', array( __CLASS__, 'ensure_bundled_display_previews' ), 7 );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_serve_picker_preview' ), 0 );
 	}
 
 	/**
+	 * Relative path for a bundled display-normalized preview SVG.
+	 *
+	 * @param string $slug Line slug.
+	 * @return string
+	 */
+	public static function display_asset_filename( $slug ) {
+		return 'display/' . sanitize_key( $slug ) . '.svg';
+	}
+
+	/**
+	 * Absolute filesystem path for bundled display preview SVG.
+	 *
+	 * @param string $slug Line slug.
+	 * @return string
+	 */
+	public static function display_asset_path( $slug ) {
+		if ( ! class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			return '';
+		}
+		return PCKZ_Ledos_Preview::line_assets_dir() . self::display_asset_filename( $slug );
+	}
+
+	/**
+	 * Public URL for bundled display preview SVG.
+	 *
+	 * @param string $slug Line slug.
+	 * @return string
+	 */
+	public static function display_asset_url( $slug ) {
+		if ( ! class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			return '';
+		}
+		return PCKZ_Ledos_Preview::line_assets_url() . self::display_asset_filename( $slug );
+	}
+
+	/**
+	 * Whether a line needs display-only scaling (compact art on wide artboard).
+	 *
+	 * @param string      $slug Line slug.
+	 * @param string|null $svg  Optional source SVG.
+	 * @return bool
+	 */
+	public static function needs_display_preview( $slug, $svg = null ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( ! $slug || 'none' === $slug ) {
+			return false;
+		}
+		if ( null === $svg ) {
+			$svg = self::read_source_svg_for_slug( $slug );
+		}
+		if ( ! is_string( $svg ) || '' === $svg ) {
+			return false;
+		}
+		return ! self::is_artboard_normalized_bundled_line( $slug, $svg );
+	}
+
+	/**
+	 * Write or refresh bundled display preview SVG when source art requires scaling.
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function ensure_display_asset( $slug ) {
+		$slug = sanitize_key( $slug );
+		if ( ! $slug || 'none' === $slug || ! class_exists( 'PCKZ_Svg_Library' ) ) {
+			return false;
+		}
+		if ( self::is_custom( $slug ) ) {
+			return self::regenerate_preview_svg( $slug );
+		}
+		$source = self::read_source_svg_for_slug( $slug );
+		if ( ! is_string( $source ) || '' === $source ) {
+			return false;
+		}
+		if ( ! self::needs_display_preview( $slug, $source ) ) {
+			return false;
+		}
+		$dest = self::display_asset_path( $slug );
+		if ( '' === $dest ) {
+			return false;
+		}
+		$source_path = '';
+		if ( class_exists( 'PCKZ_Ledos_Preview' ) && preg_match( '/^type_(\d+)$/', $slug ) ) {
+			$source_path = PCKZ_Ledos_Preview::line_assets_dir() . $slug . '.svg';
+		}
+		if ( is_readable( $dest ) && is_readable( $source_path ) && filemtime( $dest ) >= filemtime( $source_path ) ) {
+			return true;
+		}
+		$dir = dirname( $dest );
+		if ( ! is_dir( $dir ) && ! wp_mkdir_p( $dir ) ) {
+			return false;
+		}
+		$connected = self::connected_right_for_slug( $slug );
+		$body      = self::normalize_line_svg_for_display( $slug, $source, $connected );
+		return (bool) file_put_contents( $dest, $body );
+	}
+
+	/**
+	 * Ensure display previews exist for bundled Naruto eye models and other compact art.
+	 */
+	public static function ensure_bundled_display_previews() {
+		if ( ! class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			return;
+		}
+		foreach ( array_keys( PCKZ_Ledos_Preview::line_types() ) as $slug ) {
+			if ( 'none' === $slug ) {
+				continue;
+			}
+			self::ensure_display_asset( $slug );
+		}
+		foreach ( array_keys( self::custom_manifest() ) as $slug ) {
+			self::regenerate_preview_svg( $slug );
+		}
+	}
+
+	/**
 	 * Public URL for picker-only SVG preview (display scaling; source assets unchanged).
+	 *
+	 * Priority: direct bundled display .svg → custom cached preview .svg → admin-ajax endpoint.
 	 *
 	 * @param string $slug Line slug.
 	 * @return string
@@ -1712,10 +1831,45 @@ class PCKZ_Line_Library {
 		if ( ! $slug || 'none' === $slug ) {
 			return '';
 		}
-		$base = home_url( '/' );
-		if ( ! function_exists( 'add_query_arg' ) ) {
-			return $base . '?pckz_line_picker=' . rawurlencode( $slug ) . '&pckz_v=' . rawurlencode( (string) self::picker_preview_version( $slug ) );
+
+		self::ensure_display_asset( $slug );
+
+		$display_path = self::display_asset_path( $slug );
+		if ( $display_path && is_readable( $display_path ) ) {
+			$url = self::display_asset_url( $slug );
+			if ( $url ) {
+				return esc_url_raw(
+					add_query_arg(
+						array(
+							'pckz_v' => (string) filemtime( $display_path ),
+						),
+						$url
+					)
+				);
+			}
 		}
+
+		if ( self::is_custom( $slug ) ) {
+			$custom_preview = self::preview_url( $slug );
+			if ( $custom_preview ) {
+				return esc_url_raw( $custom_preview );
+			}
+		}
+
+		if ( function_exists( 'admin_url' ) ) {
+			return esc_url_raw(
+				add_query_arg(
+					array(
+						'action' => 'pckzce_line_preview',
+						'slug'   => $slug,
+						'pckz_v' => self::picker_preview_version( $slug ),
+					),
+					admin_url( 'admin-ajax.php' )
+				)
+			);
+		}
+
+		$base = home_url( '/' );
 		return add_query_arg(
 			array(
 				'pckz_line_picker' => $slug,
@@ -1733,7 +1887,15 @@ class PCKZ_Line_Library {
 	 */
 	public static function picker_preview_version( $slug ) {
 		$slug = sanitize_key( $slug );
+		$display_path = self::display_asset_path( $slug );
+		if ( $display_path && is_readable( $display_path ) ) {
+			return (string) filemtime( $display_path );
+		}
 		if ( self::is_custom( $slug ) ) {
+			$preview = self::upload_dir() . '/' . self::preview_filename( $slug );
+			if ( is_readable( $preview ) ) {
+				return (string) filemtime( $preview );
+			}
 			$custom = self::custom_manifest();
 			$file   = ! empty( $custom[ $slug ]['file'] ) ? self::upload_dir() . '/' . sanitize_file_name( $custom[ $slug ]['file'] ) : '';
 			return ( $file && is_readable( $file ) ) ? (string) filemtime( $file ) : '1';
@@ -1749,6 +1911,38 @@ class PCKZ_Line_Library {
 	}
 
 	/**
+	 * Serve normalized line preview SVG body for a slug.
+	 *
+	 * @param string $slug Line slug.
+	 * @return string|false
+	 */
+	public static function serve_display_preview_svg( $slug ) {
+		$slug = sanitize_key( $slug );
+		if ( ! $slug || 'none' === $slug || self::is_retired_bundled_slug( $slug ) || self::is_permanently_deleted_bundled( $slug ) ) {
+			return false;
+		}
+		self::ensure_display_asset( $slug );
+		$display_path = self::display_asset_path( $slug );
+		if ( $display_path && is_readable( $display_path ) ) {
+			$body = file_get_contents( $display_path );
+			return is_string( $body ) ? $body : false;
+		}
+		if ( self::is_custom( $slug ) ) {
+			$preview = self::upload_dir() . '/' . self::preview_filename( $slug );
+			if ( is_readable( $preview ) ) {
+				$body = file_get_contents( $preview );
+				return is_string( $body ) ? $body : false;
+			}
+		}
+		$svg = self::read_source_svg_for_slug( $slug );
+		if ( ! is_string( $svg ) || '' === $svg || ! class_exists( 'PCKZ_Svg_Library' ) ) {
+			return false;
+		}
+		$connected = self::connected_right_for_slug( $slug );
+		return self::normalize_line_svg_for_display( $slug, $svg, $connected );
+	}
+
+	/**
 	 * Serve dynamic picker preview SVG when ?pckz_line_picker=slug is requested.
 	 */
 	public static function maybe_serve_picker_preview() {
@@ -1756,17 +1950,11 @@ class PCKZ_Line_Library {
 			return;
 		}
 		$slug = sanitize_key( wp_unslash( $_GET['pckz_line_picker'] ) );
-		if ( ! $slug || 'none' === $slug || self::is_retired_bundled_slug( $slug ) || self::is_permanently_deleted_bundled( $slug ) ) {
+		$body = self::serve_display_preview_svg( $slug );
+		if ( ! is_string( $body ) || '' === $body ) {
 			status_header( 404 );
 			exit;
 		}
-		$svg = self::read_source_svg_for_slug( $slug );
-		if ( ! $svg || ! class_exists( 'PCKZ_Svg_Library' ) ) {
-			status_header( 404 );
-			exit;
-		}
-		$connected = self::connected_right_for_slug( $slug );
-		$body      = self::normalize_line_svg_for_display( $slug, $svg, $connected );
 		if ( function_exists( 'nocache_headers' ) ) {
 			nocache_headers();
 		}

@@ -157,6 +157,14 @@
 				const dh = 2132;
 				this.baseAspect = dh / dw;
 			}
+			if (
+				this.useCloudlift &&
+				this.previewEngine &&
+				this.selections.linien &&
+				this.selections.linien !== 'none'
+			) {
+				this.resolveSelectedAssets({ render: true }).catch(() => null);
+			}
 		}
 
 		async resolveOptionAsset(kind, value) {

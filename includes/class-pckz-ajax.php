@@ -30,6 +30,7 @@ class PCKZ_Ajax {
 			'pckzce_resolve_option_asset',
 			'pckzce_resolve_option_assets',
 			'pckzce_secure_asset',
+			'pckzce_line_preview',
 		);
 
 		foreach ( $actions as $action ) {
@@ -518,6 +519,30 @@ class PCKZ_Ajax {
 			return new WP_Error( 'expired_token', __( 'Token expired.', 'pckz-canonical-engine' ) );
 		}
 		return $decoded;
+	}
+
+	/**
+	 * Serve display-normalized line preview SVG (picker + live canvas).
+	 */
+	public function handle_line_preview() {
+		$slug = isset( $_REQUEST['slug'] ) ? sanitize_key( wp_unslash( $_REQUEST['slug'] ) ) : '';
+		if ( ! $slug || ! class_exists( 'PCKZ_Line_Library' ) ) {
+			status_header( 404 );
+			exit;
+		}
+		$body = PCKZ_Line_Library::serve_display_preview_svg( $slug );
+		if ( ! is_string( $body ) || '' === trim( $body ) ) {
+			status_header( 404 );
+			exit;
+		}
+		header( 'Content-Type: image/svg+xml; charset=utf-8' );
+		header( 'Cache-Control: public, max-age=86400' );
+		if ( ! empty( $_REQUEST['pckz_v'] ) ) {
+			header( 'ETag: "' . sanitize_text_field( wp_unslash( $_REQUEST['pckz_v'] ) ) . '"' );
+		}
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG payload.
+		echo $body;
+		exit;
 	}
 
 	/**

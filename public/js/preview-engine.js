@@ -20,7 +20,7 @@
 	const LINE_PREVIEW_WIDTH_COVERAGE = 0.88;
 	const LINE_PREVIEW_TARGET_WIDTH = 0.96;
 	const LINE_PREVIEW_TARGET_HEIGHT = 0.92;
-	const LINE_PREVIEW_MAX_DISPLAY_BOOST = 4;
+	const LINE_PREVIEW_MAX_DISPLAY_BOOST = 12;
 
 	if (typeof fabric !== 'undefined' && fabric.Object) {
 		fabric.Object.NUM_FRACTION_DIGITS = 8;
@@ -230,10 +230,13 @@
 		 */
 		resolveLinePreviewUrl(slug, resolvedLine) {
 			const row = resolvedLine && typeof resolvedLine === 'object' ? resolvedLine : {};
-			if ( row.preview_url ) {
+			const exportLike = /\/public\/assets\/lines\/type_\d+\.svg(?:\?|$)/i;
+			const isRawBundledExport = (url) =>
+				!!(url && exportLike.test(String(url)) && !/\/display\//i.test(String(url)));
+			if ( row.preview_url && !isRawBundledExport( row.preview_url ) ) {
 				return row.preview_url;
 			}
-			if ( row.url ) {
+			if ( row.url && !isRawBundledExport( row.url ) ) {
 				return row.url;
 			}
 			if ( slug && this.lineTypes[slug] ) {
@@ -244,6 +247,80 @@
 				return catalog.preview || catalog.url || this.lineTypes[slug] || '';
 			}
 			return '';
+		}
+
+		/**
+		 * Client-side display normalization when compact line art reaches the canvas unpadded.
+		 *
+		 * @param {string} markup SVG source.
+		 * @return {string}
+		 */
+		normalizeLineSvgMarkupForPreview(markup) {
+			const raw = String(markup || '').trim();
+			if (!raw || raw.indexOf('<svg') === -1) {
+				return raw;
+			}
+			const viewMatch = raw.match(/viewBox=["']([^"']+)["']/i);
+			let vpW = 950;
+			let vpH = 35;
+			if (viewMatch) {
+				const parts = viewMatch[1].trim().split(/[\s,]+/);
+				if (parts.length >= 4) {
+					vpW = Math.max(0.001, parseFloat(parts[2]) || vpW);
+					vpH = Math.max(0.001, parseFloat(parts[3]) || vpH);
+				}
+			}
+			const nums = raw.match(/[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?/g);
+			if (!nums || nums.length < 4) {
+				return raw;
+			}
+			let minX = Infinity;
+			let minY = Infinity;
+			let maxX = -Infinity;
+			let maxY = -Infinity;
+			for (let i = 0; i + 1 < nums.length; i += 2) {
+				const x = parseFloat(nums[i]);
+				const y = parseFloat(nums[i + 1]);
+				if (!isFinite(x) || !isFinite(y)) {
+					continue;
+				}
+				minX = Math.min(minX, x);
+				minY = Math.min(minY, y);
+				maxX = Math.max(maxX, x);
+				maxY = Math.max(maxY, y);
+			}
+			if (!isFinite(minX) || !isFinite(maxX)) {
+				return raw;
+			}
+			const drawW = Math.max(0.001, maxX - minX);
+			const drawH = Math.max(0.001, maxY - minY);
+			if (drawW / vpW >= LINE_PREVIEW_WIDTH_COVERAGE) {
+				return raw;
+			}
+			const scale = (LINE_PREVIEW_TARGET_WIDTH * vpW) / drawW;
+			if (!(scale > 1.01)) {
+				return raw;
+			}
+			const inner = raw.replace(/^[\s\S]*?<svg\b[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
+			const drawCx = minX + drawW / 2;
+			const drawCy = minY + drawH / 2;
+			const offsetX = vpW / 2 - drawCx * scale;
+			const offsetY = vpH / 2 - drawCy * scale;
+			return (
+				'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
+				vpW +
+				' ' +
+				vpH +
+				'" fill="none"><g transform="translate(' +
+				offsetX +
+				',' +
+				offsetY +
+				') scale(' +
+				scale +
+				')">' +
+				inner +
+				'</g></svg>'
+			);
 		}
 
 		builtinLinePreviewTargetBounds(box) {
@@ -997,7 +1074,18 @@
 				const fallbackRaster = () => {
 					this.loadRasterAsset(url, null).then(done);
 				};
-				const finishParsed = (objects, options) => {
+				const finishParsed = (objects, options, sourceMarkup) => {
+					if ((!objects || !objects.length) && sourceMarkup) {
+						const normalized = this.normalizeLineSvgMarkupForPreview(sourceMarkup);
+						if (normalized && normalized !== sourceMarkup && fabric.loadSVGFromString) {
+							fabric.loadSVGFromString(normalized, (nextObjects, nextOptions) => {
+								if (!finishParsed(nextObjects, nextOptions, null)) {
+									fallbackRaster();
+								}
+							});
+							return true;
+						}
+					}
 					const group = this.buildSvgAssetGroup(objects, options || {}, hex, tintable);
 					if (!group) {
 						return false;
@@ -1014,7 +1102,7 @@
 					fabric.loadSVGFromURL(
 						url,
 						(objects, options) => {
-							if (!finishParsed(objects, options)) {
+							if (!finishParsed(objects, options, null)) {
 								fallbackRaster();
 							}
 						},
@@ -1023,7 +1111,7 @@
 					);
 				};
 				if (typeof fetch === 'function' && fabric.loadSVGFromString) {
-					fetch(url, { credentials: 'same-origin', cache: 'force-cache' })
+					fetch(url, { credentials: 'same-origin', cache: 'no-store' })
 						.then((response) => (response && response.ok ? response.text() : ''))
 						.then((body) => {
 							const markup = String(body || '').trim();
@@ -1031,8 +1119,9 @@
 								loadFromUrl();
 								return;
 							}
-							fabric.loadSVGFromString(markup, (objects, options) => {
-								if (!finishParsed(objects, options)) {
+							const prepared = this.normalizeLineSvgMarkupForPreview(markup);
+							fabric.loadSVGFromString(prepared, (objects, options) => {
+								if (!finishParsed(objects, options, prepared)) {
 									loadFromUrl();
 								}
 							});

@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.39
+Stable tag: 2.28.40
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.40 =
+
+* Comprehensive live preview line fix: ship display-normalized SVG files at `public/assets/lines/display/` for compact bundled lines (Naruto eyes type_102–111) so picker thumbnails and Fabric canvas load the same direct `.svg` URL as working line models.
+* `picker_preview_url()` now prefers static display assets, then custom upload previews, then `admin-ajax.php?action=pckzce_line_preview` (reliable fallback vs homepage query strings blocked by cache/CDN).
+* Preview engine: client-side compact-line normalization fallback, uncapped width boost (12×), no-store fetch for line SVGs, and blocks raw export bundled URLs from reaching the canvas.
+* Activator regenerates display previews on upgrade; runtime config re-triggers line resolve after catalog load.
 
 = 2.28.39 =
 

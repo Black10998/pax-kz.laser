@@ -40,7 +40,10 @@ foreach ( range( 102, 111 ) as $i ) {
 			fwrite( STDERR, "FAIL {$slug} missing preserve_colors in customer choices\n" );
 			exit( 1 );
 		}
-		if ( false === strpos( (string) ( $choice['img'] ?? '' ), 'pckz_line_picker=' . $slug ) ) {
+		if (
+			false === strpos( (string) ( $choice['img'] ?? '' ), 'display/' . $slug . '.svg' )
+			&& false === strpos( (string) ( $choice['img'] ?? '' ), 'pckzce_line_preview' )
+		) {
 			fwrite( STDERR, "FAIL {$slug} picker should use display-normalized preview URL\n" );
 			exit( 1 );
 		}
