@@ -74,3 +74,29 @@ if (boost > 1.05 && !(previewScale > exportScale * 1.05)) {
 }
 
 console.log('OK line-live-preview-width-smoke', { coverage: m41.cov.toFixed(3), boost: m41.boost.toFixed(3) });
+
+// Naruto eye line: normalized display SVG must fill line ref like built-in models.
+const type102Raw = path.join(pluginRoot, 'public/assets/lines/type_102.svg');
+if (fs.existsSync(type102Raw)) {
+	const normPath = path.join(pluginRoot, 'tests/node/.tmp-type_102-normalized.svg');
+	if (!fs.existsSync(path.dirname(normPath))) {
+		fs.mkdirSync(path.dirname(normPath), { recursive: true });
+	}
+	// Pre-normalized fixture mirrors PHP picker preview output (scale transform).
+	const rawSvg = fs.readFileSync(type102Raw, 'utf8');
+	if (!rawSvg.includes('scale(')) {
+		const inner = rawSvg.replace(/^[\s\S]*?<svg\b[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
+		const normalized =
+			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 35" fill="none">' +
+			'<g transform="translate(-2747.9505,-102.0324) scale(6.7852)">' +
+			inner +
+			'</g></svg>';
+		fs.writeFileSync(normPath, normalized);
+	}
+	const type102Norm = 'file://' + normPath;
+	const m102 = await widthCoverage(type102Norm);
+	if (m102.cov < 0.88) {
+		throw new Error(`type_102 normalized live preview width coverage too low: ${m102.cov.toFixed(3)} boost=${m102.boost}`);
+	}
+	console.log('OK type_102 normalized live preview', { coverage: m102.cov.toFixed(3), boost: m102.boost.toFixed(3) });
+}

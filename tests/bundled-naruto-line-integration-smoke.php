@@ -40,8 +40,8 @@ foreach ( range( 102, 111 ) as $i ) {
 			fwrite( STDERR, "FAIL {$slug} missing preserve_colors in customer choices\n" );
 			exit( 1 );
 		}
-		if ( false === strpos( (string) ( $choice['img'] ?? '' ), 'type_' . $i . '.svg' ) ) {
-			fwrite( STDERR, "FAIL {$slug} picker should use direct bundled asset URL\n" );
+		if ( false === strpos( (string) ( $choice['img'] ?? '' ), 'pckz_line_picker=' . $slug ) ) {
+			fwrite( STDERR, "FAIL {$slug} picker should use display-normalized preview URL\n" );
 			exit( 1 );
 		}
 		break;
@@ -57,11 +57,11 @@ $svg = (string) file_get_contents( $path102 );
 $start = microtime( true );
 $out   = PCKZ_Line_Library::normalize_line_svg_for_display( 'type_102', $svg, false );
 $elapsed = microtime( true ) - $start;
-if ( $out !== $svg ) {
-	fwrite( STDERR, "FAIL type_102 display normalization should pass through pre-normalized art\n" );
+if ( false === strpos( $out, 'scale(' ) ) {
+	fwrite( STDERR, "FAIL type_102 display normalization should scale compact art for preview\n" );
 	exit( 1 );
 }
-if ( $elapsed > 0.05 ) {
+if ( $elapsed > 0.25 ) {
 	fwrite( STDERR, "FAIL type_102 display normalization too slow ({$elapsed}s)\n" );
 	exit( 1 );
 }

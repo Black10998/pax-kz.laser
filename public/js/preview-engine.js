@@ -221,6 +221,31 @@
 			return { tintable: false, color: null };
 		}
 
+		/**
+		 * Resolve the display-normalized SVG URL for live preview / picker parity.
+		 *
+		 * @param {string} slug Line slug.
+		 * @param {object} resolvedLine Resolved asset row.
+		 * @return {string}
+		 */
+		resolveLinePreviewUrl(slug, resolvedLine) {
+			const row = resolvedLine && typeof resolvedLine === 'object' ? resolvedLine : {};
+			if ( row.preview_url ) {
+				return row.preview_url;
+			}
+			if ( row.url ) {
+				return row.url;
+			}
+			if ( slug && this.lineTypes[slug] ) {
+				return this.lineTypes[slug];
+			}
+			const catalog = slug && this.lineCatalog[slug] ? this.lineCatalog[slug] : null;
+			if ( catalog ) {
+				return catalog.preview || catalog.url || this.lineTypes[slug] || '';
+			}
+			return '';
+		}
+
 		builtinLinePreviewTargetBounds(box) {
 			const ref = this.lineReferenceArtboard( false );
 			const scale = Math.min( box.width / ref.width, box.height / ref.height );
@@ -535,8 +560,6 @@
 			const vpH = Math.max( 0.001, parseFloat( viewport.height ) || ref.height );
 			const vpX = parseFloat( viewport.x ) || 0;
 			const vpY = parseFloat( viewport.y ) || 0;
-			const fabricW = Math.max( 0.001, parseFloat( obj.width ) || vpW );
-			const fabricH = Math.max( 0.001, parseFloat( obj.height ) || vpH );
 			const drawW = Math.max( 0.001, parseFloat( draw.width ) || vpW );
 			const drawH = Math.max( 0.001, parseFloat( draw.height ) || vpH );
 			const drawCx = ( parseFloat( draw.x ) || 0 ) - vpX + drawW / 2;
@@ -545,9 +568,12 @@
 			const viewCy = vpH / 2;
 			const refRatioW = ref.width / vpW;
 			const refRatioH = ref.height / vpH;
+			const boost = this.linePreviewWidthBoostForDraw( draw, vpW );
+			const effectiveW = drawW * boost;
+			const effectiveH = drawH * boost;
 			return {
-				width: fabricW * refRatioW,
-				height: fabricH * refRatioH,
+				width: effectiveW * refRatioW,
+				height: effectiveH * refRatioH,
 				deltaX: ( drawCx - viewCx ) * refRatioW,
 				deltaY: ( drawCy - viewCy ) * refRatioH,
 			};
@@ -910,6 +936,42 @@
 		}
 
 		/**
+		 * Build a Fabric group from parsed SVG objects and attach line metadata.
+		 *
+		 * @param {object[]} objects Parsed SVG objects.
+		 * @param {object}   options Fabric parse options.
+		 * @param {string|null} hex Optional tint hex.
+		 * @param {boolean}  tintable Whether tint applies.
+		 * @return {object|null}
+		 */
+		buildSvgAssetGroup(objects, options, hex, tintable) {
+			if (!objects || !objects.length) {
+				return null;
+			}
+			let group = fabric.util.groupSVGElements(objects, options);
+			if (typeof group.setCoords === 'function') {
+				group.setCoords();
+			}
+			const drawBounds =
+				this.resolveLineSvgDrawBounds(objects, options) ||
+				this.computeSvgObjectsBounds([group]) ||
+				this.computeSvgObjectsBounds(objects);
+			if (drawBounds) {
+				group.pckzSvgDrawBounds = drawBounds;
+				group.pckzSvgViewport = this.resolveSvgViewport(options || {}, drawBounds);
+			}
+			if (tintable && hex) {
+				this.recolorSvgObject(group, hex);
+			}
+			group.set({
+				selectable: false,
+				evented: false,
+				objectCaching: true,
+			});
+			return group;
+		}
+
+		/**
 		 * Load original SVG vector art (Cloudlift paths) — not flat raster tint.
 		 *
 		 * @param {string} url
@@ -935,43 +997,50 @@
 				const fallbackRaster = () => {
 					this.loadRasterAsset(url, null).then(done);
 				};
-				if (!fabric.loadSVGFromURL) {
-					fallbackRaster();
+				const finishParsed = (objects, options) => {
+					const group = this.buildSvgAssetGroup(objects, options || {}, hex, tintable);
+					if (!group) {
+						return false;
+					}
+					this._imageCache[key] = group;
+					this.cloneCached(group).then(done);
+					return true;
+				};
+				const loadFromUrl = () => {
+					if (!fabric.loadSVGFromURL) {
+						fallbackRaster();
+						return;
+					}
+					fabric.loadSVGFromURL(
+						url,
+						(objects, options) => {
+							if (!finishParsed(objects, options)) {
+								fallbackRaster();
+							}
+						},
+						null,
+						{ crossOrigin: 'anonymous' }
+					);
+				};
+				if (typeof fetch === 'function' && fabric.loadSVGFromString) {
+					fetch(url, { credentials: 'same-origin', cache: 'force-cache' })
+						.then((response) => (response && response.ok ? response.text() : ''))
+						.then((body) => {
+							const markup = String(body || '').trim();
+							if (!markup || markup.indexOf('<svg') === -1) {
+								loadFromUrl();
+								return;
+							}
+							fabric.loadSVGFromString(markup, (objects, options) => {
+								if (!finishParsed(objects, options)) {
+									loadFromUrl();
+								}
+							});
+						})
+						.catch(() => loadFromUrl());
 					return;
 				}
-				fabric.loadSVGFromURL(
-					url,
-					(objects, options) => {
-						if (!objects || !objects.length) {
-							fallbackRaster();
-							return;
-						}
-						let group = fabric.util.groupSVGElements(objects, options);
-						if (typeof group.setCoords === 'function') {
-							group.setCoords();
-						}
-						const drawBounds =
-							this.resolveLineSvgDrawBounds(objects, options) ||
-							this.computeSvgObjectsBounds([group]) ||
-							this.computeSvgObjectsBounds(objects);
-						if (drawBounds) {
-							group.pckzSvgDrawBounds = drawBounds;
-							group.pckzSvgViewport = this.resolveSvgViewport(options || {}, drawBounds);
-						}
-						if (tintable && hex) {
-							this.recolorSvgObject(group, hex);
-						}
-						group.set({
-							selectable: false,
-							evented: false,
-							objectCaching: true,
-						});
-						this._imageCache[key] = group;
-						this.cloneCached(group).then(done);
-					},
-					null,
-					{ crossOrigin: 'anonymous' }
-				);
+				loadFromUrl();
 			}).finally(() => {
 				delete this._imageCachePending[key];
 			});
@@ -1269,7 +1338,7 @@
 		lineLayerKey(state) {
 			const lineKey = state.linien || 'none';
 			const resolvedLine = (state.resolved_assets || {}).line || {};
-			const lineUrl = resolvedLine.url || this.lineTypes[lineKey] || '';
+			const lineUrl = this.resolveLinePreviewUrl(lineKey, resolvedLine);
 			const lineMeta = { ...(this.lineCatalog[lineKey] || {}), ...resolvedLine };
 			const lineTint = this.resolveLineTint(lineKey, state);
 			return JSON.stringify({
@@ -1390,7 +1459,7 @@
 				this.removeRole('line');
 				const lineKey = nextState.linien || 'none';
 				const resolvedLine = resolvedAssets.line || {};
-				const lineUrl = resolvedLine.url || this.lineTypes[lineKey] || '';
+				const lineUrl = this.resolveLinePreviewUrl(lineKey, resolvedLine);
 				if (lineKey && lineKey !== 'none' && lineUrl) {
 					const lineMeta = { ...(this.lineCatalog[lineKey] || {}), ...resolvedLine };
 					const lineTint = this.resolveLineTint(lineKey, nextState);
@@ -2121,6 +2190,9 @@
 				let lt = obj.line_type || selections.linien || 'none';
 				if (lt === 'yes') {
 					lt = 'type_1';
+				}
+				if (resolvedAssets.line && resolvedAssets.line.export_url) {
+					return resolvedAssets.line.export_url;
 				}
 				if (resolvedAssets.line && resolvedAssets.line.url) {
 					return resolvedAssets.line.url;

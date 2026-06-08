@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.38
+Stable tag: 2.28.39
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,14 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.39 =
+
+* Fix live preview frame line rendering for Naruto eye models and uploaded/imported SVG lines: selected lines now appear on the Fabric canvas immediately at the same scaled width as built-in line models.
+* Live preview uses the same display-normalized picker preview URL (`?pckz_line_picker=`) as the Linien selector thumbnail, not the raw bundled asset or secure admin-ajax token URL.
+* Restore `ledosPreview` (line catalog, line types, layer refs) via the runtime config AJAX endpoint for canvas fallbacks.
+* Asset batch resolve no longer fails entirely when a single asset (e.g. font) is missing; line resolve includes `preview_url` and separate `export_url`.
+* Preview engine: fetch-based SVG loading, draw-bounds width boost for compact art, and picker DOM fallback when AJAX resolve is empty.
 
 = 2.28.38 =
 

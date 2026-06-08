@@ -1,5 +1,20 @@
 ## Production installation packages
 
+### v2.28.39 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.39-master.zip`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.39/pckz-canonical-engine-2.28.39-master.zip
+
+Fix: live preview frame line rendering — Naruto eye models and uploaded SVG lines now appear on the canvas at full line width using the same display-normalized picker preview URL as the Linien selector.
+
+### v2.28.39 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.39-protected.zip`
+- SHA256: `e0116f7d6a07754c33a7eb62012943870667904a0b7e33cfabc958cbc7283f56`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.39/pckz-canonical-engine-2.28.39-protected.zip
+
+---
+
 ### v2.28.38 — Master Build (paxdesign.at only)
 
 - `pckz-canonical-engine-2.28.38-master.zip`

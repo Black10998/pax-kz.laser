@@ -206,6 +206,15 @@ class PCKZ_Ajax {
 		$payload = array(
 			'defaultFontFamily' => $default_family,
 		);
+		if ( class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			$payload['ledosPreview'] = array(
+				'designWidth'  => PCKZ_Ledos_Preview::DESIGN_WIDTH,
+				'designHeight' => PCKZ_Ledos_Preview::DESIGN_HEIGHT,
+				'layers'       => PCKZ_Ledos_Preview::layer_refs(),
+				'lineTypes'    => PCKZ_Ledos_Preview::line_types_for_preview_js(),
+				'lineCatalog'  => PCKZ_Ledos_Preview::line_catalog_for_js(),
+			);
+		}
 
 		wp_send_json_success( $payload );
 	}
@@ -266,9 +275,9 @@ class PCKZ_Ajax {
 			'font'       => $font_value ? $this->resolve_option_asset_data( $product_id, 'font', $font_value ) : array(),
 		);
 
-		foreach ( $payload as $row ) {
+		foreach ( $payload as $key => $row ) {
 			if ( is_wp_error( $row ) ) {
-				wp_send_json_error( array( 'message' => $row->get_error_message() ), 404 );
+				$payload[ $key ] = array();
 			}
 		}
 
@@ -310,17 +319,31 @@ class PCKZ_Ajax {
 				return array( 'kind' => 'line', 'slug' => 'none', 'url' => '' );
 			}
 			$catalog = class_exists( 'PCKZ_Ledos_Preview' ) ? PCKZ_Ledos_Preview::line_catalog_for_js() : array();
-			if ( empty( $catalog[ $slug ] ) ) {
+			$row     = is_array( $catalog[ $slug ] ?? null ) ? $catalog[ $slug ] : array();
+			$export  = class_exists( 'PCKZ_Ledos_Preview' ) ? ( PCKZ_Ledos_Preview::line_types()[ $slug ] ?? '' ) : '';
+			if ( empty( $row ) && '' === $export ) {
 				return new WP_Error( 'line_not_found', __( 'Line not found.', 'pckz-canonical-engine' ) );
 			}
-			$row = is_array( $catalog[ $slug ] ) ? $catalog[ $slug ] : array();
+			if ( empty( $row ) ) {
+				$row = array(
+					'connected_right' => class_exists( 'PCKZ_Line_Library' ) && PCKZ_Line_Library::connected_right_for_slug( $slug ),
+					'tintable'        => ! ( class_exists( 'PCKZ_Line_Library' ) && PCKZ_Line_Library::bundled_preserve_colors( $slug ) ),
+					'preserve_colors' => class_exists( 'PCKZ_Line_Library' ) && PCKZ_Line_Library::bundled_preserve_colors( $slug ),
+				);
+			}
+			$preview_url = class_exists( 'PCKZ_Line_Library' ) ? PCKZ_Line_Library::picker_preview_url( $slug ) : '';
+			if ( '' === $preview_url && $export ) {
+				$preview_url = esc_url_raw( $export );
+			}
 			return array(
 				'kind'            => 'line',
 				'slug'            => $slug,
 				'connected_right' => ! empty( $row['connected_right'] ),
 				'tintable'        => array_key_exists( 'tintable', $row ) ? ! empty( $row['tintable'] ) : true,
 				'preserve_colors' => ! empty( $row['preserve_colors'] ),
-				'url'             => $this->secure_creator_asset_url( $product_id, 'line', $slug ),
+				'url'             => $preview_url,
+				'preview_url'     => $preview_url,
+				'export_url'      => $export ? esc_url_raw( $export ) : '',
 			);
 		}
 

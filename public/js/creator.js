@@ -135,6 +135,23 @@
 
 			const data = payload.data || {};
 			this.defaultFontFamily = data.defaultFontFamily || 'Ubuntu';
+			if (data.ledosPreview && typeof data.ledosPreview === 'object') {
+				this.ledosPreview = data.ledosPreview;
+				if (this.previewEngine) {
+					this.previewEngine.cfg = { ...(this.previewEngine.cfg || {}), ...this.ledosPreview };
+					this.previewEngine.lineTypes = this.ledosPreview.lineTypes || {};
+					this.previewEngine.lineCatalog = this.ledosPreview.lineCatalog || {};
+					if (this.ledosPreview.layers) {
+						this.previewEngine.layers = this.ledosPreview.layers;
+					}
+					if (this.ledosPreview.designWidth) {
+						this.previewEngine.designW = this.ledosPreview.designWidth;
+					}
+					if (this.ledosPreview.designHeight) {
+						this.previewEngine.designH = this.ledosPreview.designHeight;
+					}
+				}
+			}
 			if (this.useCloudlift) {
 				const dw = 3651;
 				const dh = 2132;
@@ -276,6 +293,17 @@
 			if (batch) {
 				if (lineSlug && lineSlug !== 'none' && batch.line && batch.line.url) {
 					next.line = batch.line;
+				} else if (lineSlug && lineSlug !== 'none') {
+					const fallback = this.linePreviewUrlFromPicker(lineSlug);
+					if (fallback) {
+						next.line = {
+							kind: 'line',
+							slug: lineSlug,
+							url: fallback,
+							preview_url: fallback,
+							preserve_colors: this.linePreserveColorsFromPicker(lineSlug),
+						};
+					}
 				} else if (lineSlug === 'none') {
 					delete next.line;
 				}
@@ -298,6 +326,17 @@
 						this.resolveOptionAsset('line', lineSlug).then((row) => {
 							if (row && row.url) {
 								next.line = row;
+							} else {
+								const fallback = this.linePreviewUrlFromPicker(lineSlug);
+								if (fallback) {
+									next.line = {
+										kind: 'line',
+										slug: lineSlug,
+										url: fallback,
+										preview_url: fallback,
+										preserve_colors: this.linePreserveColorsFromPicker(lineSlug),
+									};
+								}
 							}
 						})
 					);
@@ -899,6 +938,36 @@
 					obj.set({ shadow: null });
 				}
 			});
+		}
+
+		linePreviewUrlFromPicker(slug) {
+			if (!slug || slug === 'none') {
+				return '';
+			}
+			const picker = this.root.querySelector('[data-visual-picker="linien"]');
+			if (!picker) {
+				return '';
+			}
+			const opt = picker.querySelector('[data-visual-value="' + slug + '"]');
+			if (!opt) {
+				return '';
+			}
+			return opt.dataset.visualImg || '';
+		}
+
+		linePreserveColorsFromPicker(slug) {
+			if (!slug || slug === 'none') {
+				return false;
+			}
+			const picker = this.root.querySelector('[data-visual-picker="linien"]');
+			if (!picker) {
+				return false;
+			}
+			const opt = picker.querySelector('[data-visual-value="' + slug + '"]');
+			if (!opt) {
+				return false;
+			}
+			return opt.dataset.visualPreserveColors === '1';
 		}
 
 		iconUrl(slug) {
