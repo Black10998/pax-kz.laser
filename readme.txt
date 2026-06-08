@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.41
+Stable tag: 2.28.42
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.42 =
+
+* Fix configurator default preview on page load: collect form defaults before the first asset resolve/render so default line, text, and icons appear immediately.
+* Restore fast line/icon switching: re-resolve assets when selections change and skip incomplete resolve cache hits.
+* Serve icon preview URLs directly from the catalog (CDN/bundled/custom) instead of slow secure token admin-ajax URLs; icon backgrounds use the direct CDN layer URL.
+* Expose `iconCatalog` in runtime config for client-side preview fallbacks; optimize SVG loading (fetch only same-origin display/cached line SVGs, direct URL load for CDN icons).
 
 = 2.28.41 =
 

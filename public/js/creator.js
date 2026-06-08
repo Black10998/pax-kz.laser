@@ -103,6 +103,7 @@
 					this.fallbackImg = this.root.querySelector('[data-preview-fallback]');
 					this.bindOptions();
 					this.initVisualPickers();
+					this.collectSelections();
 					this.bindThumbs();
 					this.bindActions();
 					this.bindCustomerArtworkUpload();
@@ -141,6 +142,7 @@
 					this.previewEngine.cfg = { ...(this.previewEngine.cfg || {}), ...this.ledosPreview };
 					this.previewEngine.lineTypes = this.ledosPreview.lineTypes || {};
 					this.previewEngine.lineCatalog = this.ledosPreview.lineCatalog || {};
+					this.previewEngine.iconCatalog = this.ledosPreview.iconCatalog || {};
 					if (this.ledosPreview.layers) {
 						this.previewEngine.layers = this.ledosPreview.layers;
 					}
@@ -266,6 +268,29 @@
 			}
 		}
 
+		previewAssetsReady(selections) {
+			const s = selections || {};
+			if (s.linien && s.linien !== 'none') {
+				const line = (this.resolvedAssets || {}).line;
+				if (!line || !line.url) {
+					return false;
+				}
+			}
+			if (s.symbol_links && s.symbol_links !== 'none') {
+				const left = (this.resolvedAssets || {}).icon_left;
+				if (!left || !left.url) {
+					return false;
+				}
+			}
+			if (s.symbol_rechts && s.symbol_rechts !== 'none') {
+				const right = (this.resolvedAssets || {}).icon_right;
+				if (!right || !right.url) {
+					return false;
+				}
+			}
+			return true;
+		}
+
 		async resolveSelectedAssets(opts = {}) {
 			const renderAfter = opts.render !== false;
 			const selections = {
@@ -280,7 +305,11 @@
 				right: selections.symbol_rechts,
 				font: selections.font_family,
 			});
-			if (this._resolvedAssetFingerprint === fingerprint && this.resolvedAssets) {
+			if (
+				this._resolvedAssetFingerprint === fingerprint &&
+				this.resolvedAssets &&
+				this.previewAssetsReady(selections)
+			) {
 				return;
 			}
 			const seq = ++this._assetResolveSeq;
@@ -317,11 +346,37 @@
 				}
 				if (leftSlug && leftSlug !== 'none' && batch.icon_left && batch.icon_left.url) {
 					next.icon_left = batch.icon_left;
+				} else if (leftSlug && leftSlug !== 'none') {
+					const fallback = this.iconPreviewUrlFromPicker(leftSlug, 'symbol_links');
+					if (fallback) {
+						next.icon_left = {
+							kind: 'icon',
+							slug: leftSlug,
+							url: fallback,
+							preview_url: fallback,
+							bg_url: this.iconBackgroundPreviewUrl(),
+							tintable: this.iconTintableFromPicker(leftSlug, 'symbol_links'),
+							preserve_colors: this.iconPreserveColorsFromPicker(leftSlug, 'symbol_links'),
+						};
+					}
 				} else if (leftSlug === 'none') {
 					delete next.icon_left;
 				}
 				if (rightSlug && rightSlug !== 'none' && batch.icon_right && batch.icon_right.url) {
 					next.icon_right = batch.icon_right;
+				} else if (rightSlug && rightSlug !== 'none') {
+					const fallback = this.iconPreviewUrlFromPicker(rightSlug, 'symbol_rechts');
+					if (fallback) {
+						next.icon_right = {
+							kind: 'icon',
+							slug: rightSlug,
+							url: fallback,
+							preview_url: fallback,
+							bg_url: this.iconBackgroundPreviewUrl(),
+							tintable: this.iconTintableFromPicker(rightSlug, 'symbol_rechts'),
+							preserve_colors: this.iconPreserveColorsFromPicker(rightSlug, 'symbol_rechts'),
+						};
+					}
 				} else if (rightSlug === 'none') {
 					delete next.icon_right;
 				}
@@ -356,6 +411,19 @@
 						this.resolveOptionAsset('icon', leftSlug).then((row) => {
 							if (row && row.url) {
 								next.icon_left = row;
+							} else {
+								const fallback = this.iconPreviewUrlFromPicker(leftSlug, 'symbol_links');
+								if (fallback) {
+									next.icon_left = {
+										kind: 'icon',
+										slug: leftSlug,
+										url: fallback,
+										preview_url: fallback,
+										bg_url: this.iconBackgroundPreviewUrl(),
+										tintable: this.iconTintableFromPicker(leftSlug, 'symbol_links'),
+										preserve_colors: this.iconPreserveColorsFromPicker(leftSlug, 'symbol_links'),
+									};
+								}
 							}
 						})
 					);
@@ -367,6 +435,19 @@
 						this.resolveOptionAsset('icon', rightSlug).then((row) => {
 							if (row && row.url) {
 								next.icon_right = row;
+							} else {
+								const fallback = this.iconPreviewUrlFromPicker(rightSlug, 'symbol_rechts');
+								if (fallback) {
+									next.icon_right = {
+										kind: 'icon',
+										slug: rightSlug,
+										url: fallback,
+										preview_url: fallback,
+										bg_url: this.iconBackgroundPreviewUrl(),
+										tintable: this.iconTintableFromPicker(rightSlug, 'symbol_rechts'),
+										preserve_colors: this.iconPreserveColorsFromPicker(rightSlug, 'symbol_rechts'),
+									};
+								}
 							}
 						})
 					);
@@ -729,6 +810,8 @@
 
 				this.loadBackground('day', () => {
 				if (this.useCloudlift && PCKZCE_GLOBAL.PCKZCEPreviewEngine) {
+					this.collectSelections();
+					this._resolvedAssetFingerprint = '';
 					this.previewEngine = new PCKZCE_GLOBAL.PCKZCEPreviewEngine(this.canvas, this.ledosPreview);
 						if (this.previewEngine.setPlateCalibration && this.stdSpec.plate_calibration) {
 							this.previewEngine.setPlateCalibration(this.stdSpec.plate_calibration);
@@ -976,6 +1059,57 @@
 				return false;
 			}
 			return opt.dataset.visualPreserveColors === '1';
+		}
+
+		visualPickerForOption(optionId) {
+			if (!optionId) {
+				return null;
+			}
+			return this.root.querySelector('[data-visual-picker="' + optionId + '"]');
+		}
+
+		iconPreviewUrlFromPicker(slug, optionId) {
+			if (!slug || slug === 'none') {
+				return '';
+			}
+			if (this.previewEngine && this.previewEngine.iconCatalog && this.previewEngine.iconCatalog[slug]) {
+				const row = this.previewEngine.iconCatalog[slug];
+				return row.preview || row.url || '';
+			}
+			const picker = this.visualPickerForOption(optionId);
+			if (!picker) {
+				return '';
+			}
+			const opt = picker.querySelector('[data-visual-value="' + slug + '"]');
+			return opt ? opt.dataset.visualImg || '' : '';
+		}
+
+		iconTintableFromPicker(slug, optionId) {
+			if (this.previewEngine && this.previewEngine.iconCatalog && this.previewEngine.iconCatalog[slug]) {
+				const row = this.previewEngine.iconCatalog[slug];
+				if (row.preserve_colors) {
+					return false;
+				}
+				return row.tintable !== false;
+			}
+			return true;
+		}
+
+		iconPreserveColorsFromPicker(slug, optionId) {
+			if (this.previewEngine && this.previewEngine.iconCatalog && this.previewEngine.iconCatalog[slug]) {
+				return !!this.previewEngine.iconCatalog[slug].preserve_colors;
+			}
+			const picker = this.visualPickerForOption(optionId);
+			if (!picker) {
+				return false;
+			}
+			const opt = picker.querySelector('[data-visual-value="' + slug + '"]');
+			return opt ? opt.dataset.visualPreserveColors === '1' : false;
+		}
+
+		iconBackgroundPreviewUrl() {
+			const bgLeft = this.ledosPreview && this.ledosPreview.layers ? this.ledosPreview.layers.iconBgLeft : null;
+			return bgLeft && bgLeft.url ? bgLeft.url : '';
 		}
 
 		iconUrl(slug) {
@@ -1875,6 +2009,7 @@
 			}
 
 			if (assetSelectionChanged) {
+				this._resolvedAssetFingerprint = '';
 				await this.resolveSelectedAssets({ render: false });
 			} else if (iconVisualChanged) {
 				this.invalidatePreviewCacheForSelection(prev, this.selections);

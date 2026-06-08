@@ -356,6 +356,32 @@ class PCKZ_Ledos_Preview {
 	}
 
 	/**
+	 * Icon catalog metadata for JS preview (direct preview URLs; no secure tokens).
+	 *
+	 * @return array<string,array>
+	 */
+	public static function icon_catalog_for_js() {
+		$catalog = array();
+		foreach ( self::icon_catalog( false ) as $slug => $data ) {
+			if ( 'none' === $slug || ! is_array( $data ) ) {
+				continue;
+			}
+			$preview = ! empty( $data['preview'] ) ? $data['preview'] : ( $data['url'] ?? '' );
+			if ( ! $preview ) {
+				continue;
+			}
+			$catalog[ $slug ] = array(
+				'url'             => esc_url_raw( $preview ),
+				'preview'         => esc_url_raw( $preview ),
+				'label'           => $data['label'] ?? $slug,
+				'tintable'        => ! empty( $data['tintable'] ),
+				'preserve_colors' => ! empty( $data['preserve_colors'] ),
+			);
+		}
+		return $catalog;
+	}
+
+	/**
 	 * Social / symbol icons (subset + bundled fallbacks + premium bundled SVGs).
 	 *
 	 * @param bool $for_customer When true, omit admin-disabled icons.

@@ -323,6 +323,28 @@
 			);
 		}
 
+		/**
+		 * Use fetch+string parse only for same-origin display/cached SVGs (fast path).
+		 *
+		 * @param {string} url Asset URL.
+		 * @return {boolean}
+		 */
+		shouldFetchSvgMarkupFirst(url) {
+			const raw = String(url || '');
+			if (!raw || /pckzce_secure_asset|action=pckzce_secure_asset/i.test(raw)) {
+				return false;
+			}
+			try {
+				const abs = new URL(raw, window.location.href);
+				if (abs.origin !== window.location.origin) {
+					return false;
+				}
+			} catch (err) {
+				return false;
+			}
+			return /\/display\/|pckzce_line_preview|-preview\.svg/i.test(raw);
+		}
+
 		builtinLinePreviewTargetBounds(box) {
 			const ref = this.lineReferenceArtboard( false );
 			const scale = Math.min( box.width / ref.width, box.height / ref.height );
@@ -1111,23 +1133,26 @@
 					);
 				};
 				if (typeof fetch === 'function' && fabric.loadSVGFromString) {
-					fetch(url, { credentials: 'same-origin', cache: 'no-store' })
-						.then((response) => (response && response.ok ? response.text() : ''))
-						.then((body) => {
-							const markup = String(body || '').trim();
-							if (!markup || markup.indexOf('<svg') === -1) {
-								loadFromUrl();
-								return;
-							}
-							const prepared = this.normalizeLineSvgMarkupForPreview(markup);
-							fabric.loadSVGFromString(prepared, (objects, options) => {
-								if (!finishParsed(objects, options, prepared)) {
+					const useFetchFirst = this.shouldFetchSvgMarkupFirst(url);
+					if (useFetchFirst) {
+						fetch(url, { credentials: 'same-origin' })
+							.then((response) => (response && response.ok ? response.text() : ''))
+							.then((body) => {
+								const markup = String(body || '').trim();
+								if (!markup || markup.indexOf('<svg') === -1) {
 									loadFromUrl();
+									return;
 								}
-							});
-						})
-						.catch(() => loadFromUrl());
-					return;
+								const prepared = this.normalizeLineSvgMarkupForPreview(markup);
+								fabric.loadSVGFromString(prepared, (objects, options) => {
+									if (!finishParsed(objects, options, prepared)) {
+										loadFromUrl();
+									}
+								});
+							})
+							.catch(() => loadFromUrl());
+						return;
+					}
 				}
 				loadFromUrl();
 			}).finally(() => {
@@ -2259,11 +2284,11 @@
 				if (!slug || slug === 'none') {
 					slug = role.includes('left') ? selections.symbol_links : selections.symbol_rechts;
 				}
-				if (role === 'icon-left' && resolvedAssets.icon_left && resolvedAssets.icon_left.url) {
-					return resolvedAssets.icon_left.url;
+				if (role === 'icon-left' && resolvedAssets.icon_left) {
+					return resolvedAssets.icon_left.export_url || resolvedAssets.icon_left.url || '';
 				}
-				if (role === 'icon-right' && resolvedAssets.icon_right && resolvedAssets.icon_right.url) {
-					return resolvedAssets.icon_right.url;
+				if (role === 'icon-right' && resolvedAssets.icon_right) {
+					return resolvedAssets.icon_right.export_url || resolvedAssets.icon_right.url || '';
 				}
 				if (role === 'icon-bg-left' && resolvedAssets.icon_left && resolvedAssets.icon_left.bg_url) {
 					return resolvedAssets.icon_left.bg_url;

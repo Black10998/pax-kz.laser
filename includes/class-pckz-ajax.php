@@ -214,6 +214,7 @@ class PCKZ_Ajax {
 				'layers'       => PCKZ_Ledos_Preview::layer_refs(),
 				'lineTypes'    => PCKZ_Ledos_Preview::line_types_for_preview_js(),
 				'lineCatalog'  => PCKZ_Ledos_Preview::line_catalog_for_js(),
+				'iconCatalog'  => PCKZ_Ledos_Preview::icon_catalog_for_js(),
 			);
 		}
 
@@ -304,13 +305,19 @@ class PCKZ_Ajax {
 				return new WP_Error( 'icon_not_found', __( 'Icon not found.', 'pckz-canonical-engine' ) );
 			}
 			$row = is_array( $catalog[ $slug ] ) ? $catalog[ $slug ] : array();
+			$preview_url = $this->creator_icon_preview_url( $slug, $row );
+			if ( '' === $preview_url ) {
+				return new WP_Error( 'icon_not_found', __( 'Icon not found.', 'pckz-canonical-engine' ) );
+			}
 			return array(
 				'kind'            => 'icon',
 				'slug'            => $slug,
 				'tintable'        => array_key_exists( 'tintable', $row ) ? ! empty( $row['tintable'] ) : true,
 				'preserve_colors' => ! empty( $row['preserve_colors'] ),
-				'url'             => $this->secure_creator_asset_url( $product_id, 'icon', $slug ),
-				'bg_url'          => $this->secure_creator_asset_url( $product_id, 'icon_bg', 'default' ),
+				'url'             => $preview_url,
+				'preview_url'     => $preview_url,
+				'export_url'      => $this->creator_icon_export_url( $slug, $row ),
+				'bg_url'          => $this->creator_icon_background_url(),
 			);
 		}
 
@@ -437,6 +444,60 @@ class PCKZ_Ajax {
 			}
 		}
 		return '';
+	}
+
+	/**
+	 * Direct preview URL for an icon slug (CDN, bundled, or custom upload).
+	 *
+	 * @param string $slug Icon slug.
+	 * @param array  $row  Catalog row.
+	 * @return string
+	 */
+	private function creator_icon_preview_url( $slug, $row = array() ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( ! $slug || 'none' === $slug ) {
+			return '';
+		}
+		if ( empty( $row ) && class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			$catalog = PCKZ_Ledos_Preview::icon_catalog( false );
+			$row     = is_array( $catalog[ $slug ] ?? null ) ? $catalog[ $slug ] : array();
+		}
+		$preview = ! empty( $row['preview'] ) ? (string) $row['preview'] : (string) ( $row['url'] ?? '' );
+		return $preview ? esc_url_raw( $preview ) : '';
+	}
+
+	/**
+	 * Export/source URL for an icon slug.
+	 *
+	 * @param string $slug Icon slug.
+	 * @param array  $row  Catalog row.
+	 * @return string
+	 */
+	private function creator_icon_export_url( $slug, $row = array() ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( ! $slug || 'none' === $slug ) {
+			return '';
+		}
+		if ( empty( $row ) && class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			$catalog = PCKZ_Ledos_Preview::icon_catalog( false );
+			$row     = is_array( $catalog[ $slug ] ?? null ) ? $catalog[ $slug ] : array();
+		}
+		$export = ! empty( $row['url'] ) ? (string) $row['url'] : '';
+		return $export ? esc_url_raw( $export ) : $this->creator_icon_preview_url( $slug, $row );
+	}
+
+	/**
+	 * Direct CDN URL for icon background plate in live preview.
+	 *
+	 * @return string
+	 */
+	private function creator_icon_background_url() {
+		if ( ! class_exists( 'PCKZ_Ledos_Preview' ) ) {
+			return '';
+		}
+		$refs = PCKZ_Ledos_Preview::layer_refs();
+		$url  = isset( $refs['iconBgLeft']['url'] ) ? (string) $refs['iconBgLeft']['url'] : '';
+		return $url ? esc_url_raw( $url ) : '';
 	}
 
 	/**

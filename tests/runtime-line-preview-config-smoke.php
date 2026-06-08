@@ -26,9 +26,10 @@ $ledos_preview = array(
 	'layers'       => PCKZ_Ledos_Preview::layer_refs(),
 	'lineTypes'    => PCKZ_Ledos_Preview::line_types_for_preview_js(),
 	'lineCatalog'  => PCKZ_Ledos_Preview::line_catalog_for_js(),
+	'iconCatalog'  => PCKZ_Ledos_Preview::icon_catalog_for_js(),
 );
 
-foreach ( array( 'designWidth', 'designHeight', 'layers', 'lineTypes', 'lineCatalog' ) as $key ) {
+foreach ( array( 'designWidth', 'designHeight', 'layers', 'lineTypes', 'lineCatalog', 'iconCatalog' ) as $key ) {
 	if ( empty( $ledos_preview[ $key ] ) ) {
 		fwrite( STDERR, "FAIL ledosPreview missing {$key}\n" );
 		exit( 1 );
