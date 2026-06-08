@@ -152,7 +152,7 @@ $hero_badge       = __( 'Linien', 'pckz-canonical-engine' );
 		><?php echo esc_textarea( $payload_json ); ?></textarea>
 
 		<p class="description">
-			<?php esc_html_e( 'Types 21–40 are retired. Delete removes built-in SVG files permanently and clears all library references. Incorrect procedural models type_112–121 and legacy bundled type_102–111 are purged automatically on upgrade.', 'pckz-canonical-engine' ); ?>
+			<?php esc_html_e( 'Types 21–40 are retired. Delete removes built-in SVG files permanently and clears all library references. Incorrect procedural models type_82–101, type_112–121, and legacy bundled type_102–111 are purged automatically on upgrade.', 'pckz-canonical-engine' ); ?>
 		</p>
 
 		<p class="pckz-library-toolbar">

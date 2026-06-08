@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.42
+Stable tag: 2.28.43
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,12 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.43 =
+
+* Remove mistaken procedural bundled line models type_82–type_101 (empty wide black picker entries); purge on activate/upgrade so they cannot reappear after update, reinstall, or cache clear.
+* Restore original default configurator state: Lumi-Plate text, fiery red CDN line (type_1), Instagram left, TikTok right on first page load.
+* `BUNDLED_LINE_TYPE_MAX` lowered to 81; product configs with purged line defaults migrate to type_1 automatically.
 
 = 2.28.42 =
 

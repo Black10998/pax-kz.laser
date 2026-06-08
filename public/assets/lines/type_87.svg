@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="950" height="35" viewBox="0 0 950 35" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M322 17.5 L332 5.5 L344 13.5 L340 5.5 L352 17.5 L344 29.5 L340 21.5 L332 29.5 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
-  <path d="M628 17.5 L618 5.5 L606 13.5 L610 5.5 L598 17.5 L606 29.5 L610 21.5 L618 29.5 Z" fill-rule="evenodd" clip-rule="evenodd" fill="white" stroke="none"/>
-  <path d="M9.5 17.5 L352 17.5" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M598 17.5 L940.5 17.5" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>

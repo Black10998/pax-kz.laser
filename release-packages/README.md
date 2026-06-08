@@ -1,5 +1,20 @@
 ## Production installation packages
 
+### v2.28.43 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.43-master.zip`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.43/pckz-canonical-engine-2.28.43-master.zip
+
+Fix: remove procedural line models type_82–101; restore fiery red type_1 default preview with Lumi-Plate, Instagram, and TikTok on page load.
+
+### v2.28.43 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.43-protected.zip`
+- SHA256: `065c2c8597eae22f15a7fae4e951a28e5c68d7ee361407c3a08d5c6c2ef3f4b6`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.43/pckz-canonical-engine-2.28.43-protected.zip
+
+---
+
 ### v2.28.42 — Master Build (paxdesign.at only)
 
 - `pckz-canonical-engine-2.28.42-master.zip`

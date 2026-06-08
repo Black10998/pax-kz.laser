@@ -33,6 +33,10 @@ class PCKZ_Line_Library {
 	const LEGACY_BUNDLED_NARUTO_TYPE_MIN = 102;
 	const LEGACY_BUNDLED_NARUTO_TYPE_MAX = 111;
 
+	/** Procedural wide-artboard line models type_82–type_101 (removed in v2.28.43). */
+	const LEGACY_PROCEDURAL_BUNDLED_LINE_TYPE_MIN = 82;
+	const LEGACY_PROCEDURAL_BUNDLED_LINE_TYPE_MAX = 101;
+
 	/**
 	 * Safe option getter for CLI smoke environments.
 	 *
@@ -426,6 +430,71 @@ class PCKZ_Line_Library {
 			}
 		}
 		return $count;
+	}
+
+	/**
+	 * Remove procedural wide-artboard line models type_82–type_101 from disk and options.
+	 *
+	 * Preserves manual Admin Line Library uploads stored at the same slug.
+	 *
+	 * @return int Number of slugs purged.
+	 */
+	public static function purge_legacy_procedural_bundled_line_models() {
+		$count = 0;
+		for ( $i = self::LEGACY_PROCEDURAL_BUNDLED_LINE_TYPE_MIN; $i <= self::LEGACY_PROCEDURAL_BUNDLED_LINE_TYPE_MAX; $i++ ) {
+			$slug = 'type_' . $i;
+			$display = self::display_asset_path( $slug );
+			if ( $display && is_readable( $display ) ) {
+				if ( function_exists( 'wp_delete_file' ) ) {
+					wp_delete_file( $display );
+				} else {
+					// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+					@unlink( $display );
+				}
+			}
+			if ( self::has_stored_custom_line( $slug ) ) {
+				$bundled = self::bundled_asset_path( $slug );
+				if ( $bundled && is_readable( $bundled ) ) {
+					if ( function_exists( 'wp_delete_file' ) ) {
+						wp_delete_file( $bundled );
+					} else {
+						// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+						@unlink( $bundled );
+					}
+				}
+				self::clear_permanently_deleted( $slug );
+				continue;
+			}
+			$result = self::delete_bundled_permanent( $slug );
+			if ( ! is_wp_error( $result ) ) {
+				++$count;
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Whether a line slug was removed from bundled assets and should not be used as default.
+	 *
+	 * @param string $slug Line slug.
+	 * @return bool
+	 */
+	public static function is_purged_bundled_line_slug( $slug ) {
+		$slug = sanitize_key( (string) $slug );
+		if ( ! preg_match( '/^type_(\d+)$/', $slug, $m ) ) {
+			return false;
+		}
+		$n = (int) $m[1];
+		if ( $n >= self::REMOVED_RED_LINE_TYPE_MIN && $n <= self::REMOVED_RED_LINE_TYPE_MAX ) {
+			return true;
+		}
+		if ( $n >= self::LEGACY_BUNDLED_NARUTO_TYPE_MIN && $n <= self::LEGACY_BUNDLED_NARUTO_TYPE_MAX ) {
+			return true;
+		}
+		if ( $n >= self::LEGACY_PROCEDURAL_BUNDLED_LINE_TYPE_MIN && $n <= self::LEGACY_PROCEDURAL_BUNDLED_LINE_TYPE_MAX ) {
+			return true;
+		}
+		return self::is_permanently_deleted_bundled( $slug );
 	}
 
 	/**
@@ -931,21 +1000,21 @@ class PCKZ_Line_Library {
 	 * @return string Line slug, or empty when no lines are available.
 	 */
 	public static function default_customer_line_slug() {
-		foreach ( self::get_customer_line_choices() as $choice ) {
-			$slug = sanitize_key( (string) ( $choice['value'] ?? '' ) );
-			if ( $slug && 'none' !== $slug ) {
-				return $slug;
-			}
-		}
+		$preferred = 'type_1';
 		if ( class_exists( 'PCKZ_Ledos_Preview' ) ) {
-			foreach ( PCKZ_Ledos_Preview::line_catalog( true, true ) as $slug => $data ) {
+			$catalog = PCKZ_Ledos_Preview::line_catalog( true, true );
+			if ( isset( $catalog[ $preferred ] ) && ! self::is_purged_bundled_line_slug( $preferred ) ) {
+				return $preferred;
+			}
+			foreach ( $catalog as $slug => $data ) {
 				unset( $data );
-				if ( 'none' !== $slug ) {
-					return sanitize_key( (string) $slug );
+				if ( 'none' === $slug || self::is_purged_bundled_line_slug( $slug ) ) {
+					continue;
 				}
+				return sanitize_key( (string) $slug );
 			}
 		}
-		return 'type_1';
+		return $preferred;
 	}
 
 	/**

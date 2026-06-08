@@ -73,6 +73,7 @@ class PCKZ_Activator {
 		if ( class_exists( 'PCKZ_Line_Library' ) ) {
 			PCKZ_Line_Library::purge_removed_red_line_models();
 			PCKZ_Line_Library::purge_legacy_bundled_naruto_models();
+			PCKZ_Line_Library::purge_legacy_procedural_bundled_line_models();
 			PCKZ_Line_Library::ensure_bundled_display_previews();
 		}
 		update_option( 'pckz_plugin_version', PCKZCE_VERSION );
@@ -87,6 +88,7 @@ class PCKZ_Activator {
 			self::maybe_backfill_preview_images();
 			self::maybe_upgrade_product_config();
 			self::maybe_upgrade_customer_start_defaults();
+			self::maybe_fixup_purged_line_defaults();
 			self::maybe_merge_default_fonts();
 			if ( class_exists( 'PCKZ_Font_Library' ) ) {
 				PCKZ_Font_Library::clear_google_font_cache();
@@ -100,6 +102,7 @@ class PCKZ_Activator {
 			if ( class_exists( 'PCKZ_Line_Library' ) ) {
 				PCKZ_Line_Library::purge_removed_red_line_models();
 				PCKZ_Line_Library::purge_legacy_bundled_naruto_models();
+				PCKZ_Line_Library::purge_legacy_procedural_bundled_line_models();
 				PCKZ_Line_Library::ensure_bundled_display_previews();
 			}
 			update_option( 'pckz_plugin_version', PCKZCE_VERSION );
@@ -190,6 +193,49 @@ class PCKZ_Activator {
 				continue;
 			}
 			update_post_meta( $post_id, '_pckz_config', $config );
+		}
+	}
+
+	/**
+	 * Reset stored linien defaults that point at purged bundled line slugs.
+	 */
+	public static function maybe_fixup_purged_line_defaults() {
+		if ( ! class_exists( 'PCKZ_Line_Library' ) || ! class_exists( 'PCKZ_Customizer_Options' ) || ! class_exists( 'PCKZ_Post_Type' ) ) {
+			return;
+		}
+
+		$fallback = PCKZ_Line_Library::default_customer_line_slug();
+		$posts    = get_posts(
+			array(
+				'post_type'   => PCKZ_Post_Type::POST_TYPE,
+				'post_status' => 'any',
+				'numberposts' => -1,
+				'fields'      => 'ids',
+			)
+		);
+
+		foreach ( $posts as $post_id ) {
+			$config = get_post_meta( $post_id, '_pckz_config', true );
+			if ( ! is_array( $config ) || empty( $config['customer_options'] ) ) {
+				continue;
+			}
+			$changed = false;
+			foreach ( $config['customer_options'] as $idx => $option ) {
+				if ( 'linien' !== ( $option['id'] ?? '' ) ) {
+					continue;
+				}
+				$default = sanitize_key( (string) ( $option['default'] ?? '' ) );
+				if ( ! $default || 'none' === $default ) {
+					continue;
+				}
+				if ( PCKZ_Line_Library::is_purged_bundled_line_slug( $default ) ) {
+					$config['customer_options'][ $idx ]['default'] = $fallback;
+					$changed                                      = true;
+				}
+			}
+			if ( $changed ) {
+				update_post_meta( $post_id, '_pckz_config', $config );
+			}
 		}
 	}
 
