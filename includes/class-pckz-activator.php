@@ -72,7 +72,7 @@ class PCKZ_Activator {
 		self::maybe_backfill_preview_images();
 		if ( class_exists( 'PCKZ_Line_Library' ) ) {
 			PCKZ_Line_Library::purge_removed_red_line_models();
-			PCKZ_Line_Library::register_imported_customer_red_lines();
+			PCKZ_Line_Library::purge_legacy_bundled_naruto_models();
 			PCKZ_Line_Library::ensure_bundled_display_previews();
 		}
 		update_option( 'pckz_plugin_version', PCKZCE_VERSION );
@@ -99,7 +99,8 @@ class PCKZ_Activator {
 			}
 			if ( class_exists( 'PCKZ_Line_Library' ) ) {
 				PCKZ_Line_Library::purge_removed_red_line_models();
-				PCKZ_Line_Library::register_imported_customer_red_lines();
+				PCKZ_Line_Library::purge_legacy_bundled_naruto_models();
+				PCKZ_Line_Library::ensure_bundled_display_previews();
 			}
 			update_option( 'pckz_plugin_version', PCKZCE_VERSION );
 		}

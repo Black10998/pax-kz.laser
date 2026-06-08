@@ -1,5 +1,20 @@
 ## Production installation packages
 
+### v2.28.41 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.41-master.zip`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.41/pckz-canonical-engine-2.28.41-master.zip
+
+Fix: remove bundled Naruto eye models (type_102–111); manual SVG upload/import only with fast direct preview URLs and preserved colors.
+
+### v2.28.41 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.41-protected.zip`
+- SHA256: `f6e7f22897efb1438267fdc0a5386b7bd4e547ba75d041852c8669df53f14b73`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.41/pckz-canonical-engine-2.28.41-protected.zip
+
+---
+
 ### v2.28.40 — Master Build (paxdesign.at only)
 
 - `pckz-canonical-engine-2.28.40-master.zip`

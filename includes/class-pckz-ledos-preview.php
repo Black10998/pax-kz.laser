@@ -94,7 +94,7 @@ class PCKZ_Ledos_Preview {
 	 * First / last bundled line type index (model 21–91 SVGs).
 	 */
 	const BUNDLED_LINE_TYPE_MIN = 21;
-	const BUNDLED_LINE_TYPE_MAX = 111;
+	const BUNDLED_LINE_TYPE_MAX = 101;
 
 	/**
 	 * Absolute path to bundled line SVG directory.
@@ -115,14 +115,11 @@ class PCKZ_Ledos_Preview {
 	}
 
 	/**
-	 * Line overlay SVGs shipped with the plugin (type_21–type_101; type_102+ when imported).
+	 * Line overlay SVGs shipped with the plugin (type_21–type_101).
 	 *
 	 * @return array<string,string>
 	 */
 	public static function bundled_line_types() {
-		if ( class_exists( 'PCKZ_Line_Library' ) ) {
-			PCKZ_Line_Library::ensure_bundled_naruto_lines_visible();
-		}
 		$out = array();
 		$dir = self::line_assets_dir();
 		if ( ! is_dir( $dir ) ) {
@@ -138,14 +135,6 @@ class PCKZ_Ledos_Preview {
 				$out[ $key ] = self::line_assets_url() . $key . '.svg';
 			}
 		}
-		if ( class_exists( 'PCKZ_Line_Library' ) ) {
-			foreach ( PCKZ_Line_Library::naruto_eye_slugs_with_assets() as $slug ) {
-				$file = $dir . $slug . '.svg';
-				if ( is_readable( $file ) ) {
-					$out[ $slug ] = self::line_assets_url() . $slug . '.svg';
-				}
-			}
-		}
 		return $out;
 	}
 
@@ -155,10 +144,6 @@ class PCKZ_Ledos_Preview {
 	 * @return array<string,string>
 	 */
 	public static function base_line_types() {
-		if ( class_exists( 'PCKZ_Line_Library' ) ) {
-			// Self-heal bundled Naruto eye visibility before building the catalog.
-			PCKZ_Line_Library::ensure_bundled_naruto_lines_visible();
-		}
 		$base = 'https://cdn.shopify.com/s/files/1/0746/3672/2449/files/';
 		$map  = array(
 			'none'   => '',
@@ -247,9 +232,6 @@ class PCKZ_Ledos_Preview {
 	 * @return array<string,array>
 	 */
 	public static function line_catalog_for_js() {
-		if ( class_exists( 'PCKZ_Line_Library' ) ) {
-			PCKZ_Line_Library::ensure_bundled_naruto_lines_visible();
-		}
 		$catalog = array();
 		foreach ( self::line_catalog( false, false ) as $slug => $data ) {
 			if ( 'none' === $slug ) {
@@ -277,9 +259,6 @@ class PCKZ_Ledos_Preview {
 	 * @return array<string,array>
 	 */
 	public static function line_catalog( $for_customer = true, $apply_order = true ) {
-		if ( class_exists( 'PCKZ_Line_Library' ) ) {
-			PCKZ_Line_Library::ensure_bundled_naruto_lines_visible();
-		}
 		$none_preview = PCKZCE_PLUGIN_URL . 'public/images/icons/lines-black.svg';
 		$items        = array(
 			'none' => array(
@@ -350,23 +329,6 @@ class PCKZ_Ledos_Preview {
 		}
 
 		if ( class_exists( 'PCKZ_Line_Library' ) ) {
-			foreach ( PCKZ_Line_Library::naruto_eye_slugs_with_assets() as $slug ) {
-				if ( isset( $items[ $slug ] ) ) {
-					continue;
-				}
-				$url = self::line_types()[ $slug ] ?? '';
-				if ( ! $url ) {
-					continue;
-				}
-				$items[ $slug ] = array(
-					'url'              => esc_url_raw( $url ),
-					'preview'          => esc_url_raw( $url ),
-					'label'            => self::default_line_label( $slug ),
-					'custom'           => false,
-					'preserve_colors'  => true,
-					'tintable'         => false,
-				);
-			}
 			$items = PCKZ_Line_Library::strip_retired_from_catalog( $items );
 		}
 

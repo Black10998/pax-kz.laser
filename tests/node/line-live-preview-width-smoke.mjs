@@ -74,13 +74,3 @@ if (boost > 1.05 && !(previewScale > exportScale * 1.05)) {
 }
 
 console.log('OK line-live-preview-width-smoke', { coverage: m41.cov.toFixed(3), boost: m41.boost.toFixed(3) });
-
-// Naruto eye line: use shipped display-normalized SVG (same path as live canvas).
-const type102Display = 'file://' + path.join(pluginRoot, 'public/assets/lines/display/type_102.svg');
-if (fs.existsSync(type102Display.replace('file://', ''))) {
-	const m102 = await widthCoverage(type102Display);
-	if (m102.cov < 0.88) {
-		throw new Error(`type_102 display SVG live preview width coverage too low: ${m102.cov.toFixed(3)} boost=${m102.boost}`);
-	}
-	console.log('OK type_102 display live preview', { coverage: m102.cov.toFixed(3), boost: m102.boost.toFixed(3) });
-}

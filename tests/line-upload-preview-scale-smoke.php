@@ -12,18 +12,14 @@ require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-svg-library.php';
 require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-production-geometry.php';
 require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-line-library.php';
 
-$compact = file_get_contents( PCKZ_Ledos_Preview::line_assets_dir() . 'type_102.svg' );
-if ( ! is_string( $compact ) || '' === $compact ) {
-	fwrite( STDERR, "SKIP type_102.svg missing\n" );
-	exit( 0 );
-}
+$compact = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 35"><path fill="#fefefe" d="M420 10 L530 10"/></svg>';
 
-if ( PCKZ_Line_Library::is_artboard_normalized_bundled_line( 'type_102', $compact ) ) {
-	fwrite( STDERR, "FAIL compact 950×35 eye line must not skip display normalization\n" );
+if ( PCKZ_Line_Library::is_artboard_normalized_bundled_line( 'type_fixture', $compact ) ) {
+	fwrite( STDERR, "FAIL compact 950×35 line must not skip display normalization\n" );
 	exit( 1 );
 }
 
-$display = PCKZ_Line_Library::normalize_line_svg_for_display( 'type_102', $compact, false );
+$display = PCKZ_Line_Library::normalize_line_svg_for_display( 'type_fixture', $compact, false );
 if ( ! preg_match( '/scale\(([\d.]+)\)/', $display, $sm ) ) {
 	fwrite( STDERR, "FAIL compact line display preview missing scale transform\n" );
 	exit( 1 );

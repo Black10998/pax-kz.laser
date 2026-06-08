@@ -110,6 +110,11 @@ if ( ! function_exists( 'sanitize_file_name' ) ) {
 		return $filename;
 	}
 }
+if ( ! function_exists( 'do_action' ) ) {
+	function do_action( $tag, ...$args ) {
+		unset( $tag, $args );
+	}
+}
 if ( ! function_exists( 'get_option' ) ) {
 	function get_option( $option, $default = false ) {
 		global $pckz_smoke_options;

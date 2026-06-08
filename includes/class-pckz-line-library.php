@@ -25,13 +25,13 @@ class PCKZ_Line_Library {
 	const RETIRED_BUNDLED_TYPE_MIN = 21;
 	const RETIRED_BUNDLED_TYPE_MAX = 40;
 
-	/** Incorrect procedural red lines type_112+ (removed; type_102–111 are official bundled Naruto eye models). */
+	/** Incorrect procedural red lines type_112+ (removed on upgrade). */
 	const REMOVED_RED_LINE_TYPE_MIN = 112;
 	const REMOVED_RED_LINE_TYPE_MAX = 121;
 
-	/** Official bundled Naruto anime eye models shipped with the plugin. */
-	const NARUTO_EYE_TYPE_MIN = 102;
-	const NARUTO_EYE_TYPE_MAX = 111;
+	/** Legacy bundled Naruto eye models (removed in v2.28.41; manual upload only). */
+	const LEGACY_BUNDLED_NARUTO_TYPE_MIN = 102;
+	const LEGACY_BUNDLED_NARUTO_TYPE_MAX = 111;
 
 	/**
 	 * Safe option getter for CLI smoke environments.
@@ -114,25 +114,16 @@ class PCKZ_Line_Library {
 	}
 
 	/**
-	 * Bundled Naruto eye line manifest (type_102–type_111).
+	 * Optional bundled line manifest (slug => label / preserve_colors).
 	 *
 	 * @return array<string,array{label:string,preserve_colors?:bool}>
 	 */
 	public static function bundled_manifest() {
-		static $cache = null;
-		if ( null !== $cache ) {
-			return $cache;
-		}
-		$file  = PCKZCE_PLUGIN_DIR . 'includes/bundled-line-manifest.php';
-		$cache = is_readable( $file ) ? include $file : array();
-		if ( ! is_array( $cache ) ) {
-			$cache = array();
-		}
-		return $cache;
+		return array();
 	}
 
 	/**
-	 * Bundled line slug => label manifest (type_102+ named models).
+	 * Bundled line slug => label manifest.
 	 *
 	 * @return array<string,string>
 	 */
@@ -145,33 +136,14 @@ class PCKZ_Line_Library {
 				$labels[ $slug ] = $row;
 			}
 		}
-		if ( ! empty( $labels ) ) {
-			return $labels;
-		}
-		$file = PCKZCE_PLUGIN_DIR . 'includes/bundled-line-labels.php';
-		$legacy = is_readable( $file ) ? include $file : array();
-		return is_array( $legacy ) ? $legacy : array();
-	}
-
-	/**
-	 * Whether slug is an official bundled Naruto eye model.
-	 *
-	 * @param string $slug Line slug.
-	 * @return bool
-	 */
-	public static function is_naruto_eye_bundled_line( $slug ) {
-		if ( ! preg_match( '/^type_(\d+)$/', sanitize_key( (string) $slug ), $m ) ) {
-			return false;
-		}
-		$n = (int) $m[1];
-		return $n >= self::NARUTO_EYE_TYPE_MIN && $n <= self::NARUTO_EYE_TYPE_MAX;
+		return $labels;
 	}
 
 	/**
 	 * Whether line SVG artwork already fills the preview artboard width (skip display scaling).
 	 *
 	 * Uses drawable path bounds vs viewBox width — not viewBox size alone. Uploaded/imported
-	 * SVGs on 950×35 with compact centered art (e.g. Naruto eyes) still need picker scaling.
+	 * SVGs on 950×35 with compact centered art still need picker scaling.
 	 *
 	 * @param string      $slug Line slug (unused; kept for callers).
 	 * @param string|null $svg  SVG body to inspect.
@@ -203,7 +175,7 @@ class PCKZ_Line_Library {
 		if ( is_array( $row ) && array_key_exists( 'preserve_colors', $row ) ) {
 			return ! empty( $row['preserve_colors'] );
 		}
-		return self::is_naruto_eye_bundled_line( $slug );
+		return false;
 	}
 
 	/**
@@ -302,10 +274,6 @@ class PCKZ_Line_Library {
 	public static function is_permanently_deleted_bundled( $slug ) {
 		$slug = sanitize_key( (string) $slug );
 		if ( ! $slug || 'none' === $slug ) {
-			return false;
-		}
-		if ( self::is_naruto_eye_bundled_line( $slug ) && self::bundled_asset_path( $slug ) ) {
-			self::ensure_bundled_naruto_lines_visible();
 			return false;
 		}
 		if ( ! in_array( $slug, self::permanently_deleted_slugs(), true ) ) {
@@ -418,12 +386,6 @@ class PCKZ_Line_Library {
 		if ( self::is_retired_bundled_slug( $slug ) ) {
 			return new WP_Error( 'retired', __( 'Dieses Modell ist dauerhaft aus dem Katalog entfernt.', 'pckz-canonical-engine' ) );
 		}
-		if ( self::is_naruto_eye_bundled_line( $slug ) && self::bundled_asset_path( $slug ) ) {
-			return new WP_Error(
-				'protected_bundled',
-				__( 'Offizielle Naruto-Augenmodelle (type_102–111) sind fest eingebunden und können nicht dauerhaft gelöscht werden.', 'pckz-canonical-engine' )
-			);
-		}
 		if ( ! preg_match( '/^type_(\d+)$/', $slug, $m ) ) {
 			return new WP_Error( 'not_bundled', __( 'Nur eingebaute Linienmodelle können hier gelöscht werden.', 'pckz-canonical-engine' ) );
 		}
@@ -467,87 +429,44 @@ class PCKZ_Line_Library {
 	}
 
 	/**
-	 * After bundled type_102–type_111 ship or import, re-enable them in catalogs.
+	 * Remove legacy bundled Naruto eye models (type_102–type_111) from disk and options.
 	 *
-	 * Clears stale permanent-delete markers from older purge builds (v2.27.31–2.27.34
-	 * removed type_102–121) and restores customer visibility + display order.
+	 * Preserves manual Admin Line Library uploads stored at the same slug.
 	 *
-	 * @return int Number of slugs re-enabled.
+	 * @return int Number of slugs purged.
 	 */
-	public static function register_imported_customer_red_lines() {
+	public static function purge_legacy_bundled_naruto_models() {
 		$count = 0;
-		foreach ( self::naruto_eye_slugs_with_assets() as $slug ) {
-			self::clear_permanently_deleted( $slug );
-			self::enable_bundled_slug_for_customers( $slug );
-			self::append_to_display_order( $slug );
-			++$count;
+		for ( $i = self::LEGACY_BUNDLED_NARUTO_TYPE_MIN; $i <= self::LEGACY_BUNDLED_NARUTO_TYPE_MAX; $i++ ) {
+			$slug = 'type_' . $i;
+			$display = self::display_asset_path( $slug );
+			if ( $display && is_readable( $display ) ) {
+				if ( function_exists( 'wp_delete_file' ) ) {
+					wp_delete_file( $display );
+				} else {
+					// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+					@unlink( $display );
+				}
+			}
+			if ( self::has_stored_custom_line( $slug ) ) {
+				$bundled = self::bundled_asset_path( $slug );
+				if ( $bundled && is_readable( $bundled ) ) {
+					if ( function_exists( 'wp_delete_file' ) ) {
+						wp_delete_file( $bundled );
+					} else {
+						// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+						@unlink( $bundled );
+					}
+				}
+				self::clear_permanently_deleted( $slug );
+				continue;
+			}
+			$result = self::delete_bundled_permanent( $slug );
+			if ( ! is_wp_error( $result ) ) {
+				++$count;
+			}
 		}
 		return $count;
-	}
-
-	/**
-	 * Official bundled Naruto eye slugs that have readable SVG assets on disk.
-	 *
-	 * @return string[]
-	 */
-	public static function naruto_eye_slugs_with_assets() {
-		$slugs = array();
-		for ( $i = self::NARUTO_EYE_TYPE_MIN; $i <= self::NARUTO_EYE_TYPE_MAX; $i++ ) {
-			$slug = 'type_' . $i;
-			if ( self::bundled_asset_path( $slug ) ) {
-				$slugs[] = $slug;
-			}
-		}
-		return $slugs;
-	}
-
-	/**
-	 * Whether a bundled slug still carries stale hide/delete flags.
-	 *
-	 * @param string $slug Line slug.
-	 * @return bool
-	 */
-	private static function naruto_slug_needs_visibility_heal( $slug ) {
-		$slug = sanitize_key( (string) $slug );
-		if ( ! self::is_naruto_eye_bundled_line( $slug ) || ! self::bundled_asset_path( $slug ) ) {
-			return false;
-		}
-		if ( in_array( $slug, self::permanently_deleted_slugs(), true ) ) {
-			return true;
-		}
-		foreach (
-			array(
-				self::OPTION_DISABLED,
-				self::OPTION_INACTIVE,
-				self::OPTION_ADMIN_HIDDEN,
-			) as $key
-		) {
-			if ( in_array( $slug, self::sanitize_slug_list( self::option_get( $key, array() ) ), true ) ) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Ensure bundled Naruto eye models are visible when SVG assets exist on disk.
-	 *
-	 * Self-heals sites that upgraded before SVGs shipped or still carry stale delete flags.
-	 */
-	public static function ensure_bundled_naruto_lines_visible() {
-		if ( empty( self::naruto_eye_slugs_with_assets() ) ) {
-			return;
-		}
-		$needs_heal = false;
-		foreach ( self::naruto_eye_slugs_with_assets() as $slug ) {
-			if ( self::naruto_slug_needs_visibility_heal( $slug ) ) {
-				$needs_heal = true;
-				break;
-			}
-		}
-		if ( $needs_heal ) {
-			self::register_imported_customer_red_lines();
-		}
 	}
 
 	/**
@@ -669,9 +588,6 @@ class PCKZ_Line_Library {
 				}
 				$slugs[] = sanitize_key( $slug );
 			}
-		}
-		foreach ( self::naruto_eye_slugs_with_assets() as $slug ) {
-			$slugs[] = $slug;
 		}
 		return array_values( array_unique( array_filter( $slugs ) ) );
 	}
@@ -1086,7 +1002,6 @@ class PCKZ_Line_Library {
 		if ( ! class_exists( 'PCKZ_Ledos_Preview' ) ) {
 			return array();
 		}
-		self::ensure_bundled_naruto_lines_visible();
 		return PCKZ_Ledos_Preview::line_catalog( false, true );
 	}
 
@@ -1696,8 +1611,6 @@ class PCKZ_Line_Library {
 	 * Register frontend hooks (picker preview SVG endpoint).
 	 */
 	public static function register_hooks() {
-		add_action( 'init', array( __CLASS__, 'ensure_bundled_naruto_lines_visible' ), 6 );
-		add_action( 'admin_init', array( __CLASS__, 'ensure_bundled_naruto_lines_visible' ), 6 );
 		add_action( 'init', array( __CLASS__, 'ensure_bundled_display_previews' ), 7 );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_serve_picker_preview' ), 0 );
 	}
@@ -1801,7 +1714,7 @@ class PCKZ_Line_Library {
 	}
 
 	/**
-	 * Ensure display previews exist for bundled Naruto eye models and other compact art.
+	 * Ensure display previews exist for bundled compact art and custom uploads.
 	 */
 	public static function ensure_bundled_display_previews() {
 		if ( ! class_exists( 'PCKZ_Ledos_Preview' ) ) {

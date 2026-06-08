@@ -35,24 +35,11 @@ for ( $i = PCKZ_Ledos_Preview::BUNDLED_LINE_TYPE_MIN; $i <= PCKZ_Ledos_Preview::
 	if ( ! is_readable( $path ) ) {
 		continue;
 	}
-	$svg     = file_get_contents( $path );
-	$is_red  = ( $i >= 102 && $i <= 111 && preg_match( '/#b22222/i', $svg ) );
-	$is_naruto_eye = ( $i >= 102 && $i <= 111 );
+	$svg    = file_get_contents( $path );
+	$is_red = ( $i >= $red_min && $i <= 111 && preg_match( '/#b22222/i', $svg ) );
 	if ( ! preg_match( '/viewBox="0 0 950 35"/', $svg ) ) {
 		fwrite( STDERR, "FAIL viewBox 950×35 for type_{$i}\n" );
 		exit( 1 );
-	}
-	if ( $is_naruto_eye ) {
-		if ( ! PCKZ_Svg_Library::svg_line_should_preserve_colors( $svg ) ) {
-			fwrite( STDERR, "FAIL type_{$i} Naruto eye model should preserve native colors\n" );
-			exit( 1 );
-		}
-		$labels = PCKZ_Line_Library::bundled_labels();
-		if ( empty( $labels[ 'type_' . $i ] ) ) {
-			fwrite( STDERR, "FAIL type_{$i} missing bundled label\n" );
-			exit( 1 );
-		}
-		continue;
 	}
 	if ( preg_match( '/#000000|fill="black"/i', $svg ) ) {
 		fwrite( STDERR, "FAIL black fill/stroke in type_{$i}\n" );
