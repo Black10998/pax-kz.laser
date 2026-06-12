@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.46
+Stable tag: 2.28.47
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.47 =
+
+* Configurator startup performance: bootstrap no longer blocks indefinitely on runtime-config fetch; initialization now proceeds after a bounded wait so preview setup starts earlier on slower networks.
+* Reduced non-essential startup traffic by replacing eager inactive-font prefetching with deferred idle prefetch (desktop/fast-network only) and a smaller prefetch window.
+* Added in-flight deduplication for identical `resolveSelectedAssets()` requests to avoid redundant startup asset resolution work.
+* Rebuilt `creator.min.js` and `creator.protected.js` so protected/minified production assets match the startup optimizations.
 
 = 2.28.46 =
 
