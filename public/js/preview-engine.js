@@ -3282,6 +3282,55 @@
 			return out;
 		}
 
+		fontFetchCandidateUrls(url) {
+			const source = String(url || '').trim();
+			if (!source) {
+				return [];
+			}
+			const list = [source];
+			if (!/[?&]action=pckzce_font_file(?:&|$)/i.test(source)) {
+				return list;
+			}
+			try {
+				const parsed = new URL(source, global.location && global.location.href ? global.location.href : undefined);
+				if (parsed.searchParams.has('nonce') || parsed.searchParams.has('_wpnonce')) {
+					parsed.searchParams.delete('nonce');
+					parsed.searchParams.delete('_wpnonce');
+					list.push(parsed.toString());
+				}
+				parsed.searchParams.set('pckzce_font_retry', String(Date.now()));
+				list.push(parsed.toString());
+			} catch (err) {
+				// ignore URL parsing failures; keep original URL candidate only.
+			}
+			return list.filter(function (candidate, idx, arr) {
+				return candidate && arr.indexOf(candidate) === idx;
+			});
+		}
+
+		async fetchOpenTypeFontBinary(url) {
+			const candidates = this.fontFetchCandidateUrls(url);
+			let lastError = null;
+			for (let i = 0; i < candidates.length; i++) {
+				const candidate = candidates[i];
+				try {
+					const response = await fetch(candidate, {
+						mode: 'cors',
+						credentials: 'same-origin',
+						cache: 'no-store',
+					});
+					if (!response.ok) {
+						lastError = new Error('Font fetch failed: ' + candidate + ' [' + response.status + ']');
+						continue;
+					}
+					return await response.arrayBuffer();
+				} catch (err) {
+					lastError = err;
+				}
+			}
+			throw lastError || new Error('Font fetch failed: ' + String(url || ''));
+		}
+
 		async loadOpenTypeFont(fontFamily) {
 			const key = String(fontFamily || 'Russo One')
 				.trim()
@@ -3296,11 +3345,7 @@
 			if (!url) {
 				throw new Error('Font URL missing for ' + fontFamily);
 			}
-			const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
-			if (!res.ok) {
-				throw new Error('Font fetch failed: ' + url);
-			}
-			const font = global.opentype.parse(await res.arrayBuffer());
+			const font = global.opentype.parse(await this.fetchOpenTypeFontBinary(url));
 			const probe = this.buildOpenTypePathSafe(font, 'Laser AB 12', 48);
 			if (!this.openTypePathHasDrawableContours(probe)) {
 				throw new Error(

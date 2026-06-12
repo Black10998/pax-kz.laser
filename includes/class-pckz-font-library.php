@@ -648,48 +648,115 @@ class PCKZ_Font_Library {
 			if ( false === $body || '' === $body ) {
 				return new WP_Error( 'font_read_fail', __( 'Could not read font file.', 'pckz-canonical-engine' ), array( 'status' => 500 ) );
 			}
-			self::send_font_binary_headers( $path );
+			$type = self::detect_font_binary_type( $body );
+			if ( '' === $type ) {
+				return new WP_Error( 'font_invalid_binary', __( 'Font file is not a valid TTF/OTF/WOFF binary.', 'pckz-canonical-engine' ), array( 'status' => 500 ) );
+			}
+			self::send_font_binary_headers( $path, strlen( $body ), $type );
 			echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			return true;
 		}
 
-		$response = wp_remote_get(
-			$url,
-			array(
-				'timeout' => 30,
-			)
-		);
-		if ( is_wp_error( $response ) ) {
-			return $response;
+		$candidate_urls = array( $url );
+		$last_error     = null;
+		$did_refresh    = false;
+
+		while ( ! empty( $candidate_urls ) ) {
+			$current = array_shift( $candidate_urls );
+			$response = wp_remote_get(
+				$current,
+				array(
+					'timeout' => 30,
+				)
+			);
+			if ( is_wp_error( $response ) ) {
+				$last_error = new WP_Error( 'font_remote_fail', __( 'Remote font fetch failed.', 'pckz-canonical-engine' ), array( 'status' => 502 ) );
+			} elseif ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+				$last_error = new WP_Error( 'font_remote_fail', __( 'Remote font fetch failed.', 'pckz-canonical-engine' ), array( 'status' => 502 ) );
+			} else {
+				$body = wp_remote_retrieve_body( $response );
+				if ( '' === $body ) {
+					$last_error = new WP_Error( 'font_empty', __( 'Font file is empty.', 'pckz-canonical-engine' ), array( 'status' => 502 ) );
+				} else {
+					$type = self::detect_font_binary_type( $body );
+					if ( '' === $type ) {
+						$last_error = new WP_Error( 'font_invalid_binary', __( 'Remote response is not a valid TTF/OTF/WOFF binary.', 'pckz-canonical-engine' ), array( 'status' => 502 ) );
+					} else {
+						self::send_font_binary_headers( $current, strlen( $body ), $type );
+						echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+						return true;
+					}
+				}
+			}
+
+			// Recover from stale cached Google binary URLs (gstatic links can age out).
+			if ( ! $did_refresh && 'google' === ( $row['source'] ?? '' ) ) {
+				$did_refresh = true;
+				delete_transient( self::FONT_CACHE_PREFIX . $font_id );
+				$fresh = self::resolve_google_font_binary_url( $font_id, $row );
+				if ( self::is_export_safe_binary_url( $fresh ) && ! in_array( $fresh, $candidate_urls, true ) && $fresh !== $current ) {
+					$candidate_urls[] = $fresh;
+				}
+			}
 		}
-		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-			return new WP_Error( 'font_remote_fail', __( 'Remote font fetch failed.', 'pckz-canonical-engine' ), array( 'status' => 502 ) );
+
+		if ( is_wp_error( $last_error ) ) {
+			return $last_error;
 		}
-		$body = wp_remote_retrieve_body( $response );
-		if ( '' === $body ) {
-			return new WP_Error( 'font_empty', __( 'Font file is empty.', 'pckz-canonical-engine' ), array( 'status' => 502 ) );
-		}
-		self::send_font_binary_headers( $url );
-		echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		return true;
+		return new WP_Error( 'font_remote_fail', __( 'Remote font fetch failed.', 'pckz-canonical-engine' ), array( 'status' => 502 ) );
 	}
 
 	/**
 	 * @param string $path_or_url File path or URL (for extension).
+	 * @param int    $content_length Optional response content length.
+	 * @param string $binary_type    Optional detected binary type.
 	 */
-	private static function send_font_binary_headers( $path_or_url ) {
-		$ext  = strtolower( pathinfo( parse_url( $path_or_url, PHP_URL_PATH ) ?? '', PATHINFO_EXTENSION ) );
+	private static function send_font_binary_headers( $path_or_url, $content_length = 0, $binary_type = '' ) {
+		$binary_type = sanitize_key( (string) $binary_type );
+		if ( '' === $binary_type ) {
+			$ext = strtolower( pathinfo( parse_url( $path_or_url, PHP_URL_PATH ) ?? '', PATHINFO_EXTENSION ) );
+			if ( in_array( $ext, array( 'ttf', 'otf', 'woff' ), true ) ) {
+				$binary_type = $ext;
+			}
+		}
 		$mime = 'font/ttf';
-		if ( 'otf' === $ext ) {
+		if ( 'otf' === $binary_type ) {
 			$mime = 'font/otf';
-		} elseif ( 'woff' === $ext ) {
+		} elseif ( 'woff' === $binary_type ) {
 			$mime = 'font/woff';
 		}
 		if ( ! headers_sent() ) {
 			header( 'Content-Type: ' . $mime );
+			header( 'X-Content-Type-Options: nosniff' );
 			header( 'Access-Control-Allow-Origin: *' );
 			header( 'Cache-Control: public, max-age=86400' );
+			if ( is_numeric( $content_length ) && (int) $content_length > 0 ) {
+				header( 'Content-Length: ' . (int) $content_length );
+			}
 		}
+	}
+
+	/**
+	 * Detect binary font signature.
+	 *
+	 * @param string $body Binary body.
+	 * @return string
+	 */
+	private static function detect_font_binary_type( $body ) {
+		if ( ! is_string( $body ) || strlen( $body ) < 4 ) {
+			return '';
+		}
+		$head = substr( $body, 0, 4 );
+		if ( "\x00\x01\x00\x00" === $head || 'true' === $head || 'typ1' === $head ) {
+			return 'ttf';
+		}
+		if ( 'OTTO' === $head ) {
+			return 'otf';
+		}
+		if ( 'wOFF' === $head ) {
+			return 'woff';
+		}
+		return '';
 	}
 
 	/**
