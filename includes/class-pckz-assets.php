@@ -351,38 +351,14 @@ class PCKZ_Assets {
 		);
 
 		wp_enqueue_script(
-			'pckzce-opentype',
-			PCKZCE_PLUGIN_URL . 'public/js/vendor/opentype.min.js',
-			array(),
-			'1.3.4',
-			true
-		);
-
-		wp_enqueue_script(
-			'pckzce-clipper-lib',
-			self::script_url( 'public/js/clipper-lib.js' ),
-			array(),
-			self::version( self::script_relative_path( 'public/js/clipper-lib.js' ) ),
-			true
-		);
-
-		wp_enqueue_script(
-			'pckzce-svg-knockout',
-			self::script_url( 'public/js/pckz-svg-knockout.js' ),
-			array( 'pckzce-clipper-lib' ),
-			self::version( self::script_relative_path( 'public/js/pckz-svg-knockout.js' ) ),
-			true
-		);
-
-		wp_enqueue_script(
 			'pckzce-preview-engine',
 			self::script_url( 'public/js/preview-engine.js' ),
-			array( 'pckzce-fabric', 'pckzce-fabric-patch', 'pckzce-canvas-safe', 'pckzce-opentype', 'pckzce-clipper-lib', 'pckzce-svg-knockout' ),
+			array( 'pckzce-fabric', 'pckzce-fabric-patch', 'pckzce-canvas-safe' ),
 			self::version( self::script_relative_path( 'public/js/preview-engine.js' ) ),
 			true
 		);
 
-		$script_deps = array( 'pckzce-bootstrap', 'pckzce-fabric', 'pckzce-fabric-patch', 'pckzce-canvas-safe', 'pckzce-opentype', 'pckzce-clipper-lib', 'pckzce-svg-knockout', 'pckzce-preview-engine' );
+		$script_deps = array( 'pckzce-bootstrap', 'pckzce-fabric', 'pckzce-fabric-patch', 'pckzce-canvas-safe', 'pckzce-preview-engine' );
 
 		wp_enqueue_script(
 			'pckzce-visual-picker',
@@ -394,24 +370,6 @@ class PCKZ_Assets {
 
 		$script_deps[] = 'pckzce-visual-picker';
 
-		wp_enqueue_script(
-			'pckzce-fabric-production-pipeline',
-			self::script_url( 'public/js/fabric-production-pipeline.js' ),
-			array( 'pckzce-preview-engine' ),
-			self::version( self::script_relative_path( 'public/js/fabric-production-pipeline.js' ) ),
-			true
-		);
-
-		wp_enqueue_script(
-			'pckzce-canonical-scene',
-			self::script_url( 'public/js/canonical-scene.js' ),
-			array( 'pckzce-fabric-production-pipeline' ),
-			self::version( self::script_relative_path( 'public/js/canonical-scene.js' ) ),
-			true
-		);
-
-		$script_deps[] = 'pckzce-fabric-production-pipeline';
-		$script_deps[] = 'pckzce-canonical-scene';
 		$script_deps[] = 'pckzce-creator-protect';
 
 		wp_enqueue_script(
@@ -524,6 +482,11 @@ class PCKZ_Assets {
 					'requireCountry'        => 'Bitte wählen Sie Ihr Land.',
 					'totalLabel'            => 'Gesamtbetrag',
 				),
+				'opentypeScriptUrl'          => PCKZCE_PLUGIN_URL . 'public/js/vendor/opentype.min.js',
+				'clipperScriptUrl'           => self::script_url( 'public/js/clipper-lib.js' ),
+				'svgKnockoutScriptUrl'       => self::script_url( 'public/js/pckz-svg-knockout.js' ),
+				'productionPipelineScriptUrl'=> self::script_url( 'public/js/fabric-production-pipeline.js' ),
+				'canonicalSceneScriptUrl'    => self::script_url( 'public/js/canonical-scene.js' ),
 				'commerce'     => self::public_commerce_config( $commerce_config ),
 				'wooActive'    => class_exists( 'WooCommerce' ) && ! empty( $settings['enable_woocommerce'] ),
 				'wooProductId' => (int) ( $config['woo_product_id'] ?? 0 ),
