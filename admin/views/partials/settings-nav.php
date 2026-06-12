@@ -32,6 +32,10 @@ $sections = array(
 		'label' => __( 'Stripe / Payments', 'pckz-canonical-engine' ),
 		'icon'  => 'dashicons-cart',
 	),
+	'shipment' => array(
+		'label' => __( 'Shipment Tracking', 'pckz-canonical-engine' ),
+		'icon'  => 'dashicons-location-alt',
+	),
 	'licensing'=> array(
 		'label' => __( 'Licensing', 'pckz-canonical-engine' ),
 		'icon'  => 'dashicons-shield',

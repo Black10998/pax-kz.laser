@@ -1,0 +1,67 @@
+name: Protected Client Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (defaults to plugin source)'
+        required: false
+        type: string
+
+jobs:
+  build-client-protected:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install zip utility
+        run: sudo apt-get update && sudo apt-get install -y zip
+
+      - name: Resolve release version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(python3 -c 'import sys; from pathlib import Path; sys.path.insert(0,"tools"); from release_version import read_plugin_versions; print(read_plugin_versions(Path(".")).header_version)')"
+          fi
+          echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build protected client package
+        run: |
+          VERSION="${{ steps.version.outputs.value }}"
+          BUILD="${VERSION}.$(date -u +%Y%m%d%H%M%S)-ci-client-protected"
+          python3 tools/release-pipeline.py --version="$VERSION" --build="$BUILD" --sync-version
+
+      - name: Run release smoke tests
+        run: |
+          python3 tests/release-version-guard-smoke.py
+          python3 tests/client-build-contents-smoke.py
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pckz-canonical-engine-${{ steps.version.outputs.value }}-protected
+          path: release-packages/pckz-canonical-engine-${{ steps.version.outputs.value }}-protected.zip
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-packages/pckz-canonical-engine-${{ steps.version.outputs.value }}-protected.zip
+            release-packages/SHA256SUMS.txt
+          generate_release_notes: true

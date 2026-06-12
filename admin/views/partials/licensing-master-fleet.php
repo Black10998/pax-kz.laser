@@ -7,6 +7,7 @@
  * @var array $fleet_rows
  * @var array $stats
  * @var array $security_events
+ * @var array $security_event_groups
  * @var array $release_meta
  */
 
@@ -15,7 +16,21 @@ defined( 'ABSPATH' ) || exit;
 $fleet_sort    = isset( $_GET['pckz_fleet_sort'] ) ? sanitize_key( wp_unslash( $_GET['pckz_fleet_sort'] ) ) : 'health';
 $fleet_filter  = isset( $_GET['pckz_fleet_filter'] ) ? sanitize_key( wp_unslash( $_GET['pckz_fleet_filter'] ) ) : '';
 $fleet_rows    = is_array( $fleet_rows ?? null ) ? $fleet_rows : array();
-$security_events = is_array( $security_events ?? null ) ? $security_events : array();
+$security_events       = is_array( $security_events ?? null ) ? $security_events : array();
+$security_event_groups = is_array( $security_event_groups ?? null ) ? $security_event_groups : array();
+if ( empty( $security_event_groups ) && ! empty( $security_events ) && class_exists( 'PCKZ_Master_Control' ) ) {
+	$security_event_groups = PCKZ_Master_Control::group_security_events( $security_events );
+}
+$alert_recent_groups = array();
+$alert_older_groups  = array();
+$recent_cutoff       = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
+foreach ( $security_event_groups as $group ) {
+	if ( ! empty( $group['latest_at'] ) && $group['latest_at'] >= $recent_cutoff ) {
+		$alert_recent_groups[] = $group;
+	} else {
+		$alert_older_groups[] = $group;
+	}
+}
 $release_meta    = is_array( $release_meta ?? null ) ? $release_meta : array();
 $stats           = is_array( $stats ?? null ) ? $stats : array();
 
@@ -95,73 +110,129 @@ usort(
 $fleet_base_url = admin_url( 'admin.php?page=pckz-license-server' );
 ?>
 
-<section class="pckz-license-card pckz-license-card--full pckz-fleet-dashboard" id="pckz-fleet-dashboard">
-	<h2><?php esc_html_e( 'Licensed Installations — Fleet Overview', 'pckz-canonical-engine' ); ?></h2>
-	<p class="description"><?php esc_html_e( 'Central monitor for all customer installations: online status, versions, license health, updates, and security signals.', 'pckz-canonical-engine' ); ?></p>
+<section class="pckz-mc-section pckz-fleet-dashboard" id="pckz-fleet-dashboard">
+	<header class="pckz-mc-section__header">
+		<div>
+			<h2><?php esc_html_e( 'Customer fleet', 'pckz-canonical-engine' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Live health of licensed customer sites: online status, versions, updates, and security signals.', 'pckz-canonical-engine' ); ?></p>
+		</div>
+		<a class="button button-secondary" href="#pckz-master-section-overview"><?php esc_html_e( 'View dashboard', 'pckz-canonical-engine' ); ?></a>
+	</header>
 
 	<?php if ( empty( $fleet_rows ) ) : ?>
 		<div class="notice notice-info inline pckz-fleet-empty">
-			<p>
-				<strong><?php esc_html_e( 'No customer installations have checked in yet.', 'pckz-canonical-engine' ); ?></strong>
-			</p>
-			<p>
-				<?php esc_html_e( 'As soon as a licensed client site authenticates with this master, it will appear here with health, version, sync status, and security alerts. To get started:', 'pckz-canonical-engine' ); ?>
-			</p>
+			<p><strong><?php esc_html_e( 'No customer installations have checked in yet.', 'pckz-canonical-engine' ); ?></strong></p>
+			<p><?php esc_html_e( 'When a licensed client site authenticates with this master, it appears here automatically.', 'pckz-canonical-engine' ); ?></p>
 			<ol class="pckz-fleet-empty__steps">
-				<li><?php esc_html_e( 'Create a license below (Create License card).', 'pckz-canonical-engine' ); ?></li>
-				<li><?php esc_html_e( 'Generate a customer package (Customer Packages card) and deliver the ZIP to the client.', 'pckz-canonical-engine' ); ?></li>
-				<li><?php esc_html_e( 'Once installed, the client checks in automatically and is listed here.', 'pckz-canonical-engine' ); ?></li>
+				<li><a href="#pckz-master-section-licenses"><?php esc_html_e( 'Create a license', 'pckz-canonical-engine' ); ?></a></li>
+				<li><a href="#pckz-master-section-licenses"><?php esc_html_e( 'Generate a client package and deliver the ZIP', 'pckz-canonical-engine' ); ?></a></li>
+				<li><?php esc_html_e( 'The client installs the package — check-in starts automatically', 'pckz-canonical-engine' ); ?></li>
 			</ol>
 		</div>
 	<?php endif; ?>
 
-	<div class="pckz-fleet-stats">
-		<article class="pckz-fleet-stat pckz-fleet-stat--success">
-			<span class="pckz-fleet-stat__value"><?php echo esc_html( number_format_i18n( (int) ( $stats['fleet_online'] ?? 0 ) ) ); ?></span>
-			<span class="pckz-fleet-stat__label"><?php esc_html_e( 'Online', 'pckz-canonical-engine' ); ?></span>
-		</article>
-		<article class="pckz-fleet-stat pckz-fleet-stat--muted">
-			<span class="pckz-fleet-stat__value"><?php echo esc_html( number_format_i18n( (int) ( $stats['fleet_offline'] ?? 0 ) ) ); ?></span>
-			<span class="pckz-fleet-stat__label"><?php esc_html_e( 'Offline', 'pckz-canonical-engine' ); ?></span>
-		</article>
-		<article class="pckz-fleet-stat pckz-fleet-stat--warning">
-			<span class="pckz-fleet-stat__value"><?php echo esc_html( number_format_i18n( (int) ( $stats['fleet_updates_pending'] ?? 0 ) ) ); ?></span>
-			<span class="pckz-fleet-stat__label"><?php esc_html_e( 'Updates pending', 'pckz-canonical-engine' ); ?></span>
-		</article>
-		<article class="pckz-fleet-stat pckz-fleet-stat--danger">
-			<span class="pckz-fleet-stat__value"><?php echo esc_html( number_format_i18n( (int) ( $stats['fleet_critical_alerts'] ?? 0 ) ) ); ?></span>
-			<span class="pckz-fleet-stat__label"><?php esc_html_e( 'Critical alerts', 'pckz-canonical-engine' ); ?></span>
-		</article>
-		<article class="pckz-fleet-stat">
-			<span class="pckz-fleet-stat__value"><?php echo esc_html( number_format_i18n( (int) ( $stats['fleet_plugin_inactive'] ?? 0 ) ) ); ?></span>
-			<span class="pckz-fleet-stat__label"><?php esc_html_e( 'Plugin inactive', 'pckz-canonical-engine' ); ?></span>
-		</article>
-		<article class="pckz-fleet-stat">
-			<span class="pckz-fleet-stat__value"><?php echo esc_html( ! empty( $release_meta['version'] ) ? $release_meta['version'] : '—' ); ?></span>
-			<span class="pckz-fleet-stat__label"><?php esc_html_e( 'Latest release', 'pckz-canonical-engine' ); ?></span>
-		</article>
-	</div>
-
-	<?php if ( ! empty( $security_events ) ) : ?>
-		<div class="pckz-fleet-alerts">
-			<h3><?php esc_html_e( 'Security & monitoring alerts', 'pckz-canonical-engine' ); ?></h3>
-			<ul class="pckz-fleet-alert-list">
-				<?php foreach ( $security_events as $event ) : ?>
-					<?php
-					$sev = sanitize_key( (string) ( $event['severity'] ?? 'warning' ) );
+	<?php if ( ! empty( $security_event_groups ) ) : ?>
+		<div class="pckz-fleet-alerts" id="pckz-fleet-alerts">
+			<div class="pckz-fleet-alerts__header">
+				<h3><?php esc_html_e( 'Security & monitoring alerts', 'pckz-canonical-engine' ); ?></h3>
+				<div class="pckz-fleet-alerts__actions">
+					<a class="button" href="<?php echo esc_url( $fleet_base_url ); ?>"><?php esc_html_e( 'Refresh', 'pckz-canonical-engine' ); ?></a>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-fleet-alerts__clear-form">
+						<?php wp_nonce_field( 'pckzce_clear_security_events', 'pckzce_clear_events_nonce' ); ?>
+						<input type="hidden" name="action" value="pckzce_clear_security_events">
+						<input type="hidden" name="redirect_section" value="fleet">
+						<input type="hidden" name="clear_mode" value="resolved">
+						<button type="submit" class="button"><?php esc_html_e( 'Clear resolved alerts', 'pckz-canonical-engine' ); ?></button>
+					</form>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pckz-fleet-alerts__clear-form" data-pckz-confirm="<?php esc_attr_e( 'Delete all stored security alerts?', 'pckz-canonical-engine' ); ?>">
+						<?php wp_nonce_field( 'pckzce_clear_security_events', 'pckzce_clear_events_nonce' ); ?>
+						<input type="hidden" name="action" value="pckzce_clear_security_events">
+						<input type="hidden" name="redirect_section" value="fleet">
+						<input type="hidden" name="clear_mode" value="all">
+						<button type="submit" class="button button-link-delete"><?php esc_html_e( 'Clear all alerts', 'pckz-canonical-engine' ); ?></button>
+					</form>
+				</div>
+			</div>
+			<?php
+			$render_alert_groups = static function ( $groups ) use ( $format_datetime ) {
+				if ( empty( $groups ) ) {
+					return;
+				}
+				echo '<ul class="pckz-fleet-alert-list">';
+				foreach ( $groups as $group ) {
+					$sev             = sanitize_key( (string) ( $group['severity'] ?? 'warning' ) );
+					$event_type_raw  = sanitize_key( (string) ( $group['event_type'] ?? '' ) );
+					$event_type_text = class_exists( 'PCKZ_Master_Control' )
+						? PCKZ_Master_Control::event_type_label( $event_type_raw )
+						: $event_type_raw;
+					$context         = is_array( $group['context'] ?? null ) ? $group['context'] : array();
+					$count           = max( 1, (int) ( $group['count'] ?? 1 ) );
+					$is_release_alert = in_array(
+						$event_type_raw,
+						array( 'download_package_validation_failed', 'release_package_validation_failed' ),
+						true
+					);
 					?>
 					<li class="pckz-fleet-alert pckz-fleet-alert--<?php echo esc_attr( $sev ); ?>">
-						<strong><?php echo esc_html( $event['message'] ?? '' ); ?></strong>
+						<strong><?php echo esc_html( $group['message'] ?? '' ); ?></strong>
+						<?php if ( $count > 1 ) : ?>
+							<span class="pckz-fleet-alert__count"><?php echo esc_html( sprintf( __( '×%d', 'pckz-canonical-engine' ), $count ) ); ?></span>
+						<?php endif; ?>
+						<?php if ( $is_release_alert ) : ?>
+							<ul class="pckz-fleet-alert__meta-list">
+								<?php if ( ! empty( $context['archive_filename'] ) || ! empty( $context['zip_filename'] ) ) : ?>
+									<li><strong><?php esc_html_e( 'ZIP filename:', 'pckz-canonical-engine' ); ?></strong> <?php echo esc_html( (string) ( $context['archive_filename'] ?? $context['zip_filename'] ?? '' ) ); ?></li>
+								<?php endif; ?>
+								<?php if ( ! empty( $context['version'] ) ) : ?>
+									<li><strong><?php esc_html_e( 'Version:', 'pckz-canonical-engine' ); ?></strong> <?php echo esc_html( (string) $context['version'] ); ?></li>
+								<?php endif; ?>
+								<li><strong><?php esc_html_e( 'Detected:', 'pckz-canonical-engine' ); ?></strong> <?php echo esc_html( $format_datetime( $group['latest_at'] ?? ( $context['detected_at'] ?? '' ) ) ); ?></li>
+								<?php if ( ! empty( $context['validation_rule'] ) ) : ?>
+									<li><strong><?php esc_html_e( 'Rule:', 'pckz-canonical-engine' ); ?></strong> <code><?php echo esc_html( (string) $context['validation_rule'] ); ?></code></li>
+								<?php endif; ?>
+								<?php if ( ! empty( $context['recommended_action'] ) ) : ?>
+									<li><strong><?php esc_html_e( 'Recommended action:', 'pckz-canonical-engine' ); ?></strong> <?php echo esc_html( (string) $context['recommended_action'] ); ?></li>
+								<?php endif; ?>
+							</ul>
+						<?php else : ?>
 						<span class="description">
-							<?php echo esc_html( $event['event_type'] ?? '' ); ?>
-							<?php if ( ! empty( $event['domain'] ) ) : ?>
-								· <?php echo esc_html( $event['domain'] ); ?>
+							<?php echo esc_html( $event_type_text ); ?>
+							<?php if ( ! empty( $group['domain'] ) ) : ?>
+								· <?php echo esc_html( $group['domain'] ); ?>
+							<?php elseif ( 'rate_limit_exceeded' === $event_type_raw && ! empty( $context['scope'] ) ) : ?>
+								· <?php echo esc_html( sprintf( __( 'Endpoint: %s', 'pckz-canonical-engine' ), $context['scope'] ) ); ?>
 							<?php endif; ?>
-							· <?php echo esc_html( $format_datetime( $event['created_at'] ?? '' ) ); ?>
+							· <?php echo esc_html( $format_datetime( $group['latest_at'] ?? '' ) ); ?>
 						</span>
+						<?php endif; ?>
 					</li>
-				<?php endforeach; ?>
-			</ul>
+					<?php
+				}
+				echo '</ul>';
+			};
+			?>
+			<?php if ( ! empty( $alert_recent_groups ) ) : ?>
+				<div class="pckz-fleet-alerts__recent">
+					<h4><?php esc_html_e( 'Recent (24 hours)', 'pckz-canonical-engine' ); ?></h4>
+					<?php $render_alert_groups( $alert_recent_groups ); ?>
+				</div>
+			<?php endif; ?>
+			<?php if ( ! empty( $alert_older_groups ) ) : ?>
+				<details class="pckz-fleet-alerts__older">
+					<summary>
+						<?php
+						echo esc_html(
+							sprintf(
+								/* translators: %d: number of alert groups */
+								__( 'Older alerts (%d groups)', 'pckz-canonical-engine' ),
+								count( $alert_older_groups )
+							)
+						);
+						?>
+					</summary>
+					<?php $render_alert_groups( $alert_older_groups ); ?>
+				</details>
+			<?php endif; ?>
 		</div>
 	<?php endif; ?>
 
@@ -192,8 +263,8 @@ $fleet_base_url = admin_url( 'admin.php?page=pckz-license-server' );
 		<?php endif; ?>
 	</form>
 
-	<div class="pckz-license-table-wrap pckz-fleet-table-wrap">
-		<table class="widefat striped pckz-license-table pckz-fleet-table">
+	<div class="pckz-mc-table-wrap pckz-fleet-table-wrap">
+		<table class="widefat striped pckz-mc-table pckz-fleet-table">
 			<thead>
 				<tr>
 					<th><?php esc_html_e( 'Health', 'pckz-canonical-engine' ); ?></th>
@@ -222,8 +293,10 @@ $fleet_base_url = admin_url( 'admin.php?page=pckz-license-server' );
 								<span class="pckz-health-dot pckz-health-dot--<?php echo esc_attr( $health ); ?>" title="<?php echo esc_attr( $health_label( $health ) ); ?>"></span>
 								<?php echo esc_html( $health_label( $health ) ); ?>
 							</td>
-							<td>
-								<strong><?php echo esc_html( $install['domain'] ?? '' ); ?></strong>
+							<td data-label="<?php esc_attr_e( 'Domain', 'pckz-canonical-engine' ); ?>">
+								<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'pckz-license-server', 'pckz_install_s' => rawurlencode( (string) ( $install['domain'] ?? '' ) ) ), admin_url( 'admin.php' ) ) . '#pckz-master-section-records' ); ?>">
+									<strong><?php echo esc_html( $install['domain'] ?? '' ); ?></strong>
+								</a>
 								<?php if ( ! empty( $install['site_name'] ) ) : ?>
 									<br><span class="description"><?php echo esc_html( $install['site_name'] ); ?></span>
 								<?php endif; ?>

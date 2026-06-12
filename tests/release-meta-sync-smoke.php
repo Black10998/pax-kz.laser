@@ -1,6 +1,6 @@
 <?php
 /**
- * Smoke test: master release metadata auto-sync on version bump.
+ * Smoke test: master release metadata is not auto-published from disk scans.
  *
  * @package PCKZCanonicalEngine
  */
@@ -9,8 +9,8 @@ define( 'ABSPATH', '/tmp/wp/' );
 define( 'MINUTE_IN_SECONDS', 60 );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'PCKZCE_PLUGIN_DIR', dirname( __DIR__ ) . '/' );
-define( 'PCKZCE_VERSION', '2.23.2-test' );
-define( 'PCKZCE_BUILD', '2.23.2-test-build' );
+define( 'PCKZCE_VERSION', '2.28.6' );
+define( 'PCKZCE_BUILD', '2.28.6-test-build' );
 
 if ( ! function_exists( '__' ) ) {
 	function __( $text, $domain = '' ) { // phpcs:ignore
@@ -36,6 +36,11 @@ if ( ! function_exists( 'register_rest_route' ) ) {
 if ( ! function_exists( 'sanitize_text_field' ) ) {
 	function sanitize_text_field( $value ) { return trim( strip_tags( (string) $value ) ); }
 }
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $key ) { // phpcs:ignore
+		return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
+	}
+}
 if ( ! function_exists( 'esc_url_raw' ) ) {
 	function esc_url_raw( $url ) { return (string) $url; }
 }
@@ -54,6 +59,11 @@ if ( ! function_exists( 'wp_parse_args' ) ) {
 			$args = array();
 		}
 		return array_merge( $defaults, $args );
+	}
+}
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	function wp_json_encode( $value, $flags = 0, $depth = 512 ) { // phpcs:ignore
+		return json_encode( $value, $flags, $depth );
 	}
 }
 if ( ! function_exists( 'home_url' ) ) {
@@ -87,6 +97,27 @@ if ( ! function_exists( 'get_option' ) ) {
 		return $GLOBALS['pckz_test_options'][ $key ] ?? $default;
 	}
 }
+if ( ! class_exists( 'WP_Error' ) ) {
+	class WP_Error { // phpcs:ignore
+		private $code;
+		private $message;
+		public function __construct( $code = '', $message = '' ) {
+			$this->code    = (string) $code;
+			$this->message = (string) $message;
+		}
+		public function get_error_code() {
+			return $this->code;
+		}
+		public function get_error_message() {
+			return $this->message;
+		}
+	}
+}
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( $thing ) { // phpcs:ignore
+		return $thing instanceof WP_Error;
+	}
+}
 if ( ! function_exists( 'update_option' ) ) {
 	function update_option( $key, $value, $autoload = null ) { // phpcs:ignore
 		unset( $autoload );
@@ -94,13 +125,46 @@ if ( ! function_exists( 'update_option' ) ) {
 		return true;
 	}
 }
+if ( ! function_exists( 'wp_cache_delete' ) ) {
+	function wp_cache_delete( $key, $group = '' ) { // phpcs:ignore
+		unset( $key, $group );
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_upload_dir' ) ) {
+	function wp_upload_dir() { // phpcs:ignore
+		return array(
+			'basedir' => sys_get_temp_dir() . '/pckz-smoke-uploads',
+			'baseurl' => 'https://example.test/wp-content/uploads',
+			'error'   => false,
+		);
+	}
+}
+if ( ! function_exists( 'wp_mkdir_p' ) ) {
+	function wp_mkdir_p( $target ) { // phpcs:ignore
+		return is_dir( $target ) || mkdir( $target, 0775, true );
+	}
+}
+if ( ! function_exists( 'current_time' ) ) {
+	function current_time( $type = 'mysql' ) { // phpcs:ignore
+		if ( 'mysql' === $type ) {
+			return gmdate( 'Y-m-d H:i:s' );
+		}
+		return time();
+	}
+}
+if ( ! function_exists( 'absint' ) ) {
+	function absint( $value ) { // phpcs:ignore
+		return abs( (int) $value );
+	}
+}
 
 require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-settings.php';
 require_once PCKZCE_PLUGIN_DIR . 'includes/class-pckz-licensing.php';
 
-$expected_url = PCKZ_Licensing::default_protected_package_url( PCKZCE_VERSION );
-if ( '' === $expected_url || false === strpos( $expected_url, 'pckz-canonical-engine-' . PCKZCE_VERSION . '-protected.zip' ) ) {
-	fwrite( STDERR, "Default protected package URL should include versioned zip name.\n" );
+$discovered_latest = PCKZ_Licensing::discover_latest_available_protected_release_version();
+if ( '' === $discovered_latest || version_compare( $discovered_latest, PCKZCE_VERSION, '<=' ) ) {
+	fwrite( STDERR, "Smoke expects a bundled protected package newer than PCKZCE_VERSION.\n" );
 	exit( 1 );
 }
 
@@ -118,17 +182,22 @@ $licensing = new PCKZ_Licensing();
 $licensing->bootstrap();
 
 $meta = get_option( PCKZ_Licensing::OPTION_RELEASE_META, array() );
-if ( ( $meta['version'] ?? '' ) !== PCKZCE_VERSION ) {
-	fwrite( STDERR, "Release version should sync to installed plugin version.\n" );
+if ( ( $meta['version'] ?? '' ) !== '2.23.0' ) {
+	fwrite( STDERR, "Bootstrap must not auto-publish newer on-disk packages over an existing release.\n" );
 	exit( 1 );
 }
-if ( ( $meta['package_url'] ?? '' ) !== $expected_url ) {
-	fwrite( STDERR, "Release package URL should sync to default protected package URL.\n" );
+if ( ( $meta['package_url'] ?? '' ) !== 'https://releases.example.test/pckz-canonical-engine-2.23.0-protected.zip' ) {
+	fwrite( STDERR, "Bootstrap must preserve the manually published package URL.\n" );
 	exit( 1 );
 }
 if ( ( $meta['changelog'] ?? '' ) !== 'Manual changelog' ) {
-	fwrite( STDERR, "Existing changelog should be preserved during auto-sync.\n" );
+	fwrite( STDERR, "Existing changelog should be preserved.\n" );
+	exit( 1 );
+}
+if ( empty( $meta['release_token'] ) ) {
+	fwrite( STDERR, "Repair should backfill release_token on published metadata.\n" );
 	exit( 1 );
 }
 
-echo "OK release-meta-sync-smoke: master release metadata auto-sync works\n";
+echo "OK release-meta-sync-smoke: master release metadata stays publish-controlled\n";
+exit( 0 );

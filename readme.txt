@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.2
+Stable tag: 2.28.48
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,166 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.48 =
+
+* Configurator startup: moved export-only runtime tooling (OpenType/canonical-scene pipeline and related helpers) out of the critical initial dependency chain and load it on demand, with deferred prewarm only on capable desktop connections.
+* Added customer-only suppression of non-essential PaxDesign toolbar JavaScript on configurator pages to reduce blocking startup work and unnecessary frontend traffic.
+* Improved initial mobile responsiveness by delaying the first export-readiness pass until after primary preview boot has settled.
+* Live preview sharpness: removed hover-time raster scaling of the stage canvas layer and tightened Fabric preview object caching settings to keep icons/text/lines crisper in the visible preview (export geometry unchanged).
+* Rebuilt production assets: `creator.min.js`, `creator.protected.js`, `preview-engine.min.js`, `preview-engine.protected.js`, and `creator.min.css`.
+
+= 2.28.47 =
+
+* Configurator startup performance: bootstrap no longer blocks indefinitely on runtime-config fetch; initialization now proceeds after a bounded wait so preview setup starts earlier on slower networks.
+* Reduced non-essential startup traffic by replacing eager inactive-font prefetching with deferred idle prefetch (desktop/fast-network only) and a smaller prefetch window.
+* Added in-flight deduplication for identical `resolveSelectedAssets()` requests to avoid redundant startup asset resolution work.
+* Rebuilt `creator.min.js` and `creator.protected.js` so protected/minified production assets match the startup optimizations.
+
+= 2.28.46 =
+
+* Export-font reliability hotfix: hardened `pckzce_font_file` delivery for cached/stale nonce URLs so SVG/LBRN2 text path generation can reliably load Merriweather (and other export fonts) in production.
+* Added binary validation and stale Google URL refresh fallback in font streaming to prevent unreadable/expired remote font responses from blocking export validation.
+* Added a narrow customer-side guard for unnecessary PDX polling requests (`/wp-json/pdx/v1/workers`, `/wp-json/pdx/v1/queue/stats`) to stop 401 noise and reduce avoidable startup traffic.
+* Rebuilt protected/minified assets used in protected-asset mode so packaged runtime behavior matches source fixes.
+
+= 2.28.45 =
+
+* Hotfix: configurator no longer stays stuck on “Vorschau wird geladen…” after upgrading from broken v2.28.29–v2.28.44 builds.
+* Restores fast default preview boot (collect form defaults before first render, load line/icon catalogs via runtime config, use direct preview URLs instead of slow secure-token round-trips).
+* Rebuilds protected/minified creator and preview-engine assets so protected-asset mode serves the corrected boot logic.
+
+= 2.28.44 =
+
+* Full restore to the exact v2.28.28 master code and frontend behavior (configurator, default preview, line/icon switching, line model system, and performance).
+* Removed all experimental changes added after v2.28.28 (Naruto eye models, display-normalization preview logic, procedural line purges, manifest/self-heal catalog changes, and broken protected-asset loading paths).
+* Activation and upgrade now automatically clear stale update transients, runtime/config cache, line preview cache, and other data left by broken newer versions so the restored behavior loads immediately.
+
+= 2.28.28 =
+
+* Sendungen verfolgen: integrated the provided truck/shipping animation on the order tracking page when status is Versendet (shipped).
+* Animation is responsive on desktop, tablet, and mobile; tracking logic unchanged.
+
+= 2.28.27 =
+
+* Release storage management page with full package inventory (type, version, build ID, validation/manifest/checksum/publish status, storage area, created date) plus search and filters.
+* Detailed protected archive validation errors now include ZIP filename, release version, storage location, all detected forbidden/master-only files, and recommended action.
+* Automatic quarantine for invalid packages containing master-only files; quarantined packages are excluded from publishing and client update distribution.
+* Storage maintenance tools: clean invalid packages, remove legacy releases, remove master-file packages, remove duplicate releases, rebuild metadata.
+* Improved monitoring alerts for release validation failures with filename, version, detection time, rule triggered, and recommended action.
+* Master Build ZIP uploads to the client protected workflow are blocked immediately with a clear explanation.
+
+= 2.28.24 =
+
+* Master Control UX redesign: five clear sections (Dashboard, Customer fleet, Software updates, Licenses & delivery, Activity & logs).
+* Removed duplicate stats, changelog fields, and license status cards; unified panel/table styling and responsive layouts.
+* Protected download history now supports instant client-side search/filter; release workflow uses tabbed Generate/Upload/Publish panels.
+
+= 2.28.23 =
+
+* Master Control: generate publish-ready protected ZIP packages directly from the master installation with automatic version sync (plugin header, PCKZCE_VERSION, PCKZCE_BUILD, filename, manifest/checksums).
+* Protected release validation now checks all version fields together and reports detailed mismatch diagnostics (expected release version, filename, plugin header, constants, manifest).
+* Rejects invalid archive layouts (for example release-packages/ or repo-root folders instead of pckz-canonical-engine/).
+
+= 2.28.22 =
+
+* Reverted v2.28.21 icon refX shift; icon placement restored to v2.28.20 values (left 817.5, right 2748.5).
+* Kept automatic default line loading on first configurator open (first line in customer picker).
+
+= 2.28.21 =
+
+* Default line on first load: first line in the customer Linien picker (top red library model) loads automatically with text and icons.
+* Icon placement: ~0.5 cm (5 mm) inward from original Cloudlift refs (left refX ~850.5, right refX ~2715.5) for all icons in preview and export.
+
+= 2.28.20 =
+
+* Default customer configurator layout: text “Lumi-Plate”, Instagram left icon, TikTok right icon, first font in the picker, and no lines on first load.
+* Existing creator products receive the new start defaults automatically on upgrade and at runtime when the configurator opens.
+* Icon placement: left icon refX 817.5 (+1.5 inward), right icon refX 2748.5 (−1.5 inward); preview and export parity unchanged otherwise.
+
+= 2.28.19 =
+
+* Configurator performance: batch asset resolver (`pckzce_resolve_option_assets`) replaces up to four separate AJAX round-trips with one request.
+* Incremental preview rendering only rebuilds changed layers (line/icons/text) and cancels stale async renders to prevent overlapping objects.
+* In-flight SVG/raster load deduplication, connected-line group cache, and selective cache invalidation on icon/line color changes.
+* Text-only edits update the canvas in-place without reloading icons/lines; common fonts preload during init.
+* Export validation debounce increased to reduce background work while typing.
+
+= 2.28.18 =
+
+* Fixed Roboto (and all Google fonts) export URL resolution: font asset resolver now returns same-origin `pckzce_font_file` proxy URLs that OpenType.js accepts for SVG/LBRN2 export.
+* Extended export-safe font URL detection to accept signed `pckzce_secure_asset` endpoints as a fallback.
+* Redesigned checkout flow: export package prepares silently in the background while the customer finishes the design; payment button stays disabled with an inline preparing state until ready, then shows “Weiter zur Zahlung” for immediate Stripe/PayPal redirect.
+* Customer-facing export errors are now friendly; technical validation details are logged to the browser console and shown only to administrators.
+
+= 2.28.10 =
+
+* Release bump for delivery verification: published a new protected package version so client installations can confirm latest code deployment path end-to-end.
+* Master Control tamper rendering upgrade: security event rows now show human-readable event labels (for example “Tamper signal reported”) instead of raw generic slugs only.
+* Added detailed per-signal explanations in Master Control (why triggered, what was detected, and update impact: informational vs potentially blocking under strict integrity/signature policy).
+* Installation history now includes expanded tamper signal detail cards with impact notes and clearer admin interpretation.
+
+= 2.28.9 =
+
+* Security hardening (phase 2): removed full runtime datasets from `pckzce_runtime_config`; endpoint now returns only minimal runtime defaults.
+* Added on-demand option asset resolver (`pckzce_resolve_option_asset`) that returns short-lived signed token URLs for the currently selected icon/line/font only.
+* Added secure token asset streaming endpoint (`pckzce_secure_asset`) for line/icon/font/background delivery without exposing raw mapping tables or direct asset URLs in localized JS config.
+* Updated creator runtime to resolve and cache only currently selected option assets, instead of loading full line/icon/font mapping payloads into `pckzce-creator-js-extra`.
+* Updated preview engine to consume per-selection resolved asset metadata (`resolved_assets`) and preserve production/export compatibility paths.
+* Protected update reliability: fixed master release-meta auto-sync so it no longer overwrites manually published same-version package URLs or leaves stale checksum/manifest metadata after version changes.
+* Protected package validation hardening: release validation now enforces WordPress-installable archive layout (`pckz-canonical-engine/pckz-canonical-engine.php`) and checks plugin header version parity with release metadata.
+* Master visibility: Master Control now shows exact tamper signal slugs in fleet/security views and adds a safe per-installation “Acknowledge Signals” action that clears signals and re-baselines integrity on next check-in.
+* Update failure telemetry: client update failures/success are now reported back to Master Control (`client/update-report`) so failed installs produce clear error visibility on both client and master dashboards.
+
+= 2.28.8 =
+
+* Security hardening: reduced public `pckzce-creator-js-extra` payload to minimum inline runtime fields (nonce/ajax endpoint + essential creator/checkout/UI values only).
+* Moved heavy runtime mappings (`icons`, `ledosPreview`, `stdSpec`, font file maps) to a nonce-protected runtime AJAX endpoint (`pckzce_runtime_config`) fetched on demand.
+* Removed non-essential public metadata from creator inline payload (build/version/plugin/debug fields, full settings maps, duplicated asset/config blocks).
+* Updated preview runtime to consume lightweight font family-to-id mapping instead of full settings-font payload.
+* Added regression assertion in `tests/public-protected-assets-smoke.php` to ensure forbidden heavy keys are not exposed in localized creator payload.
+
+= 2.28.7 =
+
+* Hardening-only release: added new `security_prefer_protected_assets` setting to serve production artifacts on public creator pages (`.protected.js`, `.min.js`, `.min.css`) via standard WordPress enqueue APIs.
+* Added safe fallback behavior: if protected/minified assets are missing, frontend stays functional and admin receives a clear warning with required build targets.
+* Added production asset resolver for scripts/styles and extended public tracking stylesheet enqueue to support minified assets.
+* Added `tools/build-js-protection.php` to generate minified JS, protected JS for sensitive frontend files, minified CSS, and remove source maps from public build output.
+* Reduced exposed frontend payload by removing unused payment diagnostics/hints from public JS config; sensitive checks stay server-side.
+* Added regression smoke test `tests/public-protected-assets-smoke.php` to verify protected mode never enqueues readable development JS on public creator pages.
+
+= 2.28.6 =
+
+* Shipment tracking admin fix: tracking inputs are now always editable/savable in the order detail view (even when a WooCommerce order link is missing), and values persist in plugin order storage.
+* Shipment data persistence: introduced dedicated shipment tracking JSON storage on commerce orders to preserve manual carrier/tracking/status/location/ETA/date/history data reliably.
+* Carrier API integration: added automatic shipment synchronization via AfterShip (supports Austrian Post, DHL, DPD, GLS, UPS, FedEx), including carrier slug detection, status/event/location/ETA import, and scheduled refresh.
+* Admin workflow upgrade: shipment form now includes carrier slug, auto-sync toggle, last-sync timestamp, and sync error visibility while keeping manual input as fallback.
+* WooCommerce interoperability: synchronized shipment payload updates back into WooCommerce order meta when linked.
+* Added shipment persistence smoke coverage (`tests/shipment-tracking-persistence-smoke.php`).
+
+= 2.28.5 =
+
+* Checkout responsiveness: export validation/preparation now runs progressively in the background and is no longer re-triggered by customer address/email input changes, reducing PayPal click latency.
+* Checkout optimization: prepared export payloads are reused during save/checkout so the payment click path avoids rebuilding heavy preview/export artifacts whenever possible.
+* Shipment tracking integration: added dedicated shipment tracking fields in the Orders admin detail (carrier, tracking number, tracking URL, shipment status, location, ETA, shipping date, and shipment event history).
+* Customer tracking enhancements: tracking page now surfaces shipment status and shipment event history from WooCommerce tracking meta (including custom JSON event feeds).
+* Tracking page refinement: simplified to a cleaner, minimal, Cloudflare-like layout with stronger readability and less visual weight while preserving responsive behavior.
+* Added shipment tracking smoke coverage (`tests/customer-shipment-tracking-smoke.php`).
+
+= 2.28.4 =
+
+* Checkout UX/Performance: PayPal checkout click path is now non-blocking for prefilled customers; export validation continues in the background without noisy "please wait" toasts while preserving export/payment validation checks before order creation.
+* Payment Redirects: successful PayPal and Stripe returns now resolve directly to the public order tracking page (with the obfuscated tracking order ID), with a safe creator-page fallback when a tracking shortcode page is not configured.
+* Tracking Page redesign: upgraded to a premium black/white card layout with gradient surface, clearer hierarchy, progress bar, status cards (order/production/shipping), richer shipping facts (carrier, tracking no., location, ETA), and improved mobile responsiveness.
+* Shipping data enrichment: customer tracking now reads optional location and estimated-delivery metadata from common WooCommerce tracking meta keys when available.
+* Added smoke coverage for post-payment tracking redirects (`tests/post-payment-tracking-redirect-smoke.php`).
+
+= 2.28.3 =
+
+* Master Control permissions fix: resolved WordPress “Sorry, you are not allowed to access this page.” on `admin.php?page=pckz-license-server` for administrators.
+* Admin menu registration now runs after parent Product Creator menu registration to prevent submenu capability/page-hook mismatch.
+* Added robust fallback parent attachment (`options-general.php`) when the Product Creator parent menu is unavailable due external menu-order interference, while keeping capability as `manage_options`.
+* Capability, architecture, licensing protections, update authorization, asset sync permissions, and master-host lock remain unchanged.
 
 = 2.28.2 =
 

@@ -37,5 +37,17 @@ if ( ! isset( $stats['fleet_online'] ) ) {
 	exit( 1 );
 }
 
+$signal_detail = PCKZ_Master_Control::tamper_signal_detail( 'mu_plugins_present' );
+if ( empty( $signal_detail['title'] ) || empty( $signal_detail['update_impact'] ) ) {
+	fwrite( STDERR, "tamper signal detail missing expected fields\n" );
+	exit( 1 );
+}
+
+$event_label = PCKZ_Master_Control::event_type_label( 'tamper_signal_reported' );
+if ( false === stripos( $event_label, 'tamper' ) ) {
+	fwrite( STDERR, "event type label did not resolve for tamper signal event\n" );
+	exit( 1 );
+}
+
 echo "master-control-fleet-smoke: OK\n";
 exit( 0 );

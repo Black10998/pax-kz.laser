@@ -60,11 +60,25 @@ if ( ! function_exists( '_n' ) ) {
 if ( ! function_exists( 'wp_kses_post' ) ) {
 	function wp_kses_post( $value ) { return (string) $value; }
 }
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( $field = '' ) { // phpcs:ignore
+		if ( 'version' === $field ) {
+			return '6.7';
+		}
+		return '';
+	}
+}
+if ( ! function_exists( 'esc_attr' ) ) {
+	function esc_attr( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' ); }
+}
+if ( ! function_exists( 'esc_textarea' ) ) {
+	function esc_textarea( $text ) { return htmlspecialchars( (string) $text, ENT_NOQUOTES, 'UTF-8' ); }
+}
 if ( ! defined( 'PCKZCE_PLUGIN_DIR' ) ) {
 	define( 'PCKZCE_PLUGIN_DIR', dirname( __DIR__ ) . '/' );
 }
 if ( ! defined( 'PCKZCE_VERSION' ) ) {
-	define( 'PCKZCE_VERSION', '2.28.2' );
+	define( 'PCKZCE_VERSION', '2.28.3' );
 }
 $_GET = array();
 
@@ -76,7 +90,7 @@ $package_error  = '';
 $admin_notice   = null;
 $client_notice  = null;
 $release_meta   = array(
-	'version'             => '2.28.2',
+	'version'             => '2.28.3',
 	'package_url'         => 'https://example.test/protected.zip',
 	'changelog'           => '',
 	'requires'            => '6.0',
@@ -84,6 +98,7 @@ $release_meta   = array(
 	'tested'              => '6.7',
 	'min_client_build'    => '',
 	'allow_remote_export' => false,
+	'published_at'        => '2026-06-04 12:00:00',
 );
 $client_state   = array();
 $client_summary = array(
@@ -91,13 +106,13 @@ $client_summary = array(
 	'connected_server'  => 'https://paxdesign.at',
 	'domain'            => 'paxdesign.at',
 	'license_type'      => 'Master',
-	'installed_version' => '2.28.2',
-	'installed_build'   => '2.28.2-build',
+	'installed_version' => '2.28.3',
+	'installed_build'   => '2.28.3-build',
 	'last_check_in_time'=> '',
 	'last_check_in_human' => '',
 	'update_status'     => 'ok',
 	'update_label'      => 'Up to date',
-	'latest_version'    => '2.28.2',
+	'latest_version'    => '2.28.3',
 	'update_detail'     => '',
 	'can_update_now'    => false,
 );
@@ -166,7 +181,7 @@ $security_events = array(
 );
 $customer_packages  = array();
 $protected_releases = array(
-	array( 'filename' => 'pckz-canonical-engine-2.28.2-protected.zip', 'version' => '2.28.2', 'size' => 1234567 ),
+	array( 'filename' => 'pckz-canonical-engine-2.28.3-protected.zip', 'version' => '2.28.3', 'size' => 1234567 ),
 );
 
 $failed = false;
@@ -191,12 +206,12 @@ if ( strlen( $rendered ) < 500 ) {
 }
 
 $expected_markers = array(
-	'Master Control Center',
-	'Licensed Installations',
-	'pckz-fleet-dashboard',
-	'pckz-license-stats',
-	'Create License',
-	'Customer Packages',
+	'Master Control',
+	'Customer fleet',
+	'pckz-mc-overview',
+	'Create license',
+	'Generate client package',
+	'License registry',
 	'client.example.com',
 );
 foreach ( $expected_markers as $needle ) {

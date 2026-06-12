@@ -7,12 +7,22 @@
 	'use strict';
 
 	const DEFAULT_DESIGN = { width: 3651, height: 2132 };
+	const DEFAULT_LAYERS = {
+		text: { refX: 1136, refY: 1256, refWidth: 1392, refHeight: 93, fontSize: 55, stroke: 30 },
+		iconLeft: { refX: 817.5, refY: 1243, refWidth: 81, refHeight: 114 },
+		iconRight: { refX: 2748.5, refY: 1243, refWidth: 81, refHeight: 114 },
+		iconBgLeft: { refX: 767, refY: 1244, refWidth: 178, refHeight: 113 },
+		iconBgRight: { refX: 2700, refY: 1244, refWidth: 178, refHeight: 113 },
+		lines: { refX: 609, refY: 1173, refWidth: 2424, refHeight: 254 },
+	};
 
 	/** Match picker preview: scale up narrow line artwork for live preview display only. */
 	const LINE_PREVIEW_WIDTH_COVERAGE = 0.88;
 	const LINE_PREVIEW_TARGET_WIDTH = 0.96;
 	const LINE_PREVIEW_TARGET_HEIGHT = 0.92;
-	const LINE_PREVIEW_MAX_DISPLAY_BOOST = 4;
+	const LINE_PREVIEW_MAX_DISPLAY_BOOST = 12;
+	const EXPORT_RUNTIME_PREWARM_DELAY_MS = 2600;
+	const EXPORT_SCRIPT_LOAD_TIMEOUT_MS = 15000;
 
 	if (typeof fabric !== 'undefined' && fabric.Object) {
 		fabric.Object.NUM_FRACTION_DIGITS = 8;
@@ -28,7 +38,7 @@
 			this.cfg = ledosPreview || {};
 			this.designW = this.cfg.designWidth || DEFAULT_DESIGN.width;
 			this.designH = this.cfg.designHeight || DEFAULT_DESIGN.height;
-			this.layers = this.cfg.layers || {};
+			this.layers = this.cfg.layers || { ...DEFAULT_LAYERS };
 			this.lineTypes = this.cfg.lineTypes || {};
 			this.lineCatalog = this.cfg.lineCatalog || {};
 			this.iconCatalog = this.cfg.iconCatalog || {};
@@ -45,6 +55,13 @@
 				text: null,
 			};
 			this._imageCache = {};
+			this._imageCachePending = {};
+			this._connectedLineCache = {};
+			this._renderGen = 0;
+			this._layerState = {};
+			this._productionReadyHash = '';
+			this._externalScriptLoads = {};
+			this._deferredExportRuntimeQueued = false;
 			this.lastState = {};
 		}
 
@@ -107,6 +124,145 @@
 			return '';
 		}
 
+		exportRuntimeScriptUrl(configKey, fallbackPath) {
+			const cfg = global.pckzceConfig || {};
+			const configured = String(cfg[configKey] || '').trim();
+			if (configured) {
+				return configured;
+			}
+			if (!fallbackPath) {
+				return '';
+			}
+			try {
+				const base = global.location && global.location.origin ? global.location.origin : '';
+				return new URL(String(fallbackPath), base || undefined).toString();
+			} catch (err) {
+				return String(fallbackPath || '');
+			}
+		}
+
+		loadExternalRuntimeScript(cacheKey, url, isReady) {
+			if (typeof isReady === 'function' && isReady()) {
+				return Promise.resolve(true);
+			}
+			if (this._externalScriptLoads[cacheKey]) {
+				return this._externalScriptLoads[cacheKey];
+			}
+			const source = String(url || '').trim();
+			if (!source || typeof document === 'undefined' || !document.createElement) {
+				return Promise.resolve(false);
+			}
+			this._externalScriptLoads[cacheKey] = new Promise((resolve) => {
+				let settled = false;
+				const finish = (ok) => {
+					if (settled) {
+						return;
+					}
+					settled = true;
+					resolve(!!ok);
+				};
+				const timeout = setTimeout(() => finish(typeof isReady === 'function' ? isReady() : false), EXPORT_SCRIPT_LOAD_TIMEOUT_MS);
+				const script = document.createElement('script');
+				script.async = true;
+				script.src = source;
+				script.onload = () => {
+					clearTimeout(timeout);
+					finish(typeof isReady === 'function' ? isReady() : true);
+				};
+				script.onerror = () => {
+					clearTimeout(timeout);
+					finish(typeof isReady === 'function' ? isReady() : false);
+				};
+				(document.head || document.documentElement || document.body).appendChild(script);
+			}).finally(() => {
+				delete this._externalScriptLoads[cacheKey];
+			});
+			return this._externalScriptLoads[cacheKey];
+		}
+
+		async ensureOpenTypeRuntime() {
+			if (global.opentype) {
+				return true;
+			}
+			const ok = await this.loadExternalRuntimeScript(
+				'opentype',
+				this.exportRuntimeScriptUrl('opentypeScriptUrl', '/wp-content/plugins/pckz-canonical-engine/public/js/vendor/opentype.min.js'),
+				() => !!global.opentype
+			);
+			return !!(ok && global.opentype);
+		}
+
+		async ensureCanonicalSceneRuntime() {
+			if (global.PCKZCECanonicalScene && global.PCKZCECanonicalScene.buildFromLayout) {
+				return true;
+			}
+			const pipelineUrl = this.exportRuntimeScriptUrl(
+				'productionPipelineScriptUrl',
+				'/wp-content/plugins/pckz-canonical-engine/public/js/fabric-production-pipeline.js'
+			);
+			await this.loadExternalRuntimeScript(
+				'production-pipeline',
+				pipelineUrl,
+				() => !!global.PCKZCEProductionPipeline
+			);
+			const canonicalUrl = this.exportRuntimeScriptUrl(
+				'canonicalSceneScriptUrl',
+				'/wp-content/plugins/pckz-canonical-engine/public/js/canonical-scene.js'
+			);
+			const ok = await this.loadExternalRuntimeScript(
+				'canonical-scene',
+				canonicalUrl,
+				() => !!(global.PCKZCECanonicalScene && global.PCKZCECanonicalScene.buildFromLayout)
+			);
+			return !!(ok && global.PCKZCECanonicalScene && global.PCKZCECanonicalScene.buildFromLayout);
+		}
+
+		shouldDeferExportRuntimePrewarm() {
+			if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 989px)').matches) {
+				return false;
+			}
+			const connection =
+				typeof navigator !== 'undefined'
+					? navigator.connection || navigator.mozConnection || navigator.webkitConnection || null
+					: null;
+			if (connection) {
+				if (connection.saveData) {
+					return false;
+				}
+				const effective = String(connection.effectiveType || '').toLowerCase();
+				if (effective === 'slow-2g' || effective === '2g' || effective === '3g') {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		preloadDeferredExportRuntime() {
+			if (this._deferredExportRuntimeQueued || !this.shouldDeferExportRuntimePrewarm()) {
+				return;
+			}
+			this._deferredExportRuntimeQueued = true;
+			const task = async () => {
+				try {
+					await this.ensureOpenTypeRuntime();
+				} catch (err) {
+					// ignore optional prewarm errors.
+				}
+				try {
+					await this.ensureCanonicalSceneRuntime();
+				} catch (err) {
+					// ignore optional prewarm errors.
+				}
+			};
+			if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+				window.requestIdleCallback(() => task().catch(() => null), {
+					timeout: EXPORT_RUNTIME_PREWARM_DELAY_MS + 1800,
+				});
+				return;
+			}
+			setTimeout(() => task().catch(() => null), EXPORT_RUNTIME_PREWARM_DELAY_MS);
+		}
+
 		cloneCached(obj) {
 			return new Promise((resolve) => {
 				if (!obj || typeof obj.clone !== 'function') {
@@ -154,7 +310,15 @@
 		 * @returns {{tintable:boolean,color:string|null}}
 		 */
 		resolveIconTint(slug, state, side) {
-			const meta = slug ? this.iconCatalog[slug] || {} : {};
+			const resolvedAssets = (state && state.resolved_assets) || {};
+			const resolvedMeta =
+				side === 'left' ? resolvedAssets.icon_left || {} : resolvedAssets.icon_right || {};
+			const meta =
+				slug && (resolvedMeta.slug === slug || !resolvedMeta.slug)
+					? { ...this.iconCatalog[slug], ...resolvedMeta }
+					: slug
+						? this.iconCatalog[slug] || {}
+						: {};
 			if (meta.preserve_colors) {
 				const userSet =
 					side === 'left' ? !!state.icon_color_left_user_set : !!state.icon_color_right_user_set;
@@ -185,12 +349,143 @@
 		 * @returns {{tintable:boolean,color:string|null}}
 		 */
 		resolveLineTint(slug, state) {
-			const meta = slug ? this.lineCatalog[slug] || {} : {};
+			const resolvedAssets = (state && state.resolved_assets) || {};
+			const resolvedLine = resolvedAssets.line || {};
+			const meta =
+				slug && (resolvedLine.slug === slug || !resolvedLine.slug)
+					? { ...this.lineCatalog[slug], ...resolvedLine }
+					: slug
+						? this.lineCatalog[slug] || {}
+						: {};
 			if (meta.preserve_colors || meta.tintable === false) {
 				return { tintable: false, color: null };
 			}
 			// Customer line color picker removed — keep native SVG colors (white/default art).
 			return { tintable: false, color: null };
+		}
+
+		/**
+		 * Resolve the display-normalized SVG URL for live preview / picker parity.
+		 *
+		 * @param {string} slug Line slug.
+		 * @param {object} resolvedLine Resolved asset row.
+		 * @return {string}
+		 */
+		resolveLinePreviewUrl(slug, resolvedLine) {
+			const row = resolvedLine && typeof resolvedLine === 'object' ? resolvedLine : {};
+			const exportLike = /\/public\/assets\/lines\/type_\d+\.svg(?:\?|$)/i;
+			const isRawBundledExport = (url) =>
+				!!(url && exportLike.test(String(url)) && !/\/display\//i.test(String(url)));
+			if ( row.preview_url && !isRawBundledExport( row.preview_url ) ) {
+				return row.preview_url;
+			}
+			if ( row.url && !isRawBundledExport( row.url ) ) {
+				return row.url;
+			}
+			if ( slug && this.lineTypes[slug] ) {
+				return this.lineTypes[slug];
+			}
+			const catalog = slug && this.lineCatalog[slug] ? this.lineCatalog[slug] : null;
+			if ( catalog ) {
+				return catalog.preview || catalog.url || this.lineTypes[slug] || '';
+			}
+			return '';
+		}
+
+		/**
+		 * Client-side display normalization when compact line art reaches the canvas unpadded.
+		 *
+		 * @param {string} markup SVG source.
+		 * @return {string}
+		 */
+		normalizeLineSvgMarkupForPreview(markup) {
+			const raw = String(markup || '').trim();
+			if (!raw || raw.indexOf('<svg') === -1) {
+				return raw;
+			}
+			const viewMatch = raw.match(/viewBox=["']([^"']+)["']/i);
+			let vpW = 950;
+			let vpH = 35;
+			if (viewMatch) {
+				const parts = viewMatch[1].trim().split(/[\s,]+/);
+				if (parts.length >= 4) {
+					vpW = Math.max(0.001, parseFloat(parts[2]) || vpW);
+					vpH = Math.max(0.001, parseFloat(parts[3]) || vpH);
+				}
+			}
+			const nums = raw.match(/[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?/g);
+			if (!nums || nums.length < 4) {
+				return raw;
+			}
+			let minX = Infinity;
+			let minY = Infinity;
+			let maxX = -Infinity;
+			let maxY = -Infinity;
+			for (let i = 0; i + 1 < nums.length; i += 2) {
+				const x = parseFloat(nums[i]);
+				const y = parseFloat(nums[i + 1]);
+				if (!isFinite(x) || !isFinite(y)) {
+					continue;
+				}
+				minX = Math.min(minX, x);
+				minY = Math.min(minY, y);
+				maxX = Math.max(maxX, x);
+				maxY = Math.max(maxY, y);
+			}
+			if (!isFinite(minX) || !isFinite(maxX)) {
+				return raw;
+			}
+			const drawW = Math.max(0.001, maxX - minX);
+			const drawH = Math.max(0.001, maxY - minY);
+			if (drawW / vpW >= LINE_PREVIEW_WIDTH_COVERAGE) {
+				return raw;
+			}
+			const scale = (LINE_PREVIEW_TARGET_WIDTH * vpW) / drawW;
+			if (!(scale > 1.01)) {
+				return raw;
+			}
+			const inner = raw.replace(/^[\s\S]*?<svg\b[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
+			const drawCx = minX + drawW / 2;
+			const drawCy = minY + drawH / 2;
+			const offsetX = vpW / 2 - drawCx * scale;
+			const offsetY = vpH / 2 - drawCy * scale;
+			return (
+				'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
+				vpW +
+				' ' +
+				vpH +
+				'" fill="none"><g transform="translate(' +
+				offsetX +
+				',' +
+				offsetY +
+				') scale(' +
+				scale +
+				')">' +
+				inner +
+				'</g></svg>'
+			);
+		}
+
+		/**
+		 * Use fetch+string parse only for same-origin display/cached SVGs (fast path).
+		 *
+		 * @param {string} url Asset URL.
+		 * @return {boolean}
+		 */
+		shouldFetchSvgMarkupFirst(url) {
+			const raw = String(url || '');
+			if (!raw || /pckzce_secure_asset|action=pckzce_secure_asset/i.test(raw)) {
+				return false;
+			}
+			try {
+				const abs = new URL(raw, window.location.href);
+				if (abs.origin !== window.location.origin) {
+					return false;
+				}
+			} catch (err) {
+				return false;
+			}
+			return /\/display\/|pckzce_line_preview|-preview\.svg/i.test(raw);
 		}
 
 		builtinLinePreviewTargetBounds(box) {
@@ -507,8 +802,6 @@
 			const vpH = Math.max( 0.001, parseFloat( viewport.height ) || ref.height );
 			const vpX = parseFloat( viewport.x ) || 0;
 			const vpY = parseFloat( viewport.y ) || 0;
-			const fabricW = Math.max( 0.001, parseFloat( obj.width ) || vpW );
-			const fabricH = Math.max( 0.001, parseFloat( obj.height ) || vpH );
 			const drawW = Math.max( 0.001, parseFloat( draw.width ) || vpW );
 			const drawH = Math.max( 0.001, parseFloat( draw.height ) || vpH );
 			const drawCx = ( parseFloat( draw.x ) || 0 ) - vpX + drawW / 2;
@@ -517,9 +810,12 @@
 			const viewCy = vpH / 2;
 			const refRatioW = ref.width / vpW;
 			const refRatioH = ref.height / vpH;
+			const boost = this.linePreviewWidthBoostForDraw( draw, vpW );
+			const effectiveW = drawW * boost;
+			const effectiveH = drawH * boost;
 			return {
-				width: fabricW * refRatioW,
-				height: fabricH * refRatioH,
+				width: effectiveW * refRatioW,
+				height: effectiveH * refRatioH,
 				deltaX: ( drawCx - viewCx ) * refRatioW,
 				deltaY: ( drawCy - viewCy ) * refRatioH,
 			};
@@ -882,6 +1178,43 @@
 		}
 
 		/**
+		 * Build a Fabric group from parsed SVG objects and attach line metadata.
+		 *
+		 * @param {object[]} objects Parsed SVG objects.
+		 * @param {object}   options Fabric parse options.
+		 * @param {string|null} hex Optional tint hex.
+		 * @param {boolean}  tintable Whether tint applies.
+		 * @return {object|null}
+		 */
+		buildSvgAssetGroup(objects, options, hex, tintable) {
+			if (!objects || !objects.length) {
+				return null;
+			}
+			let group = fabric.util.groupSVGElements(objects, options);
+			if (typeof group.setCoords === 'function') {
+				group.setCoords();
+			}
+			const drawBounds =
+				this.resolveLineSvgDrawBounds(objects, options) ||
+				this.computeSvgObjectsBounds([group]) ||
+				this.computeSvgObjectsBounds(objects);
+			if (drawBounds) {
+				group.pckzSvgDrawBounds = drawBounds;
+				group.pckzSvgViewport = this.resolveSvgViewport(options || {}, drawBounds);
+			}
+			if (tintable && hex) {
+				this.recolorSvgObject(group, hex);
+			}
+			group.set({
+				selectable: false,
+				evented: false,
+				objectCaching: false,
+				noScaleCache: false,
+			});
+			return group;
+		}
+
+		/**
 		 * Load original SVG vector art (Cloudlift paths) — not flat raster tint.
 		 *
 		 * @param {string} url
@@ -895,7 +1228,10 @@
 			if (this._imageCache[key]) {
 				return this.cloneCached(this._imageCache[key]);
 			}
-			return new Promise((resolve) => {
+			if (this._imageCachePending[key]) {
+				return this._imageCachePending[key];
+			}
+			const pending = new Promise((resolve) => {
 				if (!url) {
 					resolve(null);
 					return;
@@ -904,44 +1240,70 @@
 				const fallbackRaster = () => {
 					this.loadRasterAsset(url, null).then(done);
 				};
-				if (!fabric.loadSVGFromURL) {
-					fallbackRaster();
-					return;
+				const finishParsed = (objects, options, sourceMarkup) => {
+					if ((!objects || !objects.length) && sourceMarkup) {
+						const normalized = this.normalizeLineSvgMarkupForPreview(sourceMarkup);
+						if (normalized && normalized !== sourceMarkup && fabric.loadSVGFromString) {
+							fabric.loadSVGFromString(normalized, (nextObjects, nextOptions) => {
+								if (!finishParsed(nextObjects, nextOptions, null)) {
+									fallbackRaster();
+								}
+							});
+							return true;
+						}
+					}
+					const group = this.buildSvgAssetGroup(objects, options || {}, hex, tintable);
+					if (!group) {
+						return false;
+					}
+					this._imageCache[key] = group;
+					this.cloneCached(group).then(done);
+					return true;
+				};
+				const loadFromUrl = () => {
+					if (!fabric.loadSVGFromURL) {
+						fallbackRaster();
+						return;
+					}
+					fabric.loadSVGFromURL(
+						url,
+						(objects, options) => {
+							if (!finishParsed(objects, options, null)) {
+								fallbackRaster();
+							}
+						},
+						null,
+						{ crossOrigin: 'anonymous' }
+					);
+				};
+				if (typeof fetch === 'function' && fabric.loadSVGFromString) {
+					const useFetchFirst = this.shouldFetchSvgMarkupFirst(url);
+					if (useFetchFirst) {
+						fetch(url, { credentials: 'same-origin' })
+							.then((response) => (response && response.ok ? response.text() : ''))
+							.then((body) => {
+								const markup = String(body || '').trim();
+								if (!markup || markup.indexOf('<svg') === -1) {
+									loadFromUrl();
+									return;
+								}
+								const prepared = this.normalizeLineSvgMarkupForPreview(markup);
+								fabric.loadSVGFromString(prepared, (objects, options) => {
+									if (!finishParsed(objects, options, prepared)) {
+										loadFromUrl();
+									}
+								});
+							})
+							.catch(() => loadFromUrl());
+						return;
+					}
 				}
-				fabric.loadSVGFromURL(
-					url,
-					(objects, options) => {
-						if (!objects || !objects.length) {
-							fallbackRaster();
-							return;
-						}
-						let group = fabric.util.groupSVGElements(objects, options);
-						if (typeof group.setCoords === 'function') {
-							group.setCoords();
-						}
-						const drawBounds =
-							this.resolveLineSvgDrawBounds( objects, options ) ||
-							this.computeSvgObjectsBounds( [ group ] ) ||
-							this.computeSvgObjectsBounds( objects );
-						if (drawBounds) {
-							group.pckzSvgDrawBounds = drawBounds;
-							group.pckzSvgViewport = this.resolveSvgViewport(options || {}, drawBounds);
-						}
-						if (tintable && hex) {
-							this.recolorSvgObject(group, hex);
-						}
-						group.set({
-							selectable: false,
-							evented: false,
-							objectCaching: true,
-						});
-						this._imageCache[key] = group;
-						this.cloneCached(group).then(done);
-					},
-					null,
-					{ crossOrigin: 'anonymous' }
-				);
+				loadFromUrl();
+			}).finally(() => {
+				delete this._imageCachePending[key];
 			});
+			this._imageCachePending[key] = pending;
+			return pending;
 		}
 
 		/**
@@ -956,7 +1318,10 @@
 			if (this._imageCache[key]) {
 				return this.cloneCached(this._imageCache[key]);
 			}
-			return new Promise((resolve) => {
+			if (this._imageCachePending[key]) {
+				return this._imageCachePending[key];
+			}
+			const pending = new Promise((resolve) => {
 				if (!url) {
 					resolve(null);
 					return;
@@ -968,13 +1333,22 @@
 							resolve(null);
 							return;
 						}
-						img.set({ selectable: false, evented: false });
+						img.set({
+							selectable: false,
+							evented: false,
+							objectCaching: false,
+							noScaleCache: false,
+						});
 						this._imageCache[key] = img;
 						this.cloneCached(img).then(resolve);
 					},
 					{ crossOrigin: 'anonymous' }
 				);
+			}).finally(() => {
+				delete this._imageCachePending[key];
 			});
+			this._imageCachePending[key] = pending;
+			return pending;
 		}
 
 		loadAsset(url, color, tintable) {
@@ -1091,40 +1465,50 @@
 		 */
 		async buildConnectedLineGroup(url, ref, tint) {
 			const lineTint = tint || { tintable: false, color: null };
+			const hex = lineTint.tintable && lineTint.color ? this.colorToHex(lineTint.color) : '';
+			const cacheKey =
+				'connected|' +
+				url +
+				'|' +
+				(lineTint.tintable ? hex || 'tint' : 'native');
+			if (this._connectedLineCache[cacheKey]) {
+				return this.cloneCached(this._connectedLineCache[cacheKey]);
+			}
 			const base = await this.loadSvgAsset(
 				url,
 				lineTint.tintable ? lineTint.color : null,
 				lineTint.tintable
 			);
-			if ( !base ) {
+			if (!base) {
 				return null;
 			}
-			const left = await this.cloneCached( base );
-			const right = await this.cloneCached( base );
-			if ( !left || !right ) {
+			const left = await this.cloneCached(base);
+			const right = await this.cloneCached(base);
+			if (!left || !right) {
 				return null;
 			}
-			const box = this.refToCanvas( ref );
+			const box = this.refToCanvas(ref);
 
 			left.pckzRole = 'line-half-left';
 			right.pckzRole = 'line-half-right';
-			this.placeLineHalfAtSeam( left, box, 'left' );
-			this.placeLineHalfAtSeam( right, box, 'right' );
-			this.fitConnectedLineHalves( left, right, box );
+			this.placeLineHalfAtSeam(left, box, 'left');
+			this.placeLineHalfAtSeam(right, box, 'right');
+			this.fitConnectedLineHalves(left, right, box);
 
-			if ( typeof fabric.Group !== 'function' ) {
+			if (typeof fabric.Group !== 'function') {
 				return left;
 			}
-			const group = new fabric.Group( [ left, right ], {
+			const group = new fabric.Group([left, right], {
 				selectable: false,
 				evented: false,
-			} );
-			if ( typeof group.setCoords === 'function' ) {
+			});
+			if (typeof group.setCoords === 'function') {
 				group.setCoords();
 			}
 			group.pckzConnectedLine = true;
 			group.pckzRole = 'line-overlay';
-			return group;
+			this._connectedLineCache[cacheKey] = group;
+			return this.cloneCached(group);
 		}
 
 		visualCenterY(obj, role) {
@@ -1182,6 +1566,131 @@
 			}
 		}
 
+		invalidateImageCacheForUrl(url) {
+			if (!url) {
+				return;
+			}
+			const needle = String(url);
+			Object.keys(this._imageCache).forEach((key) => {
+				if (key.indexOf(needle) !== -1) {
+					delete this._imageCache[key];
+				}
+			});
+			Object.keys(this._connectedLineCache).forEach((key) => {
+				if (key.indexOf(needle) !== -1) {
+					delete this._connectedLineCache[key];
+				}
+			});
+		}
+
+		stateRenderHash(state) {
+			const s = state || {};
+			const resolved = s.resolved_assets || {};
+			return JSON.stringify({
+				line: this.lineLayerKey(s),
+				iconBgLeft: this.iconBgLayerKey(s, 'left'),
+				iconBgRight: this.iconBgLayerKey(s, 'right'),
+				iconLeft: this.iconLayerKey(s, 'left'),
+				iconRight: this.iconLayerKey(s, 'right'),
+				text: this.textLayerKey(s),
+				led: s.led_enabled || 'yes',
+				preview: s.preview_mode || s.preview_led || 'day',
+			});
+		}
+
+		lineLayerKey(state) {
+			const lineKey = state.linien || 'none';
+			const resolvedLine = (state.resolved_assets || {}).line || {};
+			const lineUrl = this.resolveLinePreviewUrl(lineKey, resolvedLine);
+			const lineMeta = { ...(this.lineCatalog[lineKey] || {}), ...resolvedLine };
+			const lineTint = this.resolveLineTint(lineKey, state);
+			return JSON.stringify({
+				lineKey,
+				lineUrl,
+				connected: !!lineMeta.connected_right,
+				tintable: !!lineTint.tintable,
+				color: lineTint.color || '',
+			});
+		}
+
+		iconBgLayerKey(state, side) {
+			const slug =
+				side === 'left' ? state.symbol_links || 'none' : state.symbol_rechts || 'none';
+			const resolved =
+				side === 'left'
+					? (state.resolved_assets || {}).icon_left || {}
+					: (state.resolved_assets || {}).icon_right || {};
+			const bgLeft = this.layers.iconBgLeft;
+			const bgRight = this.layers.iconBgRight;
+			const bgUrl =
+				resolved.bg_url ||
+				(side === 'left' ? (bgLeft && bgLeft.url) || '' : (bgRight && bgRight.url) || '');
+			return JSON.stringify({ slug, bgUrl });
+		}
+
+		iconLayerKey(state, side) {
+			const slug =
+				side === 'left' ? state.symbol_links || 'none' : state.symbol_rechts || 'none';
+			const resolved =
+				side === 'left'
+					? (state.resolved_assets || {}).icon_left || {}
+					: (state.resolved_assets || {}).icon_right || {};
+			const meta = { ...(this.iconCatalog[slug] || {}), ...resolved };
+			const tint = this.resolveIconTint(slug, state, side);
+			return JSON.stringify({
+				slug,
+				url: meta.url || '',
+				tintable: !!tint.tintable,
+				color: tint.color || '',
+			});
+		}
+
+		textLayerKey(state) {
+			return JSON.stringify({
+				text: state.custom_text || '',
+				font: state.font_family || 'Russo One',
+				color: state.text_color || '#ffffff',
+			});
+		}
+
+		isRenderCurrent(gen) {
+			return gen === this._renderGen;
+		}
+
+		requestCanvasPaint() {
+			if (this.canvas && global.PCKZCECanvas) {
+				global.PCKZCECanvas.safeRender(this.canvas);
+			} else if (this.canvas && this.canvas.renderAll) {
+				this.canvas.renderAll();
+			}
+		}
+
+		applyTextState(state) {
+			if (!this.canvas) {
+				return false;
+			}
+			const textRef = this.layers.text || {};
+			if (!this.objects.text) {
+				return false;
+			}
+			this.lastState = state || {};
+			this.objects.text.set('text', state.custom_text || ' ');
+			this.objects.text.set('fill', state.text_color || '#ffffff');
+			if (state.font_family) {
+				this.objects.text.set('fontFamily', state.font_family);
+			}
+			const box = this.refToCanvas(textRef);
+			this.objects.text.set({ left: box.cx, top: box.cy });
+			this.scaleTextToRef(this.objects.text, textRef);
+			this.applyLedGlow(state);
+			if (this.objects.text) {
+				this.canvas.bringToFront(this.objects.text);
+			}
+			this._layerState.text = this.textLayerKey(state);
+			this.requestCanvasPaint();
+			return true;
+		}
+
 		removeRole(role) {
 			const obj = this.objects[role];
 			if (obj) {
@@ -1197,150 +1706,223 @@
 			if (!this.canvas) {
 				return;
 			}
-			this.lastState = state || {};
+			const gen = ++this._renderGen;
+			const nextState = state || {};
+			this.lastState = nextState;
 			const textRef = this.layers.text || {};
 			const leftRef = this.layers.iconLeft || {};
 			const rightRef = this.layers.iconRight || {};
 			const linesRef = this.layers.lines || {};
 			const bgLeft = this.layers.iconBgLeft;
 			const bgRight = this.layers.iconBgRight;
+			const resolvedAssets = nextState.resolved_assets || {};
 
-			// Lines overlay.
-			this.removeRole('line');
-			const lineKey = state.linien || 'none';
-			if (lineKey && lineKey !== 'none' && this.lineTypes[lineKey]) {
-				const lineMeta = this.lineCatalog[lineKey] || {};
-				const lineUrl = this.lineTypes[lineKey];
-				const lineTint = this.resolveLineTint(lineKey, state);
-				let lineImg = null;
-				if (lineMeta.connected_right) {
-					lineImg = await this.buildConnectedLineGroup(lineUrl, linesRef, lineTint);
-				} else {
-					lineImg = await this.loadSvgAsset(
-						lineUrl,
-						lineTint.tintable ? lineTint.color : null,
-						lineTint.tintable
-					);
+			const lineKeyStr = this.lineLayerKey(nextState);
+			if (lineKeyStr !== this._layerState.line) {
+				this.removeRole('line');
+				const lineKey = nextState.linien || 'none';
+				const resolvedLine = resolvedAssets.line || {};
+				const lineUrl = this.resolveLinePreviewUrl(lineKey, resolvedLine);
+				if (lineKey && lineKey !== 'none' && lineUrl) {
+					const lineMeta = { ...(this.lineCatalog[lineKey] || {}), ...resolvedLine };
+					const lineTint = this.resolveLineTint(lineKey, nextState);
+					let lineImg = null;
+					if (lineMeta.connected_right) {
+						lineImg = await this.buildConnectedLineGroup(lineUrl, linesRef, lineTint);
+					} else {
+						lineImg = await this.loadSvgAsset(
+							lineUrl,
+							lineTint.tintable ? lineTint.color : null,
+							lineTint.tintable
+						);
+						if (lineImg) {
+							this.placeInRef(lineImg, linesRef, 'line-overlay');
+						}
+					}
+					if (!this.isRenderCurrent(gen)) {
+						return;
+					}
 					if (lineImg) {
-						this.placeInRef(lineImg, linesRef, 'line-overlay');
+						lineImg.pckzRole = 'line-overlay';
+						lineImg.pckzLineSlug = lineKey;
+						lineImg.pckzSourceUrl = lineUrl;
+						this.objects.line = lineImg;
+						this.canvas.add(lineImg);
 					}
 				}
-				if (lineImg) {
-					lineImg.pckzRole = 'line-overlay';
-					lineImg.pckzLineSlug = lineKey;
-					this.objects.line = lineImg;
-					this.canvas.add(lineImg);
-				}
+				this._layerState.line = lineKeyStr;
 			}
 
-			// Icon backgrounds.
-			this.removeRole('iconBgLeft');
-			this.removeRole('iconBgRight');
-			if (state.symbol_links && state.symbol_links !== 'none' && bgLeft && bgLeft.url) {
-				const bg = await this.loadSvgAsset(bgLeft.url, null, false);
-				if (bg) {
-					bg.pckzRole = 'icon-bg-left';
-					this.placeInRef(bg, bgLeft, 'icon-bg-left');
-					this.objects.iconBgLeft = bg;
-					this.canvas.add(bg);
+			const iconBgLeftKey = this.iconBgLayerKey(nextState, 'left');
+			if (iconBgLeftKey !== this._layerState.iconBgLeft) {
+				this.removeRole('iconBgLeft');
+				const resolvedIconLeft = resolvedAssets.icon_left || {};
+				const bgLeftUrl = resolvedIconLeft.bg_url || (bgLeft && bgLeft.url) || '';
+				if (nextState.symbol_links && nextState.symbol_links !== 'none' && bgLeftUrl) {
+					const bg = await this.loadSvgAsset(bgLeftUrl, null, false);
+					if (!this.isRenderCurrent(gen)) {
+						return;
+					}
+					if (bg) {
+						bg.pckzRole = 'icon-bg-left';
+						this.placeInRef(bg, bgLeft, 'icon-bg-left');
+						bg.pckzSourceUrl = bgLeftUrl;
+						this.objects.iconBgLeft = bg;
+						this.canvas.add(bg);
+					}
 				}
-			}
-			if (state.symbol_rechts && state.symbol_rechts !== 'none' && bgRight && bgRight.url) {
-				const bg = await this.loadSvgAsset(bgRight.url, null, false);
-				if (bg) {
-					bg.pckzRole = 'icon-bg-right';
-					this.placeInRef(bg, bgRight, 'icon-bg-right');
-					this.objects.iconBgRight = bg;
-					this.canvas.add(bg);
-				}
+				this._layerState.iconBgLeft = iconBgLeftKey;
 			}
 
-			// Icons.
-			this.removeRole('iconLeft');
-			this.removeRole('iconRight');
-			if (state.symbol_links && state.symbol_links !== 'none') {
-				const meta = this.iconCatalog[state.symbol_links];
-				if (meta && meta.url) {
-					const tint = this.resolveIconTint(state.symbol_links, state, 'left');
-					const icon = await this.loadSvgAsset(
-						meta.url,
-						tint.tintable ? tint.color : null,
-						tint.tintable
-					);
-					if (icon) {
-						icon.pckzSymbol = state.symbol_links;
-						icon.pckzRole = 'icon-left';
-						this.placeInRef(icon, leftRef, 'icon-left');
-						this.objects.iconLeft = icon;
-						this.canvas.add(icon);
+			const iconBgRightKey = this.iconBgLayerKey(nextState, 'right');
+			if (iconBgRightKey !== this._layerState.iconBgRight) {
+				this.removeRole('iconBgRight');
+				const resolvedIconRight = resolvedAssets.icon_right || {};
+				const bgRightUrl = resolvedIconRight.bg_url || (bgRight && bgRight.url) || '';
+				if (nextState.symbol_rechts && nextState.symbol_rechts !== 'none' && bgRightUrl) {
+					const bg = await this.loadSvgAsset(bgRightUrl, null, false);
+					if (!this.isRenderCurrent(gen)) {
+						return;
+					}
+					if (bg) {
+						bg.pckzRole = 'icon-bg-right';
+						this.placeInRef(bg, bgRight, 'icon-bg-right');
+						bg.pckzSourceUrl = bgRightUrl;
+						this.objects.iconBgRight = bg;
+						this.canvas.add(bg);
 					}
 				}
+				this._layerState.iconBgRight = iconBgRightKey;
 			}
-			if (state.symbol_rechts && state.symbol_rechts !== 'none') {
-				const meta = this.iconCatalog[state.symbol_rechts];
-				if (meta && meta.url) {
-					const tint = this.resolveIconTint(state.symbol_rechts, state, 'right');
-					const icon = await this.loadSvgAsset(
-						meta.url,
-						tint.tintable ? tint.color : null,
-						tint.tintable
-					);
-					if (icon) {
-						icon.pckzSymbol = state.symbol_rechts;
-						icon.pckzRole = 'icon-right';
-						this.placeInRef(icon, rightRef, 'icon-right');
-						this.objects.iconRight = icon;
-						this.canvas.add(icon);
+
+			const iconLeftKey = this.iconLayerKey(nextState, 'left');
+			if (iconLeftKey !== this._layerState.iconLeft) {
+				this.removeRole('iconLeft');
+				if (nextState.symbol_links && nextState.symbol_links !== 'none') {
+					const meta = {
+						...(this.iconCatalog[nextState.symbol_links] || {}),
+						...(resolvedAssets.icon_left || {}),
+					};
+					if (meta && meta.url) {
+						const tint = this.resolveIconTint(nextState.symbol_links, nextState, 'left');
+						const icon = await this.loadSvgAsset(
+							meta.url,
+							tint.tintable ? tint.color : null,
+							tint.tintable
+						);
+						if (!this.isRenderCurrent(gen)) {
+							return;
+						}
+						if (icon) {
+							icon.pckzSymbol = nextState.symbol_links;
+							icon.pckzRole = 'icon-left';
+							icon.pckzSourceUrl = meta.url;
+							this.placeInRef(icon, leftRef, 'icon-left');
+							this.objects.iconLeft = icon;
+							this.canvas.add(icon);
+						}
 					}
 				}
+				this._layerState.iconLeft = iconLeftKey;
+			}
+
+			const iconRightKey = this.iconLayerKey(nextState, 'right');
+			if (iconRightKey !== this._layerState.iconRight) {
+				this.removeRole('iconRight');
+				if (nextState.symbol_rechts && nextState.symbol_rechts !== 'none') {
+					const meta = {
+						...(this.iconCatalog[nextState.symbol_rechts] || {}),
+						...(resolvedAssets.icon_right || {}),
+					};
+					if (meta && meta.url) {
+						const tint = this.resolveIconTint(nextState.symbol_rechts, nextState, 'right');
+						const icon = await this.loadSvgAsset(
+							meta.url,
+							tint.tintable ? tint.color : null,
+							tint.tintable
+						);
+						if (!this.isRenderCurrent(gen)) {
+							return;
+						}
+						if (icon) {
+							icon.pckzSymbol = nextState.symbol_rechts;
+							icon.pckzRole = 'icon-right';
+							icon.pckzSourceUrl = meta.url;
+							this.placeInRef(icon, rightRef, 'icon-right');
+							this.objects.iconRight = icon;
+							this.canvas.add(icon);
+						}
+					}
+				}
+				this._layerState.iconRight = iconRightKey;
+			}
+
+			if (!this.isRenderCurrent(gen)) {
+				return;
 			}
 			this.normalizeIconPairAlignment();
 
-			// Text.
+			const textKeyStr = this.textLayerKey(nextState);
 			if (!this.objects.text) {
 				const box = this.refToCanvas(textRef);
 				const fontSize = (textRef.fontSize || 55) * (this.bgBounds.width / this.designW);
-				this.objects.text = new fabric.IText(state.custom_text || ' ', {
+				this.objects.text = new fabric.IText(nextState.custom_text || ' ', {
 					left: box.cx,
 					top: box.cy,
 					originX: 'center',
 					originY: 'center',
-					fontFamily: state.font_family || 'Russo One',
+					fontFamily: nextState.font_family || 'Russo One',
 					fontSize: Math.max(12, fontSize),
-					fill: state.text_color || '#ffffff',
+					fill: nextState.text_color || '#ffffff',
 					fontWeight: 'normal',
 					textAlign: 'center',
 					textBaseline: 'middle',
-					stroke: state.text_color === '#ffffff' || !state.text_color ? '#000000' : null,
-					strokeWidth: textRef.stroke ? textRef.stroke * (this.bgBounds.width / this.designW) : 0,
+					stroke:
+						nextState.text_color === '#ffffff' || !nextState.text_color ? '#000000' : null,
+					strokeWidth: textRef.stroke
+						? textRef.stroke * (this.bgBounds.width / this.designW)
+						: 0,
 					paintFirst: 'stroke',
 					pckzRole: 'main-text',
 					selectable: false,
 					evented: false,
+					objectCaching: false,
+					noScaleCache: false,
 				});
 				this.canvas.add(this.objects.text);
-			} else {
-				this.objects.text.set('text', state.custom_text || ' ');
-				this.objects.text.set('fill', state.text_color || '#ffffff');
-				if (state.font_family) {
-					this.objects.text.set('fontFamily', state.font_family);
+			} else if (textKeyStr !== this._layerState.text) {
+				this.objects.text.set('text', nextState.custom_text || ' ');
+				this.objects.text.set('fill', nextState.text_color || '#ffffff');
+				if (nextState.font_family) {
+					this.objects.text.set('fontFamily', nextState.font_family);
 				}
 				const box = this.refToCanvas(textRef);
 				this.objects.text.set({ left: box.cx, top: box.cy });
 				this.scaleTextToRef(this.objects.text, textRef);
 			}
+			this._layerState.text = textKeyStr;
 
-			this.applyLedGlow(state);
+			this.applyLedGlow(nextState);
 
-			// Z-order: line → icons → text on top.
-			[this.objects.line, this.objects.iconBgLeft, this.objects.iconBgRight, this.objects.iconLeft, this.objects.iconRight, this.objects.text]
+			[
+				this.objects.line,
+				this.objects.iconBgLeft,
+				this.objects.iconBgRight,
+				this.objects.iconLeft,
+				this.objects.iconRight,
+				this.objects.text,
+			]
 				.filter(Boolean)
 				.forEach((o) => this.canvas.bringToFront(o));
 			if (this.objects.text) {
 				this.canvas.bringToFront(this.objects.text);
 			}
 
-			if (this.canvas && global.PCKZCECanvas) { global.PCKZCECanvas.safeRender(this.canvas); } else if (this.canvas && this.canvas.renderAll) { this.canvas.renderAll(); }
+			if (!this.isRenderCurrent(gen)) {
+				return;
+			}
+			this._productionReadyHash = this.stateRenderHash(nextState);
+			this.requestCanvasPaint();
 		}
 
 		scaleTextToRef(textObj, textRef) {
@@ -1844,10 +2426,26 @@
 			if (obj.svg_url) {
 				return obj.svg_url;
 			}
+			if (obj.pckzSourceUrl) {
+				return obj.pckzSourceUrl;
+			}
+			const resolvedAssets = (selections && selections.resolved_assets) || {};
 			if (role === 'icon-left' || role === 'icon-right' || role === 'icon-bg-left' || role === 'icon-bg-right') {
 				let slug = obj.symbol || '';
 				if (!slug || slug === 'none') {
 					slug = role.includes('left') ? selections.symbol_links : selections.symbol_rechts;
+				}
+				if (role === 'icon-left' && resolvedAssets.icon_left) {
+					return resolvedAssets.icon_left.export_url || resolvedAssets.icon_left.url || '';
+				}
+				if (role === 'icon-right' && resolvedAssets.icon_right) {
+					return resolvedAssets.icon_right.export_url || resolvedAssets.icon_right.url || '';
+				}
+				if (role === 'icon-bg-left' && resolvedAssets.icon_left && resolvedAssets.icon_left.bg_url) {
+					return resolvedAssets.icon_left.bg_url;
+				}
+				if (role === 'icon-bg-right' && resolvedAssets.icon_right && resolvedAssets.icon_right.bg_url) {
+					return resolvedAssets.icon_right.bg_url;
 				}
 				if (slug && slug !== 'none' && this.iconCatalog[slug]) {
 					return this.iconCatalog[slug].url || '';
@@ -1857,6 +2455,12 @@
 				let lt = obj.line_type || selections.linien || 'none';
 				if (lt === 'yes') {
 					lt = 'type_1';
+				}
+				if (resolvedAssets.line && resolvedAssets.line.export_url) {
+					return resolvedAssets.line.export_url;
+				}
+				if (resolvedAssets.line && resolvedAssets.line.url) {
+					return resolvedAssets.line.url;
 				}
 				return this.lineTypes[lt] || '';
 			}
@@ -1900,8 +2504,12 @@
 		 * @returns {Promise<void>}
 		 */
 		async waitForProductionReady(state) {
-			if (typeof this.render === 'function') {
-				await this.render(state || this.lastState || {});
+			const nextState = state || this.lastState || {};
+			const nextHash = this.stateRenderHash(nextState);
+			if (nextHash !== this._productionReadyHash || !this.hasFabricEngraveObjects()) {
+				if (typeof this.render === 'function') {
+					await this.render(nextState);
+				}
 			}
 			const frame = global.PCKZCECanvas;
 			if (frame && frame.waitForPreviewFrame) {
@@ -1915,6 +2523,7 @@
 			if (frame && frame.safeRender && this.canvas) {
 				await frame.safeRender(this.canvas);
 			}
+			this._productionReadyHash = nextHash;
 		}
 
 		/**
@@ -1924,7 +2533,11 @@
 		 */
 		async preloadExportFont(fontFamily) {
 			const fam = String(fontFamily || 'Russo One').trim();
-			if (!fam || !global.opentype) {
+			if (!fam) {
+				return;
+			}
+			await this.ensureOpenTypeRuntime();
+			if (!global.opentype) {
 				return;
 			}
 			await this.loadOpenTypeFont(fam);
@@ -2567,19 +3180,10 @@
 				return cfg[key];
 			}
 			const byId = (global.pckzceConfig && global.pckzceConfig.fontFilesById) || {};
-			const fonts = (global.pckzceConfig && global.pckzceConfig.settings && global.pckzceConfig.settings.fonts) || [];
-			for (let i = 0; i < fonts.length; i++) {
-				const row = fonts[i];
-				if (!row) {
-					continue;
-				}
-				const fam = String(row.family || '')
-					.trim()
-					.toLowerCase()
-					.replace(/['"]/g, '');
-				if (fam === key && row.id && byId[row.id]) {
-					return byId[row.id];
-				}
+			const familyToId = (global.pckzceConfig && global.pckzceConfig.fontFamilyToId) || {};
+			const mappedId = familyToId[key] || '';
+			if (mappedId && byId[mappedId]) {
+				return byId[mappedId];
 			}
 			return cfg['russo one'] || byId['russo-one'] || '';
 		}
@@ -2589,8 +3193,11 @@
 			if (!u) {
 				return false;
 			}
-			// Same-origin font proxy endpoint streams export-safe binaries (ttf/otf/woff).
+			// Same-origin font proxy endpoints stream export-safe binaries (ttf/otf/woff).
 			if (/[?&]action=pckzce_font_file(?:&|$)/i.test(u)) {
+				return true;
+			}
+			if (/[?&]action=pckzce_secure_asset(?:&|$)/i.test(u)) {
 				return true;
 			}
 			if (/\.woff2(\?|$)/i.test(u)) {
@@ -2830,6 +3437,55 @@
 			return out;
 		}
 
+		fontFetchCandidateUrls(url) {
+			const source = String(url || '').trim();
+			if (!source) {
+				return [];
+			}
+			const list = [source];
+			if (!/[?&]action=pckzce_font_file(?:&|$)/i.test(source)) {
+				return list;
+			}
+			try {
+				const parsed = new URL(source, global.location && global.location.href ? global.location.href : undefined);
+				if (parsed.searchParams.has('nonce') || parsed.searchParams.has('_wpnonce')) {
+					parsed.searchParams.delete('nonce');
+					parsed.searchParams.delete('_wpnonce');
+					list.push(parsed.toString());
+				}
+				parsed.searchParams.set('pckzce_font_retry', String(Date.now()));
+				list.push(parsed.toString());
+			} catch (err) {
+				// ignore URL parsing failures; keep original URL candidate only.
+			}
+			return list.filter(function (candidate, idx, arr) {
+				return candidate && arr.indexOf(candidate) === idx;
+			});
+		}
+
+		async fetchOpenTypeFontBinary(url) {
+			const candidates = this.fontFetchCandidateUrls(url);
+			let lastError = null;
+			for (let i = 0; i < candidates.length; i++) {
+				const candidate = candidates[i];
+				try {
+					const response = await fetch(candidate, {
+						mode: 'cors',
+						credentials: 'same-origin',
+						cache: 'no-store',
+					});
+					if (!response.ok) {
+						lastError = new Error('Font fetch failed: ' + candidate + ' [' + response.status + ']');
+						continue;
+					}
+					return await response.arrayBuffer();
+				} catch (err) {
+					lastError = err;
+				}
+			}
+			throw lastError || new Error('Font fetch failed: ' + String(url || ''));
+		}
+
 		async loadOpenTypeFont(fontFamily) {
 			const key = String(fontFamily || 'Russo One')
 				.trim()
@@ -2837,6 +3493,7 @@
 			if (this._openTypeFonts[key]) {
 				return this._openTypeFonts[key];
 			}
+			await this.ensureOpenTypeRuntime();
 			if (!global.opentype) {
 				throw new Error('OpenType.js is not loaded.');
 			}
@@ -2844,11 +3501,7 @@
 			if (!url) {
 				throw new Error('Font URL missing for ' + fontFamily);
 			}
-			const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
-			if (!res.ok) {
-				throw new Error('Font fetch failed: ' + url);
-			}
-			const font = global.opentype.parse(await res.arrayBuffer());
+			const font = global.opentype.parse(await this.fetchOpenTypeFontBinary(url));
 			const probe = this.buildOpenTypePathSafe(font, 'Laser AB 12', 48);
 			if (!this.openTypePathHasDrawableContours(probe)) {
 				throw new Error(
@@ -2961,6 +3614,7 @@
 		}
 
 		async buildTextPlatePathsForLbrn(layout, mmW, mmH) {
+			await this.ensureOpenTypeRuntime();
 			const parts = [];
 			const layoutTexts = this.findLayoutTextObjects(layout);
 			const fabricText = this.objects.text;
@@ -3011,9 +3665,6 @@
 				}
 				if (url) {
 					detail += ' [url=' + url + ']';
-				}
-				if (global.pckzceConfig && global.pckzceConfig.pluginVersion) {
-					detail += ' [pckz=' + global.pckzceConfig.pluginVersion + ']';
 				}
 				throw new Error(detail);
 			}
@@ -3567,6 +4218,7 @@ fitTextPathMatrixToFabricBounds(textObj, otPath, baseMatrix) {
 			this.ensureBackgroundBounds();
 			const layout = this.getProductionLayout(mmW, mmH, origin || 'bottom-left', meta || {});
 			await this.enrichLayoutWithSvgSources(layout);
+			await this.ensureCanonicalSceneRuntime();
 			const builder = global.PCKZCECanonicalScene;
 			if (!builder || !builder.buildFromLayout) {
 				return {

@@ -245,7 +245,11 @@ class PCKZ_Post_Type {
 		if ( ! is_array( $stored ) ) {
 			$stored = array();
 		}
-		return wp_parse_args( $stored, self::default_config() );
+		$config = wp_parse_args( $stored, self::default_config() );
+		if ( ! empty( $config['customer_options'] ) && class_exists( 'PCKZ_Customizer_Options' ) ) {
+			$config['customer_options'] = PCKZ_Customizer_Options::apply_customer_start_defaults( $config['customer_options'] );
+		}
+		return $config;
 	}
 
 	/**

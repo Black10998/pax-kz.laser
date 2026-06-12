@@ -19,8 +19,10 @@ class PCKZ_Admin {
 		add_action( 'admin_menu', array( $this, 'register_menus' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_notices', array( $this, 'render_asset_protection_notice' ) );
 		add_action( 'admin_post_pckz_update_order_status', array( $this, 'handle_update_order_status' ) );
 		add_action( 'admin_post_pckz_update_order_notes', array( $this, 'handle_update_order_notes' ) );
+		add_action( 'admin_post_pckz_update_order_shipment', array( $this, 'handle_update_order_shipment' ) );
 		add_action( 'admin_post_pckz_download_customer_artwork', array( $this, 'handle_download_customer_artwork' ) );
 	}
 
@@ -130,6 +132,41 @@ class PCKZ_Admin {
 	}
 
 	/**
+	 * Show admin warning when protected asset mode is enabled but artifacts are missing.
+	 */
+	public function render_asset_protection_notice() {
+		if ( ! current_user_can( 'manage_options' ) || ! class_exists( 'PCKZ_Assets' ) ) {
+			return;
+		}
+
+		$settings = PCKZ_Settings::get_all();
+		if ( ! PCKZ_Assets::prefer_protected_assets( $settings ) ) {
+			return;
+		}
+
+		$missing = PCKZ_Assets::missing_production_assets( $settings );
+		if ( empty( $missing ) ) {
+			return;
+		}
+		?>
+		<div class="notice notice-warning">
+			<p><strong><?php esc_html_e( 'PCKZ asset protection mode is enabled, but production assets are missing.', 'pckz-canonical-engine' ); ?></strong></p>
+			<p><?php esc_html_e( 'Public pages will keep working with fallback source files until production artifacts are generated. Build protected assets before deploying to production.', 'pckz-canonical-engine' ); ?></p>
+			<ul style="margin-left:20px;list-style:disc;">
+				<?php foreach ( $missing as $entry ) : ?>
+					<li>
+						<code><?php echo esc_html( (string) $entry['source'] ); ?></code>
+						&rarr;
+						<code><?php echo esc_html( implode( ', ', array_map( 'strval', (array) ( $entry['expected'] ?? array() ) ) ) ); ?></code>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+			<p><code>php tools/build-js-protection.php</code></p>
+		</div>
+		<?php
+	}
+
+	/**
 	 * Save production workflow status from admin.
 	 */
 	public function handle_update_order_notes() {
@@ -166,6 +203,125 @@ class PCKZ_Admin {
 		}
 		wp_safe_redirect( add_query_arg( 'pckz_status_updated', '1', $redirect ) );
 		exit;
+	}
+
+	/**
+	 * Save shipment tracking details from order admin detail view.
+	 */
+	public function handle_update_order_shipment() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized', 'pckz-canonical-engine' ) );
+		}
+		check_admin_referer( 'pckz_update_order_shipment', 'pckz_order_shipment_nonce' );
+		$order_id = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
+		$redirect = isset( $_POST['redirect'] ) ? esc_url_raw( wp_unslash( $_POST['redirect'] ) ) : admin_url( 'admin.php?page=pckz-orders' );
+
+		if ( ! $order_id || ! class_exists( 'PCKZ_Commerce' ) ) {
+			wp_safe_redirect( add_query_arg( 'pckz_shipment_updated', '0', $redirect ) );
+			exit;
+		}
+		$order = PCKZ_Commerce::get_order( $order_id );
+		if ( ! $order ) {
+			wp_safe_redirect( add_query_arg( 'pckz_shipment_updated', '0', $redirect ) );
+			exit;
+		}
+
+		$carrier = isset( $_POST['shipment_carrier'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_carrier'] ) ) : '';
+		$carrier_slug = isset( $_POST['shipment_carrier_slug'] ) ? sanitize_key( wp_unslash( $_POST['shipment_carrier_slug'] ) ) : '';
+		$tracking_number = isset( $_POST['shipment_tracking_number'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_tracking_number'] ) ) : '';
+		$tracking_url = isset( $_POST['shipment_tracking_url'] ) ? esc_url_raw( wp_unslash( $_POST['shipment_tracking_url'] ) ) : '';
+		$shipment_status = isset( $_POST['shipment_status'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_status'] ) ) : '';
+		$current_location = isset( $_POST['shipment_location'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_location'] ) ) : '';
+		$estimated_delivery = isset( $_POST['shipment_estimated_delivery'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_estimated_delivery'] ) ) : '';
+		$auto_sync = ! empty( $_POST['shipment_auto_sync'] );
+		$shipping_date_input = isset( $_POST['shipment_shipping_date'] ) ? sanitize_text_field( wp_unslash( $_POST['shipment_shipping_date'] ) ) : '';
+		$events = $this->parse_tracking_events_input( $_POST['shipment_events'] ?? '' );
+
+		$payload = PCKZ_Commerce::save_order_shipment_tracking(
+			$order_id,
+			array(
+				'carrier'            => $carrier,
+				'carrier_slug'       => $carrier_slug,
+				'tracking_number'    => $tracking_number,
+				'tracking_url'       => $tracking_url,
+				'shipment_status'    => $shipment_status,
+				'current_location'   => $current_location,
+				'estimated_delivery' => $estimated_delivery,
+				'shipping_date'      => $shipping_date_input,
+				'events'             => $events,
+				'auto_sync'          => $auto_sync,
+				'sync_error'         => '',
+			)
+		);
+		if ( is_array( $payload ) ) {
+			PCKZ_Commerce::sync_shipment_payload_to_wc_order( $order, $payload );
+		}
+		if ( $auto_sync && class_exists( 'PCKZ_Shipment_Tracking' ) ) {
+			PCKZ_Shipment_Tracking::sync_order_now( $order_id, true );
+		}
+
+		wp_safe_redirect( add_query_arg( 'pckz_shipment_updated', '1', $redirect ) );
+		exit;
+	}
+
+	/**
+	 * Parse shipment tracking events from admin textarea.
+	 *
+	 * Supported formats:
+	 * - JSON array with objects (date/status/location/message)
+	 * - one event per line: date | status | location | message
+	 *
+	 * @param mixed $raw Raw input.
+	 * @return array<int,array{date:string,status:string,location:string,message:string}>
+	 */
+	private function parse_tracking_events_input( $raw ) {
+		$value = is_string( $raw ) ? trim( wp_unslash( $raw ) ) : '';
+		if ( '' === $value ) {
+			return array();
+		}
+		$decoded = json_decode( $value, true );
+		$rows    = array();
+		if ( is_array( $decoded ) ) {
+			$rows = $decoded;
+		} else {
+			$lines = preg_split( '/\r\n|\r|\n/', $value );
+			if ( is_array( $lines ) ) {
+				foreach ( $lines as $line ) {
+					$line = trim( (string) $line );
+					if ( '' === $line ) {
+						continue;
+					}
+					$parts = array_map( 'trim', explode( '|', $line, 4 ) );
+					$rows[] = array(
+						'date'     => $parts[0] ?? '',
+						'status'   => $parts[1] ?? '',
+						'location' => $parts[2] ?? '',
+						'message'  => $parts[3] ?? '',
+					);
+				}
+			}
+		}
+
+		$out = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$date = sanitize_text_field( (string) ( $row['date'] ?? '' ) );
+			$status = sanitize_text_field( (string) ( $row['status'] ?? '' ) );
+			$location = sanitize_text_field( (string) ( $row['location'] ?? '' ) );
+			$message = sanitize_text_field( (string) ( $row['message'] ?? '' ) );
+			if ( '' === $date && '' === $status && '' === $location && '' === $message ) {
+				continue;
+			}
+			$out[] = array(
+				'date'     => $date,
+				'status'   => $status,
+				'location' => $location,
+				'message'  => $message,
+			);
+		}
+		return array_values( $out );
 	}
 
 	/**
@@ -345,6 +501,28 @@ class PCKZ_Admin {
 			'licensing_export_remote_strict' => array_key_exists( 'licensing_export_remote_strict', $input ) ? ! empty( $input['licensing_export_remote_strict'] ) : ! empty( $current['licensing_export_remote_strict'] ),
 			'licensing_strict_integrity' => array_key_exists( 'licensing_strict_integrity', $input ) ? ! empty( $input['licensing_strict_integrity'] ) : ! empty( $current['licensing_strict_integrity'] ),
 			'licensing_master_api_key' => array_key_exists( 'licensing_master_api_key', $input ) ? sanitize_text_field( $input['licensing_master_api_key'] ) : sanitize_text_field( (string) ( $current['licensing_master_api_key'] ?? '' ) ),
+			'licensing_master_admin_ip_allowlist' => array_key_exists( 'licensing_master_admin_ip_allowlist', $input ) ? sanitize_textarea_field( $input['licensing_master_admin_ip_allowlist'] ) : sanitize_textarea_field( (string) ( $current['licensing_master_admin_ip_allowlist'] ?? '' ) ),
+			'licensing_rate_limit_enabled' => array_key_exists( 'licensing_rate_limit_enabled', $input ) ? ! empty( $input['licensing_rate_limit_enabled'] ) : ! empty( $current['licensing_rate_limit_enabled'] ),
+			'licensing_rate_limit_window_sec' => array_key_exists( 'licensing_rate_limit_window_sec', $input ) ? max( 60, min( 3600, absint( $input['licensing_rate_limit_window_sec'] ?? 300 ) ) ) : max( 60, min( 3600, absint( $current['licensing_rate_limit_window_sec'] ?? 300 ) ) ),
+			'licensing_rate_limit_requests_per_ip' => array_key_exists( 'licensing_rate_limit_requests_per_ip', $input ) ? max( 30, min( 5000, absint( $input['licensing_rate_limit_requests_per_ip'] ?? 180 ) ) ) : max( 30, min( 5000, absint( $current['licensing_rate_limit_requests_per_ip'] ?? 180 ) ) ),
+			'licensing_block_duplicate_uuid_domains' => array_key_exists( 'licensing_block_duplicate_uuid_domains', $input ) ? ! empty( $input['licensing_block_duplicate_uuid_domains'] ) : ! empty( $current['licensing_block_duplicate_uuid_domains'] ),
+			'licensing_require_uuid_format' => array_key_exists( 'licensing_require_uuid_format', $input ) ? ! empty( $input['licensing_require_uuid_format'] ) : ! empty( $current['licensing_require_uuid_format'] ),
+			'licensing_allow_legacy_download_query' => array_key_exists( 'licensing_allow_legacy_download_query', $input ) ? ! empty( $input['licensing_allow_legacy_download_query'] ) : ! empty( $current['licensing_allow_legacy_download_query'] ),
+			'licensing_update_verify_checksum' => array_key_exists( 'licensing_update_verify_checksum', $input ) ? ! empty( $input['licensing_update_verify_checksum'] ) : ! empty( $current['licensing_update_verify_checksum'] ),
+			'licensing_update_require_manifest' => array_key_exists( 'licensing_update_require_manifest', $input ) ? ! empty( $input['licensing_update_require_manifest'] ) : ! empty( $current['licensing_update_require_manifest'] ),
+			'licensing_update_require_manifest_signature' => array_key_exists( 'licensing_update_require_manifest_signature', $input ) ? ! empty( $input['licensing_update_require_manifest_signature'] ) : ! empty( $current['licensing_update_require_manifest_signature'] ),
+			'licensing_release_signing_key' => array_key_exists( 'licensing_release_signing_key', $input ) ? sanitize_text_field( $input['licensing_release_signing_key'] ) : sanitize_text_field( (string) ( $current['licensing_release_signing_key'] ?? '' ) ),
+			'licensing_harden_design_rest' => array_key_exists( 'licensing_harden_design_rest', $input ) ? ! empty( $input['licensing_harden_design_rest'] ) : ! empty( $current['licensing_harden_design_rest'] ),
+			'security_prefer_protected_assets' => array_key_exists( 'security_prefer_protected_assets', $input )
+				? ! empty( $input['security_prefer_protected_assets'] )
+				: (
+					array_key_exists( 'security_prefer_minified_js', $input )
+						? ! empty( $input['security_prefer_minified_js'] )
+						: (
+							! empty( $current['security_prefer_protected_assets'] )
+							|| ! empty( $current['security_prefer_minified_js'] )
+						)
+				),
 			'payments_primary_provider' => in_array( sanitize_key( $input['payments_primary_provider'] ?? 'paypal' ), array( 'paypal', 'stripe' ), true )
 				? sanitize_key( $input['payments_primary_provider'] ?? 'paypal' )
 				: 'paypal',
@@ -356,7 +534,15 @@ class PCKZ_Admin {
 			'payments_stripe_success_url' => esc_url_raw( $input['payments_stripe_success_url'] ?? '' ),
 			'payments_stripe_cancel_url' => esc_url_raw( $input['payments_stripe_cancel_url'] ?? '' ),
 			'payments_stripe_webhook_tolerance' => max( 60, min( 1800, absint( $input['payments_stripe_webhook_tolerance'] ?? 300 ) ) ),
+			'tracking_auto_sync_enabled' => ! empty( $input['tracking_auto_sync_enabled'] ),
+			'tracking_provider' => in_array( sanitize_key( $input['tracking_provider'] ?? 'aftership' ), array( 'aftership' ), true )
+				? sanitize_key( $input['tracking_provider'] ?? 'aftership' )
+				: 'aftership',
+			'tracking_aftership_api_key' => sanitize_text_field( $input['tracking_aftership_api_key'] ?? '' ),
+			'tracking_sync_interval_minutes' => max( 5, min( 240, absint( $input['tracking_sync_interval_minutes'] ?? 30 ) ) ),
+			'tracking_auto_detect_carrier' => ! empty( $input['tracking_auto_detect_carrier'] ),
 		);
+		$output['security_prefer_minified_js'] = ! empty( $output['security_prefer_protected_assets'] );
 
 		if ( empty( $output['licensing_master_api_key'] ) ) {
 			$output['licensing_master_api_key'] = 'pckz-msk-' . wp_generate_password( 40, false, false );

@@ -59,7 +59,7 @@ function ref_center_to_mm_box( $cx, $cy, $w, $h ) {
 	);
 }
 
-$icon_box = ref_center_to_mm_box( 816 + 40.5, 1243 + 57, 81, 114 );
+$icon_box = ref_center_to_mm_box( 817.5 + 40.5, 1243 + 57, 81, 114 );
 $text_box = ref_center_to_mm_box( 1136 + 696, 1256 + 46.5, 1392, 93 );
 
 $line_svg = '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2424 254">'

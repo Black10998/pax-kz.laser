@@ -49,8 +49,6 @@
 		updatePricingPreview();
 	}
 
-	}
-
 	const settingsWrap = $('.pckz-settings-wrap');
 	if (settingsWrap.length) {
 		const sectionLinks = settingsWrap.find('[data-pckz-settings-section]');
@@ -116,6 +114,77 @@
 			}
 		});
 
+		licenseDashboard.on('click', '.pckz-license-key-toggle', function () {
+			const btn = $(this);
+			const panel = btn.closest('.pckz-license-key-panel__body');
+			const valueEl = panel.find('.pckz-license-key-value').first();
+			const masked = String(panel.data('masked') || '');
+			const full = String(panel.data('full') || '');
+			const revealed = btn.attr('aria-pressed') === 'true';
+			const labelEl = btn.find('.pckz-license-key-toggle-label').first();
+			if (revealed) {
+				valueEl.text(masked);
+				btn.attr('aria-pressed', 'false');
+				btn.find('.dashicons').removeClass('dashicons-hidden').addClass('dashicons-visibility');
+				if (labelEl.length) {
+					labelEl.text('Show');
+				}
+			} else if (full) {
+				valueEl.text(full);
+				btn.attr('aria-pressed', 'true');
+				btn.find('.dashicons').removeClass('dashicons-visibility').addClass('dashicons-hidden');
+				if (labelEl.length) {
+					labelEl.text('Hide');
+				}
+			}
+		});
+
+		const masterNav = licenseDashboard.filter('.pckz-license-dashboard--master').find('.pckz-license-nav');
+		if (masterNav.length) {
+			const navToggle = masterNav.find('.pckz-license-nav__toggle');
+			const navPanel = masterNav.find('.pckz-license-nav__panel');
+			navToggle.on('click', function () {
+				const open = navPanel.hasClass('is-open');
+				navPanel.toggleClass('is-open', !open);
+				navToggle.attr('aria-expanded', open ? 'false' : 'true');
+			});
+			const navLinks = masterNav.find('[data-pckz-master-section]');
+			const masterPanels = licenseDashboard.find('[id^="pckz-master-section-"]');
+			const activateMasterSection = function (slug) {
+				if (!slug) {
+					return;
+				}
+				navLinks.removeClass('is-active');
+				navLinks.filter('[data-pckz-master-section="' + slug + '"]').addClass('is-active');
+			};
+			const hashMaster = function () {
+				const hash = String(window.location.hash || '').replace('#pckz-master-section-', '');
+				if (hash) {
+					activateMasterSection(hash);
+				}
+			};
+			hashMaster();
+			$(window).on('hashchange', hashMaster);
+			if ('IntersectionObserver' in window && masterPanels.length) {
+				const masterObserver = new IntersectionObserver(
+					function (entries) {
+						entries.forEach(function (entry) {
+							if (entry.isIntersecting) {
+								const id = String(entry.target.id || '').replace('pckz-master-section-', '');
+								if (id) {
+									activateMasterSection(id);
+								}
+							}
+						});
+					},
+					{ rootMargin: '-15% 0px -65% 0px', threshold: 0.02 }
+				);
+				masterPanels.each(function () {
+					masterObserver.observe(this);
+				});
+			}
+		}
+
 		licenseDashboard.on('click', '.pckz-code-copy', function () {
 			const el = $(this);
 			const value = String(el.data('copy') || el.text() || '').trim();
@@ -137,5 +206,63 @@
 				copied();
 			}
 		});
+
+		const sharedChangelog = licenseDashboard.find('#pckz-shared-release-changelog');
+		if (sharedChangelog.length) {
+			licenseDashboard.on('submit', '[data-pckz-sync-changelog]', function () {
+				const form = $(this);
+				const notes = String(sharedChangelog.val() || '');
+				form.find('input[name="changelog"]').val(notes);
+			});
+		}
+
+		licenseDashboard.on('click', '[data-pckz-release-tab]', function () {
+			const tab = String($(this).data('pckzReleaseTab') || '');
+			if (!tab) {
+				return;
+			}
+			licenseDashboard.find('[data-pckz-release-tab]').removeClass('is-active').attr('aria-selected', 'false');
+			$(this).addClass('is-active').attr('aria-selected', 'true');
+			licenseDashboard.find('[data-pckz-release-panel]').removeClass('is-active');
+			licenseDashboard.find('[data-pckz-release-panel="' + tab + '"]').addClass('is-active');
+		});
+
+		const downloadFilter = licenseDashboard.find('[data-pckz-download-filter]');
+		if (downloadFilter.length) {
+			const applyDownloadFilter = function () {
+				const query = String(downloadFilter.val() || '').trim().toLowerCase();
+				let visible = 0;
+				licenseDashboard.find('#pckz-download-history-table .pckz-download-row').each(function () {
+					const row = $(this);
+					if (row.hasClass('pckz-download-row--empty')) {
+						return;
+					}
+					const blob = String(row.data('search') || row.text() || '').toLowerCase();
+					const match = !query || blob.indexOf(query) !== -1;
+					row.toggleClass('is-hidden', !match);
+					if (match) {
+						visible += 1;
+					}
+				});
+				const countEl = licenseDashboard.find('[data-pckz-download-count]');
+				if (countEl.length) {
+					countEl.text(query ? visible + ' shown' : '');
+				}
+			};
+			downloadFilter.on('input', applyDownloadFilter);
+			applyDownloadFilter();
+		}
+
+		const licenseSelect = licenseDashboard.find('[data-pckz-license-select]');
+		const packageDomains = licenseDashboard.find('#pckz-package-domains');
+		if (licenseSelect.length && packageDomains.length) {
+			licenseSelect.on('change', function () {
+				const option = $(this).find('option:selected');
+				const domains = String(option.data('domains') || '').trim();
+				if (domains && !String(packageDomains.val() || '').trim()) {
+					packageDomains.val(domains);
+				}
+			});
+		}
 	}
 })(jQuery);

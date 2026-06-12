@@ -394,6 +394,58 @@ $by_currency    = $settings['price_by_currency'] ?? array();
 					</div>
 				</section>
 
+				<section id="pckz-section-shipment" class="pckz-panel">
+					<header class="pckz-panel__header">
+						<h2><?php esc_html_e( 'Shipment Tracking Sync', 'pckz-canonical-engine' ); ?></h2>
+						<p><?php esc_html_e( 'Automatic carrier synchronization (manual tracking fields remain available as fallback).', 'pckz-canonical-engine' ); ?></p>
+					</header>
+					<div class="pckz-panel__body">
+						<table class="form-table" role="presentation">
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Enable automatic sync', 'pckz-canonical-engine' ); ?></th>
+								<td>
+									<label>
+										<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[tracking_auto_sync_enabled]" value="1" <?php checked( ! empty( $settings['tracking_auto_sync_enabled'] ) ); ?>>
+										<?php esc_html_e( 'Fetch shipment status from carrier APIs on a schedule', 'pckz-canonical-engine' ); ?>
+									</label>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Tracking provider', 'pckz-canonical-engine' ); ?></th>
+								<td>
+									<select name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[tracking_provider]">
+										<option value="aftership" <?php selected( $settings['tracking_provider'] ?? 'aftership', 'aftership' ); ?>>
+											<?php esc_html_e( 'AfterShip (supports Austrian Post, DHL, DPD, GLS, UPS, FedEx)', 'pckz-canonical-engine' ); ?>
+										</option>
+									</select>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'AfterShip API key', 'pckz-canonical-engine' ); ?></th>
+								<td>
+									<input type="password" class="large-text" autocomplete="new-password" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[tracking_aftership_api_key]" value="<?php echo esc_attr( $settings['tracking_aftership_api_key'] ?? '' ); ?>">
+									<p class="description"><?php esc_html_e( 'Required for automatic shipment synchronization. Manual tracking fields still work without API access.', 'pckz-canonical-engine' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Sync interval (minutes)', 'pckz-canonical-engine' ); ?></th>
+								<td>
+									<input type="number" min="5" max="240" class="small-text" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[tracking_sync_interval_minutes]" value="<?php echo esc_attr( (string) ( $settings['tracking_sync_interval_minutes'] ?? 30 ) ); ?>">
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Carrier auto-detection', 'pckz-canonical-engine' ); ?></th>
+								<td>
+									<label>
+										<input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[tracking_auto_detect_carrier]" value="1" <?php checked( ! empty( $settings['tracking_auto_detect_carrier'] ) ); ?>>
+										<?php esc_html_e( 'Try to detect carrier from tracking number when carrier slug is not set manually.', 'pckz-canonical-engine' ); ?>
+									</label>
+								</td>
+							</tr>
+						</table>
+					</div>
+				</section>
+
 				<section id="pckz-section-licensing" class="pckz-panel">
 					<header class="pckz-panel__header">
 						<h2><?php esc_html_e( 'Licensing', 'pckz-canonical-engine' ); ?></h2>
@@ -425,7 +477,8 @@ $by_currency    = $settings['price_by_currency'] ?? array();
 										<label><input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_export_authorize]" value="1" <?php checked( ! empty( $settings['licensing_export_authorize'] ) ); ?>> <?php esc_html_e( 'Require export authorization', 'pckz-canonical-engine' ); ?></label><br>
 										<label><input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_export_remote_mode]" value="1" <?php checked( ! empty( $settings['licensing_export_remote_mode'] ) ); ?>> <?php esc_html_e( 'Enable remote export mode', 'pckz-canonical-engine' ); ?></label><br>
 										<label><input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_export_remote_strict]" value="1" <?php checked( ! empty( $settings['licensing_export_remote_strict'] ) ); ?>> <?php esc_html_e( 'Strict remote export enforcement', 'pckz-canonical-engine' ); ?></label><br>
-										<label><input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_strict_integrity]" value="1" <?php checked( ! empty( $settings['licensing_strict_integrity'] ) ); ?>> <?php esc_html_e( 'Strict integrity policy', 'pckz-canonical-engine' ); ?></label>
+										<label><input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[licensing_strict_integrity]" value="1" <?php checked( ! empty( $settings['licensing_strict_integrity'] ) ); ?>> <?php esc_html_e( 'Strict integrity policy', 'pckz-canonical-engine' ); ?></label><br>
+										<label><input type="checkbox" name="<?php echo esc_attr( PCKZ_Settings::OPTION_KEY ); ?>[security_prefer_protected_assets]" value="1" <?php checked( ! empty( $settings['security_prefer_protected_assets'] ) || ! empty( $settings['security_prefer_minified_js'] ) ); ?>> <?php esc_html_e( 'Prefer protected/minified public creator assets (.protected.js / .min.js / .min.css)', 'pckz-canonical-engine' ); ?></label>
 									</td>
 								</tr>
 								<tr>

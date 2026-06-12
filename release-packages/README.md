@@ -1,30 +1,452 @@
 ## Production installation packages
 
-Canonical package for v2.28.2:
+### v2.28.48 — Master Build (paxdesign.at only)
 
-- `pckz-canonical-engine-2.28.2-protected.zip`
+- `pckz-canonical-engine-2.28.48-master.zip`
+- SHA256: `518c388baa5f741f8ac996961101a200c772c6eea828554419b3496cb678cbad`
+- Direct download: https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.48-master.zip
+
+Final configurator pass: deferred export-only runtime loading, customer-only suppression of non-essential toolbar JS on creator pages, and preview sharpness improvements without export geometry changes.
+
+### v2.28.48 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.48-protected.zip`
+- SHA256: `cd7fd71f05ba5fdb817c6aaa10785b6029ab6e101f1cb8b15d12af0efa7af4bc`
+- Direct download: https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.48-protected.zip
+
+---
+
+### v2.28.47 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.47-master.zip`
+- SHA256: `5929a60d2589f6dc601d033796be40f184b6c5b94185e9fd315189f45569f479`
+- Direct download: https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.47-master.zip
+
+Configurator startup performance update: bounded runtime-config bootstrap wait, deferred non-critical font prefetch, and startup asset-resolve deduplication.
+
+### v2.28.47 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.47-protected.zip`
+- SHA256: `3e5f18fffdd392bf1f283f26786b151828aa9104ea2198f2b3e478b100ed4e90`
+- Direct download: https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.47-protected.zip
+
+---
+
+### v2.28.46 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.46-master.zip`
+- SHA256: `121214aaab3269524ba7d4e08fb76c0e689f6ab216034a2f28bb95bf23744523`
+- Direct download: https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.46-master.zip
+
+Includes the Merriweather export-font reliability hotfix and customer-side suppression of unnecessary PDX polling requests.
+
+### v2.28.46 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.46-protected.zip`
+- SHA256: `99a8ff6860ad2bfa888f46c4b1c8801fb492d01296962962a9e268caccb23b35`
+- Direct download: https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.46-protected.zip
+
+---
+
+### v2.28.45 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.45-master.zip`
+- SHA256: `8bf7404d5c60dcd36d578c9a03b79402b2dcf691343fe03996f5dfef138cc271`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.45/pckz-canonical-engine-2.28.45-master.zip
+
+Hotfix: configurator loading — fixes stuck “Vorschau wird geladen…” screen; restores fast default preview on page load.
+
+### v2.28.45 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.45-protected.zip`
+- SHA256: `7fdebd65a99779311acc3ba0ebc11127e4aac15d8a42ff1104224ebe2ce25a65`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.45/pckz-canonical-engine-2.28.45-protected.zip
+
+---
+
+### v2.28.44 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.44-master.zip`
+- SHA256: `b2623c1fea16942b26a5c0e0874f5088a188fe7bc7bac6085bdd328451d23075`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.44/pckz-canonical-engine-2.28.44-master.zip
+
+Full restore to exact v2.28.28 behavior with automatic stale-cache cleanup on activation/upgrade.
+
+### v2.28.44 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.44-protected.zip`
+- SHA256: `f7d9f08590839476a54557d963f0a96e41a50b942b10ce929532739b19325004`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.44/pckz-canonical-engine-2.28.44-protected.zip
+
+---
+
+### v2.28.27 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.27-master.zip`
+- SHA256: `63845970ef2f1b3f5c35a0609ee32bd1388e57eba3ec9f13e1c758632d69a7f0`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.27/pckz-canonical-engine-2.28.27-master.zip
+
+Release storage management: inventory, quarantine, maintenance tools, detailed validation errors, and Master ZIP misuse protection.
+
+### v2.28.27 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.27-protected.zip`
+- SHA256: `946eb51da20e48e1b75f7dd219cc8b13724cf5a76d60edcc3634a923b4b3eb9b`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.27/pckz-canonical-engine-2.28.27-protected.zip
+
+---
+
+### v2.28.26 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.26-master.zip`
+- SHA256: `1d367399e22bef716189af7657f18879cae1816033651c017151365a6843e9c2`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.26/pckz-canonical-engine-2.28.26-master.zip
+
+Hotfix: Release Now / Generate no longer fatals when PHP `exec()` is disabled on shared hosting.
+
+### v2.28.26 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.26-protected.zip`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.26/pckz-canonical-engine-2.28.26-protected.zip
+
+---
+
+### v2.28.25 — Master Build (paxdesign.at only)
+
+Full plugin tree with Master Control UI, Release Now, fleet/licensing admin, and on-server release tooling.
+
+- `pckz-canonical-engine-2.28.25-master.zip`
+- SHA256: `acdfff4bec058cb5ed17a0800cba08bc06a01626ac955986d0000497173596e1`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.25/pckz-canonical-engine-2.28.25-master.zip
+
+Install on **paxdesign.at only** — not for licensed customer sites.
+
+### v2.28.25 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.25-protected.zip`
+- Direct download: https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.25/pckz-canonical-engine-2.28.25-protected.zip
+
+---
+
+Canonical package for v2.28.24:
+
+- `pckz-canonical-engine-2.28.24-protected.zip`
 
 SHA256:
 
-- `69cfef7808e6b5c49fa7085283f2df2abdbf4ee632295288254a1400fc0b7754`
+- `b0267665006b8219f7621129ee16eab5e77d1d4c32b02140289de5fa490b7440`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.24/pckz-canonical-engine-2.28.24-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.24-protected.zip`
+
+What changed in v2.28.24: Master Control UX redesign — clearer sections, unified styling, improved download history filtering.
+
+Previous release (v2.28.23):
+
+- `pckz-canonical-engine-2.28.23-protected.zip`
+
+SHA256:
+
+- `915b778941113ccac84ceddc8145c85c4bb434e44928257f1b8457775ceb2d47`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.23/pckz-canonical-engine-2.28.23-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.23-protected.zip`
+
+What changed in v2.28.23: Master Control can generate publish-ready protected ZIPs with automatic version sync; protected release validation reports detailed version/layout mismatches.
+
+Previous release (v2.28.22):
+
+- `pckz-canonical-engine-2.28.22-protected.zip`
+
+SHA256:
+
+- `4234810af634f3e919a18f28d1bf21a5bce482e3b868a07a002b2f0c68054ac9`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.22/pckz-canonical-engine-2.28.22-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.22-protected.zip`
+
+What changed in v2.28.22: reverted v2.28.21 icon refX shift (icons back to v2.28.20 placement: left 817.5, right 2748.5); kept automatic default first line on first open.
+
+Previous release (v2.28.21):
+
+- `pckz-canonical-engine-2.28.21-protected.zip`
+
+SHA256:
+
+- `0c057500bd05b155e22006685d4ddebe6375ea2ee00c2e582d650d8d1e96a6d6`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.21/pckz-canonical-engine-2.28.21-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.21-protected.zip`
+
+What changed in v2.28.21: default first line model (top red library line) loads on first open with text/icons; icon slots shifted ~0.5 cm inward globally (left refX ~850.5, right refX ~2715.5).
+
+Previous release (v2.28.20):
+
+- `pckz-canonical-engine-2.28.20-protected.zip`
+
+SHA256:
+
+- `2e0470d3e8a23a3c35bd5fe7d399bbddc11bd6c82c87d67a6b5b4d9c96aa6813`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.20/pckz-canonical-engine-2.28.20-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.20-protected.zip`
+
+What changed in v2.28.20: default customer configurator layout (Lumi-Plate text, Instagram left, TikTok right, first picker font, no lines on first load) applied to all customers on first open; icon placement nudged inward ~1.5 design units (left refX 817.5, right refX 2748.5) with preview/export parity unchanged.
+
+Previous release (v2.28.19):
+
+- `pckz-canonical-engine-2.28.19-protected.zip`
+
+SHA256:
+
+- `2873bb58465946f78eca2f48c045ab29029b1b19671b1e63a6d77d0db1c8c397`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.19/pckz-canonical-engine-2.28.19-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.19-protected.zip`
+
+What changed in v2.28.19: configurator performance — batch asset resolver (one AJAX instead of four), incremental preview rendering with stale-render cancellation (no overlapping icons/text), in-flight SVG cache deduplication, font preloading on init, and text-only in-place updates without reloading icons/lines.
+
+Previous release (v2.28.18):
+
+- `pckz-canonical-engine-2.28.18-protected.zip`
+
+SHA256:
+
+- `acbe48cc00caebef4dcba024d99f2966cc610cbc2b505a42a77ad0f95e6c7ca1`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.18/pckz-canonical-engine-2.28.18-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.18-protected.zip`
+
+What changed in v2.28.18: fixed Roboto (and all Google font) export URL resolution — font asset resolver returns `pckzce_font_file` proxy URLs that OpenType.js accepts; redesigned checkout so export prepares silently in the background and the payment button enables with “Weiter zur Zahlung” only when ready (no blocking wait messages before Stripe/PayPal redirect).
+
+Previous release (v2.28.17):
+
+- `pckz-canonical-engine-2.28.17-protected.zip`
+
+SHA256:
+
+- `c6827f6e525ab449f3dcda8ad5aa41b101f281df4ba06936bcbb5b7d984fe430`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.17/pckz-canonical-engine-2.28.17-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.17-protected.zip`
+
+What changed in v2.28.17: strict release build validation — pre-build checks plugin header, PCKZCE_VERSION, PCKZCE_BUILD, and readme Stable tag before packaging; post-build extracts the ZIP and verifies header/constants/manifest/filename all match the release version (fixes Master Control publish rejection when versions drift).
+
+Previous release (v2.28.16):
+
+- `pckz-canonical-engine-2.28.16-protected.zip`
+
+SHA256:
+
+- `60208eb5d3ae372fccbd05af82e1c55c2668b839bc131c49c750f4dd4411a3e8`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.16/pckz-canonical-engine-2.28.16-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.16-protected.zip`
+
+What changed in v2.28.16: Master Control admin-post actions (clear alerts, publish/upload releases) redirect back with visible success/error notices instead of blank admin-post.php pages; Master Control publish is the sole source of truth for client updates (removed disk auto-sync); clients always follow the published release token/version from check-in/update-meta with stale cache rejection; release-token republish detection; admin-side update polling enabled.
+
+Previous release (v2.28.15):
+
+- `pckz-canonical-engine-2.28.15-protected.zip`
+
+SHA256:
+
+- `5522b593cd2379cf9b9e9a73aec9cf681d34daed703c5ef025af2a285a25fc75`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.15/pckz-canonical-engine-2.28.15-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.15-protected.zip`
+
+What changed in v2.28.15: stable master-to-client update propagation (package fetch when an update is pending, stale-cache reconciliation, Update Now via grace-aware permissions), faster pending update-meta polling, Master Control grouped/collapsible alerts with clear/refresh actions, and collapsible section navigation.
+
+Previous release (v2.28.14):
+
+Canonical package for v2.28.14:
+
+- `pckz-canonical-engine-2.28.14-protected.zip`
+
+SHA256:
+
+- `f76ebb82cf11fa88cfcdb12594a9fb8690e1bc93b9d2136c084a9b9ebe2f7822`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.14/pckz-canonical-engine-2.28.14-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.14-protected.zip`
+
+What changed in v2.28.14: fixes master rate-limiting from duplicate client requests (coordinated sync with 2-minute cooldowns, 10-minute background poll, cache-only WordPress update hooks), reliable update display from cached check-in/update-meta, and License Key Show/Copy revealing the real key from settings with a clear error when missing.
+
+Previous release (v2.28.13):
+
+- `pckz-canonical-engine-2.28.13-protected.zip`
+
+SHA256:
+
+- `8ca1166e7ab13d32c4af2243234346460a0a8aa753544c692102da3688ff77ff`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.13/pckz-canonical-engine-2.28.13-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.13-protected.zip`
+
+What changed in v2.28.13: automatic master-to-client update propagation (2-minute background poll, admin poll, state sync from master release token), WordPress update_plugins transient refresh, client “Check for updates” button, and redesigned License Key panel on the client dashboard.
+
+Previous release (v2.28.12):
+
+- `pckz-canonical-engine-2.28.12-protected.zip`
+
+SHA256:
+
+- `7be136064cbb049b75abb1751dc8196e20785f080cafc9ed3b72c7a9ff262057`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.12/pckz-canonical-engine-2.28.12-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.12-protected.zip`
+
+What changed in v2.28.12: reliable client update discovery via release tokens (check-in + update-meta), faster cache invalidation, WordPress Plugins screen merge, admin polling, and a simplified Master Control Software Updates UI.
+
+Previous release (v2.28.11):
+
+- `pckz-canonical-engine-2.28.11-protected.zip`
+
+SHA256:
+
+- `97684e3e0b7fef790cd5af78a1c1f7b63bc49a62caca36e5ec20f373df6b8d6a`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.11/pckz-canonical-engine-2.28.11-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.11-protected.zip`
+
+What changed in v2.28.11: master release metadata now auto-publishes the newest bundled or uploaded protected package (so clients detect 2.28.10+ without a manual Master Control publish when the zip is on disk), and the client License Dashboard shows a masked license key with reveal and copy controls.
+
+Previous release (v2.28.10):
+
+- `pckz-canonical-engine-2.28.10-protected.zip`
+
+SHA256:
+
+- `6dd789e9deef96803da1efaee57188bccb76d38af8c1873ca98b98a9b867d529`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.10/pckz-canonical-engine-2.28.10-protected.zip`
+
+Raw URL on `main` (may take a few minutes after push to propagate):
+
+- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.10-protected.zip`
+
+What changed in v2.28.10: release bump for deployment verification, plus expanded Master Control tamper rendering with human-readable event labels and per-signal details (why it triggered, what was detected, and whether it is informational or potentially blocking under strict policy).
+
+Previous release (v2.28.9):
+
+- `pckz-canonical-engine-2.28.9-protected.zip`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.9/pckz-canonical-engine-2.28.9-protected.zip`
+
+Previous release (v2.28.6):
+
+- `pckz-canonical-engine-2.28.6-protected.zip`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.6/pckz-canonical-engine-2.28.6-protected.zip`
+
+Previous release (v2.28.5):
+
+- `pckz-canonical-engine-2.28.5-protected.zip`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.5/pckz-canonical-engine-2.28.5-protected.zip`
+
+Previous release (v2.28.4):
+
+- `pckz-canonical-engine-2.28.4-protected.zip`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.4/pckz-canonical-engine-2.28.4-protected.zip`
+
+Previous release (v2.28.3):
+
+- `pckz-canonical-engine-2.28.3-protected.zip`
+
+Direct download (GitHub Release, recommended):
+
+- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.3/pckz-canonical-engine-2.28.3-protected.zip`
+
+Previous release (v2.28.2):
+
+- `pckz-canonical-engine-2.28.2-protected.zip`
 
 Direct download (GitHub Release, recommended):
 
 - `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.2/pckz-canonical-engine-2.28.2-protected.zip`
-
-Raw URL on `main` (may take a few minutes after push to propagate):
-
-- `https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.2-protected.zip`
-
-What changed in v2.28.2: route/render stability update on top of v2.28.1. Requests to `/wp-admin/pckz-license-server` are now redirected to the canonical admin page slug (`admin.php?page=pckz-license-server`) instead of falling through to frontend error templates. Stripe checkout now handles expanded `payment_intent` payloads safely (fixes PHP array-to-string warning), and master URL normalization strips accidental `/wp-admin/...` or `/wp-json/...` endpoint fragments so client heartbeat/update/sync calls keep targeting the correct master root. Added DB-connection-state guard before master-control queries to recover from intermittent mysqli “Commands out of sync” errors.
-
-Previous release (v2.28.1):
-
-- `pckz-canonical-engine-2.28.1-protected.zip`
-
-Direct download (GitHub Release, recommended):
-
-- `https://github.com/Black10998/pax-kz.laser/releases/download/v2.28.1/pckz-canonical-engine-2.28.1-protected.zip`
 
 Previous release (v2.27.40):
 
