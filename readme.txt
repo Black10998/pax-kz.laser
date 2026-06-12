@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.47
+Stable tag: 2.28.48
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,14 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.48 =
+
+* Configurator startup: moved export-only runtime tooling (OpenType/canonical-scene pipeline and related helpers) out of the critical initial dependency chain and load it on demand, with deferred prewarm only on capable desktop connections.
+* Added customer-only suppression of non-essential PaxDesign toolbar JavaScript on configurator pages to reduce blocking startup work and unnecessary frontend traffic.
+* Improved initial mobile responsiveness by delaying the first export-readiness pass until after primary preview boot has settled.
+* Live preview sharpness: removed hover-time raster scaling of the stage canvas layer and tightened Fabric preview object caching settings to keep icons/text/lines crisper in the visible preview (export geometry unchanged).
+* Rebuilt production assets: `creator.min.js`, `creator.protected.js`, `preview-engine.min.js`, `preview-engine.protected.js`, and `creator.min.css`.
 
 = 2.28.47 =
 

@@ -1,5 +1,21 @@
 ## Production installation packages
 
+### v2.28.48 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.48-master.zip`
+- SHA256: `518c388baa5f741f8ac996961101a200c772c6eea828554419b3496cb678cbad`
+- Direct download: https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.48-master.zip
+
+Final configurator pass: deferred export-only runtime loading, customer-only suppression of non-essential toolbar JS on creator pages, and preview sharpness improvements without export geometry changes.
+
+### v2.28.48 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.48-protected.zip`
+- SHA256: `cd7fd71f05ba5fdb817c6aaa10785b6029ab6e101f1cb8b15d12af0efa7af4bc`
+- Direct download: https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.48-protected.zip
+
+---
+
 ### v2.28.47 — Master Build (paxdesign.at only)
 
 - `pckz-canonical-engine-2.28.47-master.zip`

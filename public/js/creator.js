@@ -22,6 +22,7 @@
 	const RESOLVE_ASSETS_ACTION = 'pckzce_resolve_option_assets';
 	const PREVIEW_SYNC_DEBOUNCE_MS = 80;
 	const EXPORT_READY_DEBOUNCE_MS = 450;
+	const EXPORT_READY_BOOT_DELAY_MS = 2200;
 	const RUNTIME_BOOTSTRAP_MAX_WAIT_MS = 900;
 	const DEFERRED_FONT_PREFETCH_LIMIT = 4;
 
@@ -595,6 +596,15 @@
 			return warm;
 		}
 
+		prewarmExportRuntime() {
+			if (
+				this.previewEngine &&
+				typeof this.previewEngine.preloadDeferredExportRuntime === 'function'
+			) {
+				this.previewEngine.preloadDeferredExportRuntime();
+			}
+		}
+
 		async renderPreview() {
 			if (!this.useCloudlift || !this.previewEngine) {
 				return;
@@ -877,7 +887,9 @@
 					selection: false,
 					preserveObjectStacking: true,
 					backgroundColor: 'transparent',
+					enableRetinaScaling: true,
 				});
+				this.canvas.imageSmoothingEnabled = true;
 
 				this.scale = stageW / BASE_W;
 				this.buildStripClip();
@@ -898,7 +910,8 @@
 					this.applyConditionalFields();
 					this.syncIconSelectPreviews();
 					this.prefetchPreviewAssets().finally(() => {
-						this.scheduleExportReadyCheck();
+						this.scheduleExportReadyCheck({ bootstrap: true });
+						this.prewarmExportRuntime();
 					});
 					this.hideLoader();
 					if (this.stage) {
@@ -2099,7 +2112,25 @@
 			}
 		}
 
-		scheduleExportReadyCheck() {
+		bootExportReadyDelayMs() {
+			const connection =
+				navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+			if (connection) {
+				if (connection.saveData) {
+					return Math.max(EXPORT_READY_BOOT_DELAY_MS, 3800);
+				}
+				const effective = String(connection.effectiveType || '').toLowerCase();
+				if (effective === 'slow-2g' || effective === '2g' || effective === '3g') {
+					return Math.max(EXPORT_READY_BOOT_DELAY_MS, 3400);
+				}
+			}
+			if (window.matchMedia && window.matchMedia('(max-width: 989px)').matches) {
+				return Math.max(EXPORT_READY_BOOT_DELAY_MS, 2800);
+			}
+			return EXPORT_READY_BOOT_DELAY_MS;
+		}
+
+		scheduleExportReadyCheck(options = {}) {
 			clearTimeout(this._exportReadyTimer);
 			this._preparedExportPayload = null;
 			this._preparedExportFingerprint = '';
@@ -2107,9 +2138,12 @@
 			this.root.__pckzExportReady = false;
 			this._exportPreparing = true;
 			this.updateCheckoutState();
+			const delay = options.bootstrap
+				? this.bootExportReadyDelayMs()
+				: EXPORT_READY_DEBOUNCE_MS;
 			this._exportReadyTimer = setTimeout(() => {
 				this.refreshExportReadyState();
-			}, EXPORT_READY_DEBOUNCE_MS);
+			}, delay);
 		}
 
 		canBeginCheckout() {

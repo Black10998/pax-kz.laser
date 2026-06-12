@@ -21,6 +21,8 @@
 	const LINE_PREVIEW_TARGET_WIDTH = 0.96;
 	const LINE_PREVIEW_TARGET_HEIGHT = 0.92;
 	const LINE_PREVIEW_MAX_DISPLAY_BOOST = 12;
+	const EXPORT_RUNTIME_PREWARM_DELAY_MS = 2600;
+	const EXPORT_SCRIPT_LOAD_TIMEOUT_MS = 15000;
 
 	if (typeof fabric !== 'undefined' && fabric.Object) {
 		fabric.Object.NUM_FRACTION_DIGITS = 8;
@@ -58,6 +60,8 @@
 			this._renderGen = 0;
 			this._layerState = {};
 			this._productionReadyHash = '';
+			this._externalScriptLoads = {};
+			this._deferredExportRuntimeQueued = false;
 			this.lastState = {};
 		}
 
@@ -118,6 +122,145 @@
 				}
 			}
 			return '';
+		}
+
+		exportRuntimeScriptUrl(configKey, fallbackPath) {
+			const cfg = global.pckzceConfig || {};
+			const configured = String(cfg[configKey] || '').trim();
+			if (configured) {
+				return configured;
+			}
+			if (!fallbackPath) {
+				return '';
+			}
+			try {
+				const base = global.location && global.location.origin ? global.location.origin : '';
+				return new URL(String(fallbackPath), base || undefined).toString();
+			} catch (err) {
+				return String(fallbackPath || '');
+			}
+		}
+
+		loadExternalRuntimeScript(cacheKey, url, isReady) {
+			if (typeof isReady === 'function' && isReady()) {
+				return Promise.resolve(true);
+			}
+			if (this._externalScriptLoads[cacheKey]) {
+				return this._externalScriptLoads[cacheKey];
+			}
+			const source = String(url || '').trim();
+			if (!source || typeof document === 'undefined' || !document.createElement) {
+				return Promise.resolve(false);
+			}
+			this._externalScriptLoads[cacheKey] = new Promise((resolve) => {
+				let settled = false;
+				const finish = (ok) => {
+					if (settled) {
+						return;
+					}
+					settled = true;
+					resolve(!!ok);
+				};
+				const timeout = setTimeout(() => finish(typeof isReady === 'function' ? isReady() : false), EXPORT_SCRIPT_LOAD_TIMEOUT_MS);
+				const script = document.createElement('script');
+				script.async = true;
+				script.src = source;
+				script.onload = () => {
+					clearTimeout(timeout);
+					finish(typeof isReady === 'function' ? isReady() : true);
+				};
+				script.onerror = () => {
+					clearTimeout(timeout);
+					finish(typeof isReady === 'function' ? isReady() : false);
+				};
+				(document.head || document.documentElement || document.body).appendChild(script);
+			}).finally(() => {
+				delete this._externalScriptLoads[cacheKey];
+			});
+			return this._externalScriptLoads[cacheKey];
+		}
+
+		async ensureOpenTypeRuntime() {
+			if (global.opentype) {
+				return true;
+			}
+			const ok = await this.loadExternalRuntimeScript(
+				'opentype',
+				this.exportRuntimeScriptUrl('opentypeScriptUrl', '/wp-content/plugins/pckz-canonical-engine/public/js/vendor/opentype.min.js'),
+				() => !!global.opentype
+			);
+			return !!(ok && global.opentype);
+		}
+
+		async ensureCanonicalSceneRuntime() {
+			if (global.PCKZCECanonicalScene && global.PCKZCECanonicalScene.buildFromLayout) {
+				return true;
+			}
+			const pipelineUrl = this.exportRuntimeScriptUrl(
+				'productionPipelineScriptUrl',
+				'/wp-content/plugins/pckz-canonical-engine/public/js/fabric-production-pipeline.js'
+			);
+			await this.loadExternalRuntimeScript(
+				'production-pipeline',
+				pipelineUrl,
+				() => !!global.PCKZCEProductionPipeline
+			);
+			const canonicalUrl = this.exportRuntimeScriptUrl(
+				'canonicalSceneScriptUrl',
+				'/wp-content/plugins/pckz-canonical-engine/public/js/canonical-scene.js'
+			);
+			const ok = await this.loadExternalRuntimeScript(
+				'canonical-scene',
+				canonicalUrl,
+				() => !!(global.PCKZCECanonicalScene && global.PCKZCECanonicalScene.buildFromLayout)
+			);
+			return !!(ok && global.PCKZCECanonicalScene && global.PCKZCECanonicalScene.buildFromLayout);
+		}
+
+		shouldDeferExportRuntimePrewarm() {
+			if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 989px)').matches) {
+				return false;
+			}
+			const connection =
+				typeof navigator !== 'undefined'
+					? navigator.connection || navigator.mozConnection || navigator.webkitConnection || null
+					: null;
+			if (connection) {
+				if (connection.saveData) {
+					return false;
+				}
+				const effective = String(connection.effectiveType || '').toLowerCase();
+				if (effective === 'slow-2g' || effective === '2g' || effective === '3g') {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		preloadDeferredExportRuntime() {
+			if (this._deferredExportRuntimeQueued || !this.shouldDeferExportRuntimePrewarm()) {
+				return;
+			}
+			this._deferredExportRuntimeQueued = true;
+			const task = async () => {
+				try {
+					await this.ensureOpenTypeRuntime();
+				} catch (err) {
+					// ignore optional prewarm errors.
+				}
+				try {
+					await this.ensureCanonicalSceneRuntime();
+				} catch (err) {
+					// ignore optional prewarm errors.
+				}
+			};
+			if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+				window.requestIdleCallback(() => task().catch(() => null), {
+					timeout: EXPORT_RUNTIME_PREWARM_DELAY_MS + 1800,
+				});
+				return;
+			}
+			setTimeout(() => task().catch(() => null), EXPORT_RUNTIME_PREWARM_DELAY_MS);
 		}
 
 		cloneCached(obj) {
@@ -1065,7 +1208,8 @@
 			group.set({
 				selectable: false,
 				evented: false,
-				objectCaching: true,
+				objectCaching: false,
+				noScaleCache: false,
 			});
 			return group;
 		}
@@ -1189,7 +1333,12 @@
 							resolve(null);
 							return;
 						}
-						img.set({ selectable: false, evented: false });
+						img.set({
+							selectable: false,
+							evented: false,
+							objectCaching: false,
+							noScaleCache: false,
+						});
 						this._imageCache[key] = img;
 						this.cloneCached(img).then(resolve);
 					},
@@ -1737,6 +1886,8 @@
 					pckzRole: 'main-text',
 					selectable: false,
 					evented: false,
+					objectCaching: false,
+					noScaleCache: false,
 				});
 				this.canvas.add(this.objects.text);
 			} else if (textKeyStr !== this._layerState.text) {
@@ -2382,7 +2533,11 @@
 		 */
 		async preloadExportFont(fontFamily) {
 			const fam = String(fontFamily || 'Russo One').trim();
-			if (!fam || !global.opentype) {
+			if (!fam) {
+				return;
+			}
+			await this.ensureOpenTypeRuntime();
+			if (!global.opentype) {
 				return;
 			}
 			await this.loadOpenTypeFont(fam);
@@ -3338,6 +3493,7 @@
 			if (this._openTypeFonts[key]) {
 				return this._openTypeFonts[key];
 			}
+			await this.ensureOpenTypeRuntime();
 			if (!global.opentype) {
 				throw new Error('OpenType.js is not loaded.');
 			}
@@ -3458,6 +3614,7 @@
 		}
 
 		async buildTextPlatePathsForLbrn(layout, mmW, mmH) {
+			await this.ensureOpenTypeRuntime();
 			const parts = [];
 			const layoutTexts = this.findLayoutTextObjects(layout);
 			const fabricText = this.objects.text;
@@ -4061,6 +4218,7 @@ fitTextPathMatrixToFabricBounds(textObj, otPath, baseMatrix) {
 			this.ensureBackgroundBounds();
 			const layout = this.getProductionLayout(mmW, mmH, origin || 'bottom-left', meta || {});
 			await this.enrichLayoutWithSvgSources(layout);
+			await this.ensureCanonicalSceneRuntime();
 			const builder = global.PCKZCECanonicalScene;
 			if (!builder || !builder.buildFromLayout) {
 				return {
