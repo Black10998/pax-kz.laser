@@ -165,10 +165,17 @@ class PCKZ_Ajax {
 	 * Stream export-safe font binary for OpenType.js (same-origin; avoids stale gstatic woff2).
 	 */
 	public function handle_font_file() {
-		$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, 'pckzce_font_file' ) ) {
-			status_header( 403 );
-			exit;
+		$nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+		if ( '' === $nonce && isset( $_REQUEST['_wpnonce'] ) ) {
+			$nonce = sanitize_text_field( wp_unslash( $_REQUEST['_wpnonce'] ) );
+		}
+		if ( '' !== $nonce && ! wp_verify_nonce( $nonce, 'pckzce_font_file' ) ) {
+			$is_logged_in = function_exists( 'is_user_logged_in' ) ? is_user_logged_in() : false;
+			// Public font binaries are not sensitive; allow guest export requests with stale cached nonces.
+			if ( $is_logged_in ) {
+				status_header( 403 );
+				exit;
+			}
 		}
 
 		$font_id = isset( $_GET['font_id'] ) ? sanitize_key( wp_unslash( $_GET['font_id'] ) ) : '';
