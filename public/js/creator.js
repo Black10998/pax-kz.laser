@@ -22,6 +22,8 @@
 	const RESOLVE_ASSETS_ACTION = 'pckzce_resolve_option_assets';
 	const PREVIEW_SYNC_DEBOUNCE_MS = 80;
 	const EXPORT_READY_DEBOUNCE_MS = 450;
+	const RUNTIME_BOOTSTRAP_MAX_WAIT_MS = 900;
+	const DEFERRED_FONT_PREFETCH_LIMIT = 4;
 
 	const BASE_W = 1050;
 
@@ -86,6 +88,10 @@
 			this._previewSyncSeq = 0;
 			this._previewSyncPromise = null;
 			this._exportPreparing = false;
+			this._runtimeBootDone = false;
+			this._selectedAssetsInflight = null;
+			this._selectedAssetsInflightFingerprint = '';
+			this._deferredFontPrefetchStarted = false;
 			this.iconColorUserSet = { left: false, right: false };
 			this.customerArtworkToken = '';
 			this.customerArtworkFilename = '';
@@ -97,24 +103,31 @@
 				this.markCreatorReady();
 				return;
 			}
-			this.loadRuntimeConfig()
-				.catch(() => null)
-				.finally(() => {
-					this.fallbackImg = this.root.querySelector('[data-preview-fallback]');
-					this.bindOptions();
-					this.initVisualPickers();
-					this.collectSelections();
-					this.bindThumbs();
-					this.bindActions();
-					this.bindCustomerArtworkUpload();
-					this.bindGlobalUiClosers();
-					this.initMobileViewportStability();
-					this.initCanvas();
-					this.updateCheckoutState();
-					this.showPaymentSuccessIfReturned();
-					window.addEventListener('resize', () => this.handleWindowResize());
-					setTimeout(() => this.markCreatorReady(), 12000);
-				});
+			const finishBootstrap = () => {
+				if (this._runtimeBootDone) {
+					return;
+				}
+				this._runtimeBootDone = true;
+				this.fallbackImg = this.root.querySelector('[data-preview-fallback]');
+				this.bindOptions();
+				this.initVisualPickers();
+				this.collectSelections();
+				this.bindThumbs();
+				this.bindActions();
+				this.bindCustomerArtworkUpload();
+				this.bindGlobalUiClosers();
+				this.initMobileViewportStability();
+				this.initCanvas();
+				this.updateCheckoutState();
+				this.showPaymentSuccessIfReturned();
+				window.addEventListener('resize', () => this.handleWindowResize());
+				setTimeout(() => this.markCreatorReady(), 12000);
+			};
+			const runtimePromise = this.loadRuntimeConfig().catch(() => null);
+			const timeoutPromise = new Promise((resolve) => {
+				setTimeout(resolve, RUNTIME_BOOTSTRAP_MAX_WAIT_MS);
+			});
+			Promise.race([runtimePromise, timeoutPromise]).finally(finishBootstrap);
 		}
 
 		async loadRuntimeConfig() {
@@ -312,6 +325,17 @@
 			) {
 				return;
 			}
+			if (
+				this._selectedAssetsInflight &&
+				this._selectedAssetsInflightFingerprint === fingerprint
+			) {
+				await this._selectedAssetsInflight;
+				if (renderAfter && this.useCloudlift && this.previewEngine) {
+					await this.renderPreview();
+				}
+				return;
+			}
+			const resolveTask = (async () => {
 			const seq = ++this._assetResolveSeq;
 			const next = { ...(this.resolvedAssets || {}) };
 			const lineSlug = selections.linien;
@@ -481,6 +505,15 @@
 			} else if (!this.useCloudlift) {
 				this.refreshStripLayout();
 			}
+			})();
+			this._selectedAssetsInflightFingerprint = fingerprint;
+			this._selectedAssetsInflight = resolveTask.finally(() => {
+				if (this._selectedAssetsInflightFingerprint === fingerprint) {
+					this._selectedAssetsInflight = null;
+					this._selectedAssetsInflightFingerprint = '';
+				}
+			});
+			await this._selectedAssetsInflight;
 		}
 
 		preloadPreviewFont(fontFamily) {
@@ -494,29 +527,71 @@
 			]).then(() => null);
 		}
 
-		prefetchPreviewAssets() {
-			const warm = this.resolveSelectedAssets({ render: false })
-				.then(() => this.renderPreview())
-				.catch(() => null);
+		shouldDeferInactiveFontPrefetch() {
+			if (window.matchMedia && window.matchMedia('(max-width: 989px)').matches) {
+				return false;
+			}
+			const connection =
+				navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+			if (connection) {
+				if (connection.saveData) {
+					return false;
+				}
+				const effective = String(connection.effectiveType || '').toLowerCase();
+				if (
+					effective === 'slow-2g' ||
+					effective === '2g' ||
+					effective === '3g'
+				) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		scheduleDeferredFontPrefetch(activeFont) {
+			if (this._deferredFontPrefetchStarted || !this.shouldDeferInactiveFontPrefetch()) {
+				return;
+			}
 			const fonts = [];
 			this.root.querySelectorAll('[data-font-picker] .pckz-font-picker__option').forEach((btn) => {
 				if (btn.dataset.fontFamily) {
 					fonts.push(btn.dataset.fontFamily);
 				}
 			});
-			const activeFont = this.selections.font_family || this.defaultFontFamily || '';
-			[...new Set(fonts)]
+			const queue = [...new Set(fonts)]
 				.filter((fam) => fam && fam !== activeFont)
-				.slice(0, 10)
-				.forEach((fam) => {
-					this.resolveOptionAsset('font', fam)
-						.then((row) => {
-							if (row && row.url) {
-								this.preloadPreviewFont(fam);
-							}
-						})
-						.catch(() => null);
-				});
+				.slice(0, DEFERRED_FONT_PREFETCH_LIMIT);
+			if (!queue.length) {
+				return;
+			}
+			this._deferredFontPrefetchStarted = true;
+			const runQueue = async () => {
+				for (let i = 0; i < queue.length; i++) {
+					const fam = queue[i];
+					try {
+						const row = await this.resolveOptionAsset('font', fam);
+						if (row && row.url) {
+							await this.preloadPreviewFont(fam);
+						}
+					} catch (err) {
+						// ignore individual prefetch failures.
+					}
+				}
+			};
+			if (typeof window.requestIdleCallback === 'function') {
+				window.requestIdleCallback(() => runQueue().catch(() => null), { timeout: 3500 });
+				return;
+			}
+			setTimeout(() => runQueue().catch(() => null), 3000);
+		}
+
+		prefetchPreviewAssets() {
+			const warm = this.resolveSelectedAssets({ render: false })
+				.then(() => this.renderPreview())
+				.catch(() => null);
+			const activeFont = this.selections.font_family || this.defaultFontFamily || '';
+			this.scheduleDeferredFontPrefetch(activeFont);
 			return warm;
 		}
 
