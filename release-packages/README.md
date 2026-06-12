@@ -1,5 +1,21 @@
 ## Production installation packages
 
+### v2.28.46 — Master Build (paxdesign.at only)
+
+- `pckz-canonical-engine-2.28.46-master.zip`
+- SHA256: `121214aaab3269524ba7d4e08fb76c0e689f6ab216034a2f28bb95bf23744523`
+- Direct download: https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.46-master.zip
+
+Includes the Merriweather export-font reliability hotfix and customer-side suppression of unnecessary PDX polling requests.
+
+### v2.28.46 — Client Protected Build (licensed customers)
+
+- `pckz-canonical-engine-2.28.46-protected.zip`
+- SHA256: `99a8ff6860ad2bfa888f46c4b1c8801fb492d01296962962a9e268caccb23b35`
+- Direct download: https://raw.githubusercontent.com/Black10998/pax-kz.laser/main/release-packages/pckz-canonical-engine-2.28.46-protected.zip
+
+---
+
 ### v2.28.45 — Master Build (paxdesign.at only)
 
 - `pckz-canonical-engine-2.28.45-master.zip`

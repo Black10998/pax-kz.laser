@@ -4,7 +4,7 @@ Tags: product customizer, woocommerce, laser, engraving, print, configurator
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.28.45
+Stable tag: 2.28.46
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ No. The creator works standalone. WooCommerce is optional for e-commerce.
 Yes. Each creator product has configurable canvas and safe zone dimensions in millimeters.
 
 == Changelog ==
+
+= 2.28.46 =
+
+* Export-font reliability hotfix: hardened `pckzce_font_file` delivery for cached/stale nonce URLs so SVG/LBRN2 text path generation can reliably load Merriweather (and other export fonts) in production.
+* Added binary validation and stale Google URL refresh fallback in font streaming to prevent unreadable/expired remote font responses from blocking export validation.
+* Added a narrow customer-side guard for unnecessary PDX polling requests (`/wp-json/pdx/v1/workers`, `/wp-json/pdx/v1/queue/stats`) to stop 401 noise and reduce avoidable startup traffic.
+* Rebuilt protected/minified assets used in protected-asset mode so packaged runtime behavior matches source fixes.
 
 = 2.28.45 =
 
